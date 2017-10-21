@@ -34,14 +34,21 @@
 
 (s/def ::type keyword?)
 
-(defmulti path-segment ::type)
-(s/def ::path-segment (s/multi-spec path-segment ::type))
+(s/def ::typed
+  (s/keys :req-un [::type]))
+
+(s/def ::line
+  (s/keys :req-un [::from ::to]  :opt-un [::style]) )
+
+(defmulti path-segment :type)
+(s/def ::path-segment (s/multi-spec path-segment :type))
 
 (defmethod path-segment ::line [_]
-  (s/keys :req [::type] :req-un [::from ::to]  :opt-un [::style]))
+  ::line
+ )
 
 (defmethod path-segment ::bezier [_]
-  (s/keys :req [::type] :req-un [::from ::to ::c1 ::c2] :opt-un [::style]))
+  (s/keys :req-un [::from ::to ::c1 ::c2] :opt-un [::style]))
 
 (defn connected?
   "Returns true if the sequential of paths passed in are pairwise connected."
