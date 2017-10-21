@@ -68,6 +68,9 @@
 
 ;;; Surfaces 2d
 
+;; REVIEW: How to distinguish the circle from the disc? A circle is technically
+;; a 1d object, a path. A circle's interior is a disc which is a surface. Is
+;; this pedantic, or important?
 (s/def ::circle
   (s/keys :req-un [::centre ::radius] :opt-un [::style]))
 
