@@ -1,5 +1,7 @@
 (ns lemonade.core
-  (:require [lemonade.spec :as s]))
+  (:require [lemonade.spec :as ls]
+            [clojure.pprint :refer [pp pprint]]
+            [clojure.spec.alpha :as s]))
 
 ;;;;; Core shapes
 
@@ -10,13 +12,13 @@
 ;; Maybe there's a fundamental distinction to be made between path segments and
 ;; everything else?
 (def line
-  {:type ::s/line
+  {:type ::ls/line
    :from [0 0]
    :to [1 1]})
 
 (def bezier
   "Bezier cubic to be precise."
-  {:type ::s/bezier
+  {:type ::ls/bezier
    :from [0 0]
    :c1 [0 0]
    :c2 [1 1]
@@ -24,13 +26,13 @@
 
 (def circle
   "Unit circle"
-  {:type ::s/circle
+  {:type ::ls/circle
    :centre [0 0]
    :radius 1})
 
 (def square
   "Unit square"
-  {:type ::s/square
+  {:type ::ls/square
    :corner [0 0]
    :width 1})
 
@@ -123,8 +125,8 @@
    (translation origin)])
 
 (defn- wrap-atx
-  [b atx]
-  {:base-shape b
+  [base atx]
+  {:base-shape base
    :atx atx})
 
 (defn translate
@@ -152,5 +154,5 @@
   "Returns a copy of shaped reflected around the line with direction dir through
   centre."
   ([dir shape] (reflect [0 0] dir shape))
-  ([shape centre dir]
+  ([centre dir shape]
    (wrap-atx shape (recentre centre (reflection dir)))))

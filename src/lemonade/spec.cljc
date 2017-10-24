@@ -85,10 +85,9 @@
    (s/keys :req-un [::from ::to ::c1 ::c2] :opt-un [::style]))
 
 (defmulti path-segment :type)
-(s/def ::path-segment (s/multi-spec path-segment :type))
-
 (defmethod path-segment ::line [_] ::line)
 (defmethod path-segment ::bezier [_] ::bezier)
+(s/def ::path-segment (s/multi-spec path-segment :type))
 
 (defn connected?
   "Returns true if the sequential of paths passed in are pairwise connected."
@@ -108,10 +107,11 @@
   (and (connected? paths) (= (:from (first paths)) (:to (last paths)))))
 
 (s/def ::segments
-  (s/and (s/coll-of ::path-segment) connected?))
+  (s/and (s/coll-of ::path-segment :kind sequential? :min-count 2) connected?))
 
 (s/def ::path
-  (s/keys :req-un [::segments] :opt-un [::style]))
+  (s/or :single-segment  ::path-segment
+        :joined-segments (s/keys :req-un [::segments] :opt-un [::style])))
 
 ;;; Surfaces 2d
 
@@ -121,10 +121,22 @@
 (s/def ::circle
   (s/keys :req-un [::centre ::radius] :opt-un [::style]))
 
-(s/def ::shape any?)
+(defmulti builtin-shape :type)
+(defmethod builtin-shape ::circle [_] ::circle)
+
+(s/def ::builtin-shape (s/multi-spec builtin-shape :type))
+
+(s/def ::primitive-shape
+  (s/or :path    ::path
+        :builtin ::builtin-shape))
+
+(s/def ::shape
+  (s/or :primitive   ::primitive-shape
+        :composite   ::composite
+        :transformed ::affine-transform))
 
 (s/def ::shapes
-  (s/coll-of ::shape))
+  (s/coll-of ::shape :kind sequential?))
 
 (s/def ::composite
   (s/keys :req-un [::shapes] :opt-un [::style]))
@@ -170,3 +182,8 @@
 (s/fdef lemonade.core/parse-angle
         :args (s/cat :angle ::angle)
         :ret ::real)
+
+(defn nest-count [a]
+  (if (or (empty? a) (map? a))
+    0
+    (inc (apply max (map nest-count a)))))

@@ -19,8 +19,7 @@
               [{:id "dev"
                 :source-paths ["src"]
 
-                :figwheel {:on-jsload "lemonade.core/on-js-reload"
-                           :open-urls ["http://localhost:3449/index.html"]}
+                :figwheel {:on-jsload "lemonade.core/on-js-reload"}
 
                 :compiler {:main lemonade.core
                            :asset-path "js/compiled/out"
@@ -40,6 +39,7 @@
 
 
   :profiles {:dev {:dependencies [[binaryage/devtools "0.9.4"]
+                                  [org.clojure/tools.namespace "0.2.11"]
                                   [figwheel-sidecar "0.5.13"]
                                   [com.cemerick/piggieback "0.2.2"]
                                   [org.clojure/test.check "0.10.0-alpha2"]]
