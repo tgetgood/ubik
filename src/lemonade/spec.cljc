@@ -1,6 +1,7 @@
 (ns lemonade.spec
   #?(:cljs (:require-macros [lemonade.spec :refer [derive-spec]]))
   (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
             [clojure.test.check.generators]
             [clojure.pprint :refer [pprint pp]]))
 
@@ -53,11 +54,15 @@
   ::length
   ::height)
 
-(s/def ::units keyword?)
-(s/def ::amount ::scalar)
+(s/def ::units #{:radians :degrees})
+(s/def ::angle ::scalar)
 
-(s/def ::scalar-with-units
-  (s/keys :req-un [::units ::amount]))
+(s/def ::angle-with-units
+  (s/keys :req-un [::units ::angle]))
+
+(s/def ::general-angle
+  (s/or :unitless ::scalar
+        :with-unit ::scalar-with-units))
 
 ;;; Points 0d
 
@@ -68,6 +73,7 @@
   ::from
   ::to
   ::centre
+  ::corner
   ::c1
   ::c2)
 
@@ -106,8 +112,21 @@
   ;; TODO: spec.
   (and (connected? paths) (= (:from (first paths)) (:to (last paths)))))
 
+(defn connect [acc paths]
+  (if (empty? paths)
+    acc
+    (if (empty? acc)
+      (recur (conj acc (first paths)) (rest paths))
+      (let [end (-> acc last :to)]
+        (recur (conj acc (assoc (first paths) :from end)) (rest paths))))))
+
 (s/def ::segments
-  (s/and (s/coll-of ::path-segment :kind sequential? :min-count 2) connected?))
+  (s/with-gen
+    (s/and (s/coll-of ::path-segment :kind sequential? :min-count 2) connected?)
+    (fn []
+      (gen/fmap #(connect [] %)
+                (gen/fmap #(map first (s/exercise ::path-segment %))
+                          (gen/int))))))
 
 (s/def ::path
   (s/or :single-segment  ::path-segment
@@ -121,8 +140,21 @@
 (s/def ::circle
   (s/keys :req-un [::centre ::radius] :opt-un [::style]))
 
+(def square-gen
+  (gen/fmap (fn [[c h]] {:corner c :height h :width h})
+            (gen/tuple (s/gen ::point) (s/gen ::non-negative))))
+
+(s/def ::square
+  (s/with-gen
+    (s/and (s/keys :req-un [::corner (or ::width ::height)] :opt-un [::style])
+           (s/or :no-width  #(-> % :width nil?)
+                 :no-height #(-> % :height nil?)
+                 :equal     #(= (:width %) (:height %))))
+    (constantly square-gen)))
+
 (defmulti builtin-shape :type)
 (defmethod builtin-shape ::circle [_] ::circle)
+(defmethod builtin-shape ::square [_] ::square)
 
 (s/def ::builtin-shape (s/multi-spec builtin-shape :type))
 
@@ -169,19 +201,14 @@
 (s/def ::affine-transform
   (s/keys :req-un [::atx ::base-shape]))
 
-;;;;; Geometry
-
-(s/def ::angle
-  (s/or :unitless ::scalar
-        :with-unit ::scalar-with-units))
-
 
 ;;;;; fns from elsewhere
 ;; REVIEW: where do they go?
 
 (s/fdef lemonade.core/parse-angle
-        :args (s/cat :angle ::angle)
-        :ret ::real)
+        :args (s/cat :angle ::general-angle)
+        :ret ::real
+        :fn #(s/valid? ::real (:ret %)))
 
 (defn nest-count [a]
   (if (or (empty? a) (map? a))

@@ -156,3 +156,10 @@
   ([dir shape] (reflect [0 0] dir shape))
   ([centre dir shape]
    (wrap-atx shape (recentre centre (reflection dir)))))
+
+;;;;; Examples
+
+(def ex
+  (->> line
+       (translate [100 100])
+       (rotate [100 100] -45)))
