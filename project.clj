@@ -42,7 +42,7 @@
                                   [org.clojure/tools.namespace "0.2.11"]
                                   [figwheel-sidecar "0.5.13"]
                                   [com.cemerick/piggieback "0.2.2"]
-                                  [org.clojure/test.check "0.10.0-alpha2"]]
+                                  [org.clojure/test.check "0.9.0"]]
                    ;; need to add dev source path here to get user.clj loaded
                    :source-paths ["src" "dev"]
 
