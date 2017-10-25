@@ -45,6 +45,21 @@
          finite?
          (comp not nan?)))
 
+(s/def ::on-screen
+  (s/and ::real #(< 0 % 1200)))
+
+(def nice-reals
+  (let [nr (fn [] (s/gen ::on-screen))]
+    {::real nr
+     ::from nr
+     ::to nr
+     ::centre nr
+     ::c1 nr
+     ::c2 nr
+     ::corner nr
+     ::scalar nr
+     ::non-negative nr}))
+
 (s/def ::scalar ::real)
 (s/def ::non-negative (s/and ::scalar (comp not neg?)))
 
