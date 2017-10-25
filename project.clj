@@ -19,9 +19,9 @@
               [{:id "dev"
                 :source-paths ["src"]
 
-                :figwheel {:on-jsload "lemonade.canvas/on-js-reload"}
+                :figwheel {:on-jsload "lemonade.cljs.canvas/on-js-reload"}
 
-                :compiler {:main lemonade.canvas
+                :compiler {:main lemonade.cljs.canvas
                            :asset-path "js/compiled/out"
                            :output-to "resources/public/js/compiled/lemonade.js"
                            :output-dir "resources/public/js/compiled/out"
@@ -31,7 +31,7 @@
                {:id "min"
                 :source-paths ["src"]
                 :compiler {:output-to "resources/public/js/compiled/lemonade.js"
-                           :main lemonade.canvas
+                           :main lemonade.cljs.canvas
                            :optimizations :advanced
                            :pretty-print false}}]}
 

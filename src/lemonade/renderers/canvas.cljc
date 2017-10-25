@@ -1,8 +1,7 @@
 (ns lemonade.renderers.canvas
   (:require [clojure.spec.alpha :as s]
-            [clojure.pprint :refer [pprint]]
-            [lemonade.core :as core]
-            [lemonade.spec :as ls]))
+            [lemonade.geometry :as geometry]
+            [lemonade.core :as core]))
 
 ;; REVIEW: How much can we do at compile time?
 
@@ -14,7 +13,7 @@
 
 (defmethod process-atx :single
   [[_ atx]]
-  [(apply-atx atx) (apply-atx (core/invert-atx atx))])
+  [(apply-atx atx) (apply-atx (geometry/invert-atx atx))])
 
 (defmethod process-atx :composition
   [[_ atxs]]
@@ -63,17 +62,17 @@
   (println "not implemented")
   (constantly nil))
 
-(defmethod render-shape ::ls/line
+(defmethod render-shape ::core/line
   [{:keys [from to style]}]
   (fn [ctx]
     (.moveTo ctx (first from) (second from))
     (.lineTo ctx (first to) (second to))))
 
-(defmethod render-shape ::ls/bezier
+(defmethod render-shape ::core/bezier
   [{[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2}]
   (fn [ctx]
     (.moveTo ctx x1 y1)
     (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)))
 
 (defn renderer [shape]
-  (render-fn (s/conform ::ls/shape shape)))
+  (render-fn (s/conform ::core/shape shape)))

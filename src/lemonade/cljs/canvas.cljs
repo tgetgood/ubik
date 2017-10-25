@@ -1,10 +1,12 @@
-(ns lemonade.canvas
+(ns lemonade.cljs.canvas
   (:require [cljs.pprint :refer [pprint]]
             [cljs.spec.alpha :as s]
             [cljs.spec.gen.alpha :as gen]
             [lemonade.core :as core]
+            [lemonade.examples.basic :as ex]
+            [lemonade.geometry :as geometry]
             [lemonade.renderers.canvas :as rc]
-            [lemonade.spec :as ls]))
+            [lemonade.spec-gen :as spec-gen]))
 
 (enable-console-print!)
 
@@ -35,7 +37,7 @@
 
 (defn get-coord-inversion []
   (let [[_ h] (canvas-container-dimensions)]
-    (core/atx [1 0 0 -1] [0 h])))
+    (geometry/atx [1 0 0 -1] [0 h])))
 
 (defn clear-screen! []
   (let [[w h] (canvas-container-dimensions)]
@@ -48,13 +50,13 @@
     (render (context))))
 
 (defn draw-rand []
-  (let [shape (gen/generate (s/gen ::ls/primitive-shape ls/nice-reals))]
+  (let [shape (gen/generate (s/gen ::core/primitive-shape spec-gen/nice-reals))]
     (pprint shape)
     (draw! shape)))
 
 (defn ^:export init []
   (fullscreen-canvas!)
-  (draw! core/ex))
+  (draw! ex/ex))
 
 (defn on-js-reload []
   (init))

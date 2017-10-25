@@ -44,6 +44,34 @@
   ;; TODO: spec.
   (and (connected? paths) (= (:from (first paths)) (:to (last paths)))))
 
+;;;;; Linear and Affine
+
+(def idm
+  "The 2x2 identity matrix"
+  [1 0 0 1])
+
+(defn det
+  "Returns the determinant of a 2x2 matrix"
+  [a b c d]
+  (- (* a d) (* b c)))
+
+(defn atx
+  "Convenience fn for building atx maps"
+  ([m]
+   (atx m [0 0]))
+  ([m b]
+   {:matrix      m
+    :translation b}))
+
+(defn invert-atx
+  "Returns matrix corresponding to the inverse affine transform."
+  [{[a b c d] :matrix [x y] :translation}]
+  (let [abs (det a b c d)
+        [a' b' c' d'] (map #(/ % abs) [d (- b) (- c) a])
+        x' (- (+ (* a' x) (* c' y)))
+        y' (- (+ (* b' x) (* d' y)))]
+    (atx [a' b' c' d'] [x' y'])))
+
 
 ;;;;; Utils for core
 ;; REVIEW: (should maybe be in core?)
@@ -120,6 +148,15 @@
   ::corner
   ::c1
   ::c2)
+
+;;;;; Affine stuff
+
+(s/def ::vector (s/coll-of ::scalar :kind sequential? :count 2))
+
+;; (a b c d), canvas takes them as (a c b d) because of silliness.
+(s/def ::matrix (s/coll-of ::scalar :kind sequential? :count 4))
+
+(s/def ::translation ::vector)
 
 ;;;;; fn specs
 ;; TODO: Relocate
