@@ -223,8 +223,7 @@
 
 (s/fdef lemonade.core/parse-angle
         :args (s/cat :angle ::general-angle)
-        :ret ::real
-        :fn #(s/valid? ::real (:ret %)))
+        :ret ::real)
 
 (defn nest-count [a]
   (if (or (empty? a) (map? a))
