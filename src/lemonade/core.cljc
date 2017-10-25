@@ -1,9 +1,119 @@
 (ns lemonade.core
-  (:require [lemonade.spec :as ls]
-            [clojure.pprint :refer [pp pprint]]
-            [clojure.spec.alpha :as s]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
+            [lemonade.geometry :as geometry :refer [cos pi sin]]
+            [lemonade.spec :as ls]))
 
-;;;;; Core shapes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Specs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Paths
+
+(s/def ::line
+  (s/keys :req-un [::from ::to]  :opt-un [::style]) )
+
+(s/def ::bezier
+   (s/keys :req-un [::from ::to ::c1 ::c2] :opt-un [::style]))
+
+(defmulti path-segment :type)
+(defmethod path-segment ::line [_] ::line)
+(defmethod path-segment ::bezier [_] ::bezier)
+(s/def ::path-segment (s/multi-spec path-segment :type))
+
+(defn connect
+  "Given a seq of path segments, modify them so as to be connected.
+  Intended for generation only."
+  [acc paths]
+  (if (empty? paths)
+    acc
+    (if (empty? acc)
+      (recur (conj acc (first paths)) (rest paths))
+      (let [end (-> acc last :to)]
+        (recur (conj acc (assoc (first paths) :from end)) (rest paths))))))
+
+(s/def ::segments
+  (s/with-gen
+    (s/and (s/coll-of ::path-segment :kind sequential? :min-count 2)
+           geometry/connected?)
+    (fn []
+      (gen/fmap #(connect [] %)
+                (gen/fmap #(map first (s/exercise ::path-segment %))
+                          (gen/int))))))
+
+(s/def ::path
+  (s/or :single-segment  ::path-segment
+        :joined-segments (s/keys :req-un [::segments] :opt-un [::style])))
+
+;;; Surfaces 2d
+
+;; REVIEW: How to distinguish the circle from the disc? A circle is technically
+;; a 1d object, a path. A circle's interior is a disc which is a surface. Is
+;; this pedantic or important?
+(s/def ::circle
+  (s/keys :req-un [::centre ::radius] :opt-un [::style]))
+
+(def square-gen
+  (gen/fmap (fn [[c h]] {:corner c :height h :width h})
+            (gen/tuple (s/gen ::geometry/point)
+                       (s/gen ::geometry/non-negative))))
+
+(s/def ::square
+  (s/with-gen
+    (s/and (s/keys :req-un [::corner (or ::width ::height)] :opt-un [::style])
+           (s/or :no-width  #(-> % :width nil?)
+                 :no-height #(-> % :height nil?)
+                 :equal     #(= (:width %) (:height %))))
+    (constantly square-gen)))
+
+(defmulti shape-template :type)
+(defmethod shape-template ::circle [_] ::circle)
+(defmethod shape-template ::square [_] ::square)
+
+(s/def ::shape-template (s/multi-spec shape-template :type))
+
+(s/def ::primitive-shape
+  (s/or :path     ::path
+        :template ::shape-template))
+
+(s/def ::shape
+  (s/or :primitive   ::primitive-shape
+        :composite   ::composite
+        :transformed ::affine-transform))
+
+(s/def ::shapes
+  (s/coll-of ::shape :kind sequential?))
+
+(s/def ::composite
+  (s/keys :req-un [::shapes] :opt-un [::style]))
+
+;;;;; Affine Transforms
+
+(s/def ::vector (s/coll-of ::scalar :kind sequential? :count 2))
+
+;; (a b c d), canvas takes them as (a c b d) because of silliness.
+(s/def ::matrix (s/coll-of ::scalar :kind sequential? :count 4))
+
+(s/def ::translation ::vector)
+
+(s/def ::affine-transformation
+  (s/keys :req-un [::matrix ::translation]))
+
+(s/def ::composed-atx
+  (s/coll-of ::atx :kind sequential?))
+
+(s/def ::atx
+  (s/or :composition ::composed-atx
+        :single (s/keys :req-un [::matrix ::translation])))
+
+(s/def ::base-shape ::shape)
+
+(s/def ::affine-transform
+  (s/keys :req-un [::atx ::base-shape]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Core paths
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; REVIEW: The line and bezier here are not very reusable. They're a royal pain
 ;; to manipulate via affine transformations. Path segments are manipulated by
@@ -12,17 +122,29 @@
 ;; Maybe there's a fundamental distinction to be made between path segments and
 ;; everything else?
 (def line
-  {:type ::ls/line
+  {:type ::line
    :from [0 0]
    :to [1 1]})
 
 (def bezier
   "Bezier cubic to be precise."
-  {:type ::ls/bezier
+  {:type ::bezier
    :from [0 0]
    :c1 [0 0]
    :c2 [1 1]
    :to [1 1]})
+
+;;;;; Shape Templates
+
+(defn circle-template [{:keys [radius centre style]}]
+  ;; REVIEW: Should the style go on the path, or on the segment?
+  ;; What's the difference?
+  {:style style
+   :segments [{:type ::arc
+               :centre centre
+               :radius radius
+               :from 0
+               :to {:unit :radians :angle (* 2 pi)}}]})
 
 (def circle
   "Unit circle"
@@ -37,26 +159,6 @@
    :width 1})
 
 ;;;;; Geometry
-
-(defn deg->rad [d]
-  (* #?(:cljs js/Math.PI
-        :clj Math/PI)
-     (/ d 180)))
-
-(defn parse-angle [a]
-  (if (number? a)
-    (deg->rad a)
-    (let [{:keys [units amount]} a]
-      (cond
-        (= units :degrees) (deg->rad amount)
-        (= units :radians) amount
-        :else nil))))
-
-(defn sin [x]
-  (#?(:cljs js/Math.sin :clj Math/sin) x))
-
-(defn cos [x]
-  (#?(:cljs js/Math.cos :clj Math/cos) x))
 
 ;;;;; Affine Transforms
 
@@ -94,7 +196,7 @@
 (defn rotation
   "Returns a counterclockwise rotation about the origin by angle (linear)"
   [angle]
-  (let [r (parse-angle angle)
+  (let [r (geometry/parse-angle angle)
         c (cos r)
         s (sin r)]
     (atx [c (- s) s c])))

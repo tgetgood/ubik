@@ -11,6 +11,9 @@
 (defn canvas-elem []
   (.getElementById js/document "canvas"))
 
+(defn context []
+  (.getContext (canvas-elem) "2d"))
+
 (defn canvas-container []
   (.getElementById js/document "canvas-container"))
 
@@ -34,16 +37,15 @@
   (let [[_ h] (canvas-container-dimensions)]
     (core/atx [1 0 0 -1] [0 h])))
 
-(defn clear-screen! [ctx]
-  (let [[w h] ()]
-    (.clearRect ctx 0 0 w h)))
+(defn clear-screen! []
+  (let [[w h] (canvas-container-dimensions)]
+    (.clearRect (context) 0 0 w h)))
 
 (defn draw! [shape]
-  (let [ctx (.getContext (canvas-elem) "2d")
-        shape* (core/transform shape (get-coord-inversion))
+  (let [shape* (core/transform shape (get-coord-inversion))
         render (rc/renderer shape*)]
-    (clear-screen! ctx)
-    (render ctx)))
+    (clear-screen!)
+    (render (context))))
 
 (defn draw-rand []
   (let [shape (gen/generate (s/gen ::ls/primitive-shape ls/nice-reals))]

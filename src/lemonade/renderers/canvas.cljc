@@ -60,7 +60,8 @@
 
 (defmethod render-fn :builtin
   [[_ shape]]
-  (println "builtin"))
+  (println "not implemented")
+  (constantly nil))
 
 (defmethod render-shape ::ls/line
   [{:keys [from to style]}]
