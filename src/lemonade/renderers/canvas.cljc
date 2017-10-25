@@ -1,6 +1,8 @@
 (ns lemonade.renderers.canvas
-  (:require [lemonade.core :as core]
-            [lemonade.spec :as sl]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.pprint :refer [pprint]]
+            [lemonade.core :as core]
+            [lemonade.spec :as ls]))
 
 ;; REVIEW: How much can we do at compile time?
 
@@ -16,11 +18,10 @@
 
 (defmethod process-atx :composition
   [[_ atxs]]
-  (let [fs (map process-atx atxs)
-        ifs (->> atxs (map core/invert-atx) (map process-atx) reverse)]
+  (let [fs (map process-atx atxs)]
     ;; TODO: These can be composed at compile time (if known)
-    [(juxt fs)
-     (juxt ifs)]))
+    [(apply juxt (map first fs))
+     (apply juxt (reverse (map second fs)))]))
 
 (defmulti render-shape :type)
 
@@ -42,21 +43,36 @@
 
 (defmethod render-fn :path
   [[_ shape]]
-  (render-fn shape))
+  (let [cont (render-fn shape)]
+    (fn [ctx]
+      (.beginPath ctx)
+      (cont ctx)
+      (.stroke ctx))))
 
 (defmethod render-fn :joined-segments
   [[_ {:keys [segments]}]]
-  (let [seg-fns (map render-fn segments)]
-    (fn [ctx]
-      (.beginPath ctx)
-      ((juxt seg-fns)))))
+  (let [seg-fns (map render-shape segments)]
+    (apply juxt seg-fns)))
 
 (defmethod render-fn :single-segment
   [[_ seg]]
   (render-shape seg))
 
-(defmethod render-shape ::sl/line
+(defmethod render-fn :builtin
+  [[_ shape]]
+  (println "builtin"))
+
+(defmethod render-shape ::ls/line
   [{:keys [from to style]}]
   (fn [ctx]
     (.moveTo ctx (first from) (second from))
     (.lineTo ctx (first to) (second to))))
+
+(defmethod render-shape ::ls/bezier
+  [{[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2}]
+  (fn [ctx]
+    (.moveTo ctx x1 y1)
+    (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)))
+
+(defn renderer [shape]
+  (render-fn (s/conform ::ls/shape shape)))

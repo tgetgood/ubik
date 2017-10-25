@@ -82,7 +82,7 @@
 ;;; Points 0d
 
 (s/def ::point
-  (s/coll-of ::scalar :kind sequential? :count 2))
+  (s/coll-of ::scalar :kind vector? :count 2))
 
 (derive-spec ::point
   ::from
@@ -98,6 +98,7 @@
 
 (s/def ::typed
   (s/keys :req-un [::type]))
+
 
 (s/def ::line
   (s/keys :req-un [::from ::to]  :opt-un [::style]) )

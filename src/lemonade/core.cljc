@@ -124,7 +124,8 @@
    atx
    (translation origin)])
 
-(defn- wrap-atx
+(defn transform
+  "Returns a new shape which is the given affine map applies to the base shape."
   [base atx]
   {:base-shape base
    :atx atx})
@@ -132,14 +133,14 @@
 (defn translate
   "Returns a copy of shape translated by [x y],"
   [b shape]
-  (wrap-atx shape (translation b)))
+  (transform shape (translation b)))
 
 (defn rotate
   "Returns a copy of shape rotated by angle around the given centre of
   rotation."
   ([angle shape] (rotate [0 0] angle shape))
   ([centre angle shape]
-   (wrap-atx shape (recentre centre (rotation angle)))))
+   (transform shape (recentre centre (rotation angle)))))
 
 (defn scale
   "Returns a copy of shape scaled horizontally by a and verticaly by b. Centre
@@ -148,18 +149,18 @@
    (scale [0 0] a shape))
   ([centre a shape]
    (let [extent (if (vector? a) a [a a])]
-     (wrap-atx shape (recentre centre (scaling extent))))))
+     (transform shape (recentre centre (scaling extent))))))
 
 (defn reflect
   "Returns a copy of shaped reflected around the line with direction dir through
   centre."
   ([dir shape] (reflect [0 0] dir shape))
   ([centre dir shape]
-   (wrap-atx shape (recentre centre (reflection dir)))))
+   (transform shape (recentre centre (reflection dir)))))
 
 ;;;;; Examples
 
 (def ex
-  (->> line
-       (translate [100 100])
-       (rotate [100 100] -45)))
+  (->> (assoc line :to [100 100])
+       (translate [400 200])
+       (rotate  20)))

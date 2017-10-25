@@ -1,9 +1,10 @@
 (ns lemonade.canvas
-  (:require [cljs.spec.alpha :as s]
+  (:require [cljs.pprint :refer [pprint]]
+            [cljs.spec.alpha :as s]
+            [cljs.spec.gen.alpha :as gen]
             [lemonade.core :as core]
             [lemonade.renderers.canvas :as rc]
-            [lemonade.spec :as re]))
-
+            [lemonade.spec :as ls]))
 
 (enable-console-print!)
 
@@ -29,13 +30,29 @@
   (let [[w h :as dim] (canvas-container-dimensions)]
     (set-canvas-size! (canvas-elem) dim)))
 
+(defn get-coord-inversion []
+  (let [[_ h] (canvas-container-dimensions)]
+    (core/atx [1 0 0 -1] [0 h])))
+
+(defn clear-screen! [ctx]
+  (let [[w h] ()]
+    (.clearRect ctx 0 0 w h)))
+
+(defn draw! [shape]
+  (let [ctx (.getContext (canvas-elem) "2d")
+        shape* (core/transform shape (get-coord-inversion))
+        render (rc/renderer shape*)]
+    (clear-screen! ctx)
+    (render ctx)))
+
+(defn draw-rand []
+  (let [shape (gen/generate (s/gen ::ls/primitive-shape ls/nice-reals))]
+    (pprint shape)
+    (draw! shape)))
+
 (defn ^:export init []
   (fullscreen-canvas!)
-  (println "loaded")
-  (let [ctx (.getContext (canvas-elem) "2d")
-        render (rc/render-fn (s/conform ::sl/shape core/ex))]
-    (render ctx))
-  )
+  (draw! core/ex))
 
 (defn on-js-reload []
   (init))
