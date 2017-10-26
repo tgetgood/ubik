@@ -128,9 +128,9 @@
   corresponding to the transformation about the point."
   [origin atx]
   (geometry/comp-atx
-   (translation (map - origin))
+   (translation origin)
    atx
-   (translation origin)))
+   (translation (map - origin))))
 
 ;;;;; Applied affine txs
 
