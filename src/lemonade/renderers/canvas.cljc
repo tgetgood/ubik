@@ -19,48 +19,27 @@
 ;; REVIEW: How much can we do at compile time?
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Affine Txs
+;;;;; Internal render logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn apply-atx [{[a b c d] :matrix [e f] :translation}]
   (fn [ctx]
     (.transform ctx a c b d e f)))
 
-(defmulti process-atx first)
-
-(defmethod process-atx :single
-  [[_ atx]]
-  [(apply-atx atx) (apply-atx (geometry/invert-atx atx))])
-
-(defmethod process-atx :composition
-  [[_ atxs]]
-  (let [fs (map process-atx atxs)]
-    ;; TODO: These can be composed at compile time (if known)
-    [(apply juxt (map first fs))
-     (apply juxt (reverse (map second fs)))]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Internal render logic
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defmethod render-fn :transformed
   [[_ {:keys [base-shape atx]}]]
-  (let [[tx itx]   (process-atx atx)
-        sub-render (render-fn base-shape)]
+  (let [tx   (apply-atx atx)
+        itx  (apply-atx (geometry/invert-atx atx))
+        cont (render-fn base-shape)]
     (fn [ctx]
       (doto ctx
         tx
-        sub-render
+        cont
         itx))))
 
 (defmethod render-fn :primitive
   [[_ shape]]
   (render-fn shape))
-
-(defn closed-path? [x]
-  j
-  ;; FIXME:
-  false)
 
 (defmethod render-fn :path
   [[_ shape]]

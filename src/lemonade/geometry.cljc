@@ -89,6 +89,17 @@
         y' (- (+ (* b' x) (* d' y)))]
     (atx [a' b' c' d'] [x' y'])))
 
+(defn comp-atx
+  "Returns the composition of affine transformations"
+  ([{[a b c d] :matrix [x y] :translation}
+    {[a' b' c' d'] :matrix [x' y'] :translation}]
+   (atx [(+ (* a a') (* b c'))
+         (+ (* a b') (* b d'))
+         (+ (* c a') (* d c'))
+         (+ (* c b') (* d d'))]
+        [(+ x (* a x') (* b y'))
+         (+ y (* c x') (* d y'))]))
+  ([a b & more] (reduce comp-atx (comp-atx a b) more)))
 
 ;;;;; Utils for core
 ;; REVIEW: (should maybe be in core?)

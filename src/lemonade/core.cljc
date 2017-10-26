@@ -127,9 +127,10 @@
   "Given a linear transformation and a point, return an affine transformation
   corresponding to the transformation about the point."
   [origin atx]
-  [(translation (map - origin))
+  (geometry/comp-atx
+   (translation (map - origin))
    atx
-   (translation origin)])
+   (translation origin)))
 
 ;;;;; Applied affine txs
 
@@ -226,15 +227,8 @@
 ;;;;; Affine Transforms
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(s/def ::affine-transformation
-  (s/keys :req-un [::geometry/matrix ::geometry/translation]))
-
-(s/def ::composed-atx
-  (s/coll-of ::atx :kind sequential?))
-
 (s/def ::atx
-  (s/or :composition ::composed-atx
-        :single ::affine-transformation))
+  (s/keys :req-un [::geometry/matrix ::geometry/translation]))
 
 (s/def ::base-shape ::shape)
 
