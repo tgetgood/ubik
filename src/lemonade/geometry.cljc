@@ -24,6 +24,11 @@
 (defn cos [x]
   (#?(:cljs js/Math.cos :clj Math/cos) x))
 
+(defn abs [x]
+  (if (< x 0)
+    (- x)
+    x))
+
 ;;;;;; Path topology
 
 (defn connected?
@@ -35,7 +40,12 @@
     (let [y (first more)]
       (and (= (:to x) (:from y)) (recur more)))))
 
-(defn closed?
+(defn closed-segment?
+  [path]
+  (and (= :lemonade.core/arc (:type path))
+       (< (* 2 π) (abs (- (:to path) (:from path))))))
+
+(defn closed-path?
   "Returns true if paths form the boundary of a connected surface.
   Technically I'm requiring a connecting bridge of non-zero measure. Not sure if
   that's a good call...
@@ -43,6 +53,13 @@
   [paths]
   ;; TODO: spec.
   (and (connected? paths) (= (:from (first paths)) (:to (last paths)))))
+
+(defn closed?
+  ;; FIXME: This is ugly. I need to move topology to a higher level. I'm going
+  ;; to bury myself in special cases this way.
+  [paths]
+  (or (closed-path? paths)
+      (every? closed-segment? paths)))
 
 ;;;;; Linear and Affine
 
@@ -126,20 +143,26 @@
   ::length
   ::height)
 
-(s/def ::units #{:radians :degrees})
+(s/def ::unit #{:radians :degrees})
 (s/def ::angle ::scalar)
 
-(s/def ::angle-with-units
-  (s/keys :req-un [::units ::angle]))
+(s/def ::angle-with-unit
+  (s/keys :req-un [::unit ::angle]))
 
 (s/def ::general-angle
   (s/or :unitless ::scalar
-        :with-unit ::scalar-with-units))
+        :with-unit ::angle-with-unit))
+
+(s/def :lemonade.geometry.angle/from ::general-angle)
+(s/def :lemonade.geometry.angle/to ::general-angle)
 
 ;;; Points 0d
 
 (s/def ::point
   (s/coll-of ::scalar :kind vector? :count 2))
+
+(s/def ::points
+  (s/coll-of ::point :kind vector?))
 
 (derive-spec ::point
   ::from

@@ -1,9 +1,26 @@
 (ns lemonade.renderers.canvas
-  (:require [clojure.spec.alpha :as s]
-            [lemonade.geometry :as geometry]
-            [lemonade.core :as core]))
+  (:require [#?(:cljs cljs.pprint :clj clojure.pprint) :refer [pprint]]
+            [clojure.spec.alpha :as s]
+            [lemonade.core :as core]
+            [lemonade.geometry :as geometry]))
+
+(defmulti render-shape :type)
+
+(defmulti render-fn first)
+
+(defn renderer [shape]
+  (let [tree (s/conform ::core/shape shape)]
+    (if (= :cljs.spec.alpha/invalid tree)
+      (do
+        (println "Cannot parse shape:")
+        (pprint shape))
+      (render-fn tree))))
 
 ;; REVIEW: How much can we do at compile time?
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Affine Txs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn apply-atx [{[a b c d] :matrix [e f] :translation}]
   (fn [ctx]
@@ -22,9 +39,9 @@
     [(apply juxt (map first fs))
      (apply juxt (reverse (map second fs)))]))
 
-(defmulti render-shape :type)
-
-(defmulti render-fn first)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Internal render logic
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmethod render-fn :transformed
   [[_ {:keys [base-shape atx]}]]
@@ -40,6 +57,11 @@
   [[_ shape]]
   (render-fn shape))
 
+(defn closed-path? [x]
+  j
+  ;; FIXME:
+  false)
+
 (defmethod render-fn :path
   [[_ shape]]
   (let [cont (render-fn shape)]
@@ -50,17 +72,41 @@
 
 (defmethod render-fn :joined-segments
   [[_ {:keys [segments]}]]
-  (let [seg-fns (map render-shape segments)]
-    (apply juxt seg-fns)))
+  (if (empty? segments)
+    (constantly nil)
+    (let [seg-fns (map render-shape segments)
+          cont (apply juxt seg-fns)]
+      (fn [ctx]
+        (cont ctx)
+        (when (geometry/closed? segments)
+          (.closePath ctx))))))
 
 (defmethod render-fn :single-segment
   [[_ seg]]
   (render-shape seg))
 
-(defmethod render-fn :builtin
+(defmethod render-fn :template
   [[_ shape]]
-  (println "not implemented")
-  (constantly nil))
+  (renderer (core/template-expand shape)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Leaf renderers
+;;
+;; At some point we have to render something, Less and less though, it would
+;; appear.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn angle [[t a]]
+  (geometry/parse-angle a))
+
+(defmethod render-shape ::core/arc
+  [{[x y] :centre r :radius :keys [from to style]}]
+  (let [from (angle from)
+        to (angle to)]
+    (println to)
+    (fn [ctx]
+      (.moveTo ctx (+ x r) y)
+      (.arc ctx x y r from to))))
 
 (defmethod render-shape ::core/line
   [{:keys [from to style]}]
@@ -73,6 +119,3 @@
   (fn [ctx]
     (.moveTo ctx x1 y1)
     (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)))
-
-(defn renderer [shape]
-  (render-fn (s/conform ::core/shape shape)))

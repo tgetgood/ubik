@@ -1,9 +1,31 @@
 (ns lemonade.core
+  #?(:cljs (:require-macros [lemonade.core :refer [deftemplate]]))
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
+            [clojure.pprint :refer [pprint pp]]
             [lemonade.spec-gen :as spec-gen]
             [lemonade.style :as style]
             [lemonade.geometry :as geometry :refer [atx cos idm pi sin]]))
+
+(defmulti template-expand :type)
+(defmulti shape-template :type)
+
+#?(:clj
+   (defmacro deftemplate
+     "Defines a new shape template. Something like a macro"
+     [spec-name spec template expansion]
+     (let [ks (keys (dissoc template :type))]
+       `(do
+          (s/def ~spec-name ~spec)
+          (def ~(symbol (name spec-name)) ~(assoc template :type spec-name))
+          (defmethod shape-template ~spec-name [_#] ~spec-name)
+          (defmethod template-expand ~spec-name
+            [{:keys [~@(map (comp symbol name) ks)] :as in#}]
+            (let [~'style (or ~'style {})]
+              (if (s/valid? ~spec-name in#)
+                ~expansion
+                ;; REVIEW: Will this be enough info to debug effectively?
+                (s/explain ~spec-name in#))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Core Geometry
@@ -31,27 +53,41 @@
 
 ;;;;; Shape Templates
 
-(defn circle-template [{:keys [radius centre style]}]
+(deftemplate ::circle
+  (s/keys :req-un [::geometry/centre ::geometry/radius] :opt-un [::style/style])
+
   ;; REVIEW: Should the style go on the path, or on the segment?
   ;; What's the difference?
-  {:style style
-   :segments [{:type ::arc
+  {:style {} :radius 1 :centre [0 0]}
+  {:style    style
+   :segments [{:type   ::arc
                :centre centre
                :radius radius
-               :from 0
-               :to {:unit :radians :angle (* 2 pi)}}]})
+               :from   0
+               :to     {:unit :radians :angle (* 2 pi)}}]})
 
-(def circle
-  "Unit circle"
-  {:type ::circle
-   :centre [0 0]
-   :radius 1})
+(deftemplate ::polyline
+  (s/keys :req-un [::geometry/points] :opt-un [::style/style])
+  {:style {} :points []}
+  {:style {}
+   :segments (mapv (fn [[x y]]
+                     {:type ::line
+                      :from x
+                      :to y})
+                   (partition 2 (interleave points (rest points))))})
 
-(def square
-  "Unit square"
-  {:type ::square
+(deftemplate ::rectangle
+  (s/keys :req-un [::geometry/corner ::geometry/width ::geometry/height]
+          :opt-un [::style/style])
+  {:style  {}
    :corner [0 0]
-   :width 1})
+   :height 1
+   :width  1}
+  (let [[x1 y1] corner
+        x2      (+ x1 width)
+        y2      (+ y1 height)]
+    {:type ::polyline
+     :points [[x1 y1] [x2 y1] [x2 y2] [x1 y2] [x1 y1]]}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Affine Transforms
@@ -144,14 +180,20 @@
    (s/keys :req-un [::geometry/from ::geometry/to ::geometry/c1 ::geometry/c2]
            :opt-un [::style/style]))
 
+(s/def ::arc
+  (s/keys :req-un [::geometry/centre ::geometry/radius :lemonade.geometry.angle/to
+                   :lemonade.geometry.angle/from]
+          :opt-un [::style/style]))
+
 (defmulti path-segment :type)
 (defmethod path-segment ::line [_] ::line)
 (defmethod path-segment ::bezier [_] ::bezier)
+(defmethod path-segment ::arc [_] ::arc)
 (s/def ::path-segment (s/multi-spec path-segment :type))
 
 (s/def ::segments
   (s/with-gen
-    (s/and (s/coll-of ::path-segment :kind sequential? :min-count 2)
+    (s/and (s/coll-of ::path-segment :kind sequential?)
            geometry/connected?)
     spec-gen/segment-gen))
 
@@ -159,31 +201,10 @@
   (s/or :single-segment  ::path-segment
         :joined-segments (s/keys :req-un [::segments] :opt-un [::style/style])))
 
-;;; Surfaces 2d
+;;; Shapes in General
 ;;
 ;; Templates? Macros? What the hell are these going to be exactly?
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; REVIEW: How to distinguish the circle from the disc? A circle is technically
-;; a 1d object, a path. A circle's interior is a disc which is a surface. Is
-;; this pedantic or important?
-(s/def ::circle
-  (s/keys :req-un [::geometry/centre ::geometry/radius] :opt-un [::style/style]))
-
-(s/def ::square
-  (s/with-gen
-    (s/and (s/keys :req-un [::geometry/corner
-                            (or ::geometry/width
-                                ::geometry/height)]
-                   :opt-un [::style/style])
-           (s/or :no-width  #(-> % :width nil?)
-                 :no-height #(-> % :height nil?)
-                 :equal     #(= (:width %) (:height %))))
-    spec-gen/square-gen))
-
-(defmulti shape-template :type)
-(defmethod shape-template ::circle [_] ::circle)
-(defmethod shape-template ::square [_] ::square)
 
 (s/def ::shape-template (s/multi-spec shape-template :type))
 

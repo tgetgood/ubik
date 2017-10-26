@@ -1,6 +1,7 @@
 (ns lemonade.spec-gen
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
+            clojure.test.check.generators
             [lemonade.geometry :as geometry]))
 
 (s/def ::on-screen
@@ -30,5 +31,5 @@
 (def segment-gen
   (fn []
     (gen/fmap #(connect [] %)
-              (gen/fmap #(map first (s/exercise ::path-segment %))
+              (gen/fmap #(map first (s/exercise :lemonade.core/path-segment %))
                         (gen/int)))))
