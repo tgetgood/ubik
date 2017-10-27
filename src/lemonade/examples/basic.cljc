@@ -1,8 +1,8 @@
 (ns lemonade.examples.basic
-  (:require [lemonade.core :refer [line rotate scale translate]]))
+  (:require [lemonade.core :refer [polyline rotate scale translate] :as core]))
 
 (def ex
-  (->> (assoc line :to [100 100])
-       (translate [400 200])
-       (scale [400 200] 2)
-       (rotate [400 200] 120)))
+  (->> (assoc polyline :points [[0 0] [100 100] [300 100] [100 300] [0 0]])
+       (translate [600 200])
+       (scale [600 200] 2)
+       #_(rotate [600 200] 120)))

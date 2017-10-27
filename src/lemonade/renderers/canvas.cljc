@@ -4,17 +4,28 @@
             [lemonade.core :as core]
             [lemonade.geometry :as geometry]))
 
-(defmulti render-shape :type)
+(def noop (constantly nil))
 
-(defmulti render-fn first)
+(defmulti render-fn :type)
 
-(defn renderer [shape]
-  (let [tree (s/conform ::core/shape shape)]
-    (if (= :cljs.spec.alpha/invalid tree)
-      (do
-        (println "Cannot parse shape:")
-        (pprint shape))
-      (render-fn tree))))
+(defmethod render-fn nil
+  [_]
+  (println "Can't render nil")
+  noop)
+
+(defmethod render-fn :default
+  [x]
+  (if (contains? (set (keys (methods core/template-expand))) (:type x))
+    (render-fn (core/template-expand x))
+    (do
+      (println (str "I don't know how to render a " (:type x)))
+      noop)))
+
+(defn renderer
+  "Returns a render function which when passed a context, renders the given
+  shape."
+  [shape]
+  (render-fn shape))
 
 ;; REVIEW: How much can we do at compile time?
 
@@ -22,12 +33,15 @@
 ;;;;; Internal render logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def ^:dynamic *in-path?* false)
+(def ^:dynamic *style* {})
+
 (defn apply-atx [{[a b c d] :matrix [e f] :translation}]
   (fn [ctx]
     (.transform ctx a c b d e f)))
 
-(defmethod render-fn :transformed
-  [[_ {:keys [base-shape atx]}]]
+(defmethod render-fn ::core/atx
+  [{:keys [base-shape atx]}]
   (let [tx   (apply-atx atx)
         itx  (apply-atx (geometry/invert-atx atx))
         cont (render-fn base-shape)]
@@ -37,36 +51,24 @@
         cont
         itx))))
 
-(defmethod render-fn :primitive
-  [[_ shape]]
-  (render-fn shape))
-
-(defmethod render-fn :path
-  [[_ shape]]
-  (let [cont (render-fn shape)]
-    (fn [ctx]
-      (.beginPath ctx)
-      (cont ctx)
-      (.stroke ctx))))
-
-(defmethod render-fn :joined-segments
-  [[_ {:keys [segments]}]]
-  (if (empty? segments)
-    (constantly nil)
-    (let [seg-fns (map render-shape segments)
-          cont (apply juxt seg-fns)]
+(defmethod render-fn ::core/path
+  [{:keys [closed? contents]}]
+  (if (empty? contents)
+    noop
+    (let [cont (apply juxt (map render-fn contents))]
       (fn [ctx]
-        (cont ctx)
-        (when (geometry/closed? segments)
-          (.closePath ctx))))))
+        (.beginPath ctx)
+        (binding [*in-path?* true]
+          (cont ctx))
+        (when closed?
+          (.closePath ctx))
+        (.stroke ctx)))))
 
-(defmethod render-fn :single-segment
-  [[_ seg]]
-  (render-shape seg))
-
-(defmethod render-fn :template
-  [[_ shape]]
-  (renderer (core/template-expand shape)))
+(defmethod render-fn ::core/composite
+  [{:keys [style contents]}]
+  (let [cont (apply juxt (map render-fn contents))]
+    ;; TODO: styles
+    cont))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Leaf renderers
@@ -75,19 +77,23 @@
 ;; appear.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmethod render-shape ::core/arc
+(defmethod render-fn ::core/arc
   [{[x y] :centre r :radius :keys [from to style]}]
   (fn [ctx]
     (.moveTo ctx (+ x r) y)
     (.arc ctx x y r from to)))
 
-(defmethod render-shape ::core/line
-  [{:keys [from to style]}]
+(defmethod render-fn ::core/line
+  [{:keys [from to style] :as o}]
   (fn [ctx]
-    (.moveTo ctx (first from) (second from))
-    (.lineTo ctx (first to) (second to))))
+    (when-not *in-path?*
+      (.beginPath ctx)
+      (.moveTo ctx (first from) (second from)))
+    (.lineTo ctx (first to) (second to))
+    (when-not *in-path?*
+      (.stroke ctx))))
 
-(defmethod render-shape ::core/bezier
+(defmethod render-fn ::core/bezier
   [{[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2}]
   (fn [ctx]
     (.moveTo ctx x1 y1)

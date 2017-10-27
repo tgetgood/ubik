@@ -8,24 +8,27 @@
             [lemonade.geometry :as geometry :refer [atx cos idm pi sin]]))
 
 (defmulti template-expand :type)
-(defmulti shape-template :type)
+
+#?(:clj
+   (defn namespace-qualified-kw [sym]
+     (if (namespace sym)
+       (keyword sym)
+       (let [current-ns (namespace `x)]
+         (keyword current-ns (name sym))))))
 
 #?(:clj
    (defmacro deftemplate
      "Defines a new shape template. Something like a macro"
-     [spec-name spec template expansion]
-     (let [ks (keys (dissoc template :type))]
+     [template-name template expansion]
+     (let [fqkw (namespace-qualified-kw template-name)
+           ks (keys (dissoc template :type))]
        `(do
-          (s/def ~spec-name ~spec)
-          (def ~(symbol (name spec-name)) ~(assoc template :type spec-name))
-          (defmethod shape-template ~spec-name [_#] ~spec-name)
-          (defmethod template-expand ~spec-name
+          (def ~(symbol (name template-name))
+            ~(assoc template :type template-name))
+          (defmethod template-expand ~fqkw
             [{:keys [~@(map (comp symbol name) ks)] :as in#}]
             (let [~'style (or ~'style {})]
-              (if (s/valid? ~spec-name in#)
-                ~expansion
-                ;; REVIEW: Will this be enough info to debug effectively?
-                (s/explain ~spec-name in#))))))))
+              ~expansion))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Core Geometry
@@ -51,34 +54,56 @@
    :c2 [1 1]
    :to [1 1]})
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Higher Order Shapes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; REVIEW: It would be nice if these were types that one could conj onto. As is
+;; I'm implementing custom conj for each anyway...
+(defn path
+  ([segments] (path {} segments))
+  ([style segments]
+   (let [closed? (or (:closed (meta segments))
+                     (geometry/closed? segments))]
+     {:type ::path
+      :closed? closed?
+      :style style
+      :contents segments})))
+
+(defn conj-path [{:keys [style contents]} segment]
+  (path style (conj contents segment)))
+
+(defn composite
+  ([shapes] (composite {} shapes))
+  ([style shapes]
+   {:type ::composite
+    :style style
+    :contents shapes}))
+
+(defn with-style [style & shapes]
+  (composite style shapes))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Shape Templates
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(deftemplate ::circle
-  (s/keys :req-un [::geometry/centre ::geometry/radius] :opt-un [::style/style])
-
-  ;; REVIEW: Should the style go on the path, or on the segment?
-  ;; What's the difference?
+(deftemplate circle
   {:style {} :radius 1 :centre [0 0]}
-  {:style    style
-   :segments [{:type   ::arc
-               :centre centre
-               :radius radius
-               :from   0
-               :to     {:unit :radians :angle (* 2 pi)}}]})
+  (path style ^:closed [{:type   ::arc
+                         :centre centre
+                         :radius radius
+                         :from   0
+                         :to     {:unit :radians :angle (* 2 pi)}}]))
 
 (deftemplate ::polyline
-  (s/keys :req-un [::geometry/points] :opt-un [::style/style])
   {:style {} :points []}
-  {:style {}
-   :segments (mapv (fn [[x y]]
-                     {:type ::line
-                      :from x
-                      :to y})
-                   (partition 2 (interleave points (rest points))))})
+  (path style (mapv (fn [[x y]]
+                      {:type ::line
+                       :from x
+                       :to y})
+                    (partition 2 (interleave points (rest points))))))
 
 (deftemplate ::rectangle
-  (s/keys :req-un [::geometry/corner ::geometry/width ::geometry/height]
-          :opt-un [::style/style])
   {:style  {}
    :corner [0 0]
    :height 1
@@ -88,8 +113,6 @@
         y2      (+ y1 height)]
     {:type ::polyline
      :points [[x1 y1] [x2 y1] [x2 y2] [x1 y2] [x1 y1]]}))
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Affine Transforms
@@ -140,7 +163,8 @@
 (defn transform
   "Returns a new shape which is the given affine map applies to the base shape."
   [base atx]
-  {:base-shape base
+  {:type ::atx
+   :base-shape base
    :atx atx})
 
 (defn translate
@@ -210,7 +234,7 @@
 ;; Templates? Macros? What the hell are these going to be exactly?
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(s/def ::shape-template (s/multi-spec shape-template :type))
+(s/def ::shape-template any? #_(s/multi-spec shape-template :type))
 
 (s/def ::primitive-shape
   (s/or :path     ::path
