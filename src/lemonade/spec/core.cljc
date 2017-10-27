@@ -60,10 +60,7 @@
 ;;;;; Affine Transforms
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(s/def ::atx
-  (s/keys :req-un [::geometry/matrix ::geometry/translation]))
-
 (s/def ::base-shape ::shape)
 
 (s/def ::affine-transform
-  (s/keys :req-un [::atx ::base-shape]))
+  (s/keys :req-un [::geometry/atx ::base-shape]))

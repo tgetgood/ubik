@@ -22,7 +22,7 @@
       (let [end (-> acc last :to)]
         (recur (conj acc (assoc (first paths) :from end)) (rest paths))))))
 
-(def square-gen
+#_(def square-gen
   (constantly
    (gen/fmap (fn [[c h]] {:corner c :height h :width h})
              (gen/tuple (s/gen ::geometry/point)

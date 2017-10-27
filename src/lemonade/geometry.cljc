@@ -63,7 +63,7 @@
 
 (def idm
   "The 2x2 identity matrix"
-  [1 0 0 1])
+  [1.0 0.0 0.0 1.0])
 
 (defn det
   "Returns the determinant of a 2x2 matrix"
@@ -78,17 +78,20 @@
    {:matrix      m
     :translation b}))
 
+(def id (atx idm [0.0 0.0]))
+
 (defn invert-atx
   "Returns matrix corresponding to the inverse affine transform."
   [{[a b c d] :matrix [x y] :translation}]
   (let [abs (det a b c d)
         [a' b' c' d'] (map #(/ % abs) [d (- b) (- c) a])
-        x' (- (+ (* a' x) (* c' y)))
-        y' (- (+ (* b' x) (* d' y)))]
+        x' (- (+ (* a' x) (* b' y)))
+        y' (- (+ (* c' x) (* d' y)))]
     (atx [a' b' c' d'] [x' y'])))
 
 (defn comp-atx
   "Returns the composition of affine transformations"
+  ([a] a)
   ([{[a b c d] :matrix [x y] :translation}
     {[a' b' c' d'] :matrix [x' y'] :translation}]
    (atx [(+ (* a a') (* b c'))

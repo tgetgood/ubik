@@ -60,15 +60,41 @@
 
 (s/def ::vector (s/coll-of ::scalar :kind sequential? :count 2))
 
-;; (a b c d), canvas takes them as (a c b d) because of silliness.
-(s/def ::matrix (s/coll-of ::scalar :kind sequential? :count 4))
+;; Non-degenerate
+(s/def ::matrix
+  (s/and (s/coll-of ::scalar :kind sequential? :count 4)
+         #(> (apply geometry/det %) 0)))
 
 (s/def ::translation ::vector)
+
+(s/def ::atx
+  (s/keys :req-un [::matrix ::translation]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; fns
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(s/fdef geometry/deg->rad
+(s/fdef lemonade.geometry/deg->rad
         :args (s/cat :angle ::real)
         :ret ::real)
+
+(defn close-enough? [a b]
+  (let [as (concat (:matrix a) (:translation a))
+        bs (concat (:matrix b) (:translation b))]
+    (->> (map - as bs)
+         (map geometry/abs)
+         (apply max)
+         (> 1e-11))))
+
+;; FIXME: This is exciting, I need higher precision arithmetic it seems. Need is
+;; a bad word, this only comes up with huge translations. Well, 2000+ for 1e-12,
+;; 32k for 1e-11. We're bleeding accuracy, so I suspect things will fail as you
+;; zoom in.
+(s/fdef lemonade.geometry/invert-atx
+        :args (s/cat :atx ::atx)
+        :ret ::atx
+        :fn #(and
+              (close-enough? geometry/id
+                             (geometry/comp-atx (-> % :args :atx) (:ret %)))
+              (close-enough? geometry/id
+                             (geometry/comp-atx (:ret %) (-> % :args :atx)))))
