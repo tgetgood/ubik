@@ -104,15 +104,6 @@
 ;;;;; Utils for core
 ;; REVIEW: (should maybe be in core?)
 
-(defn parse-angle [a]
-  (if (number? a)
-    (deg->rad a)
-    (let [{:keys [units amount]} a]
-      (cond
-        (= units :degrees) (deg->rad amount)
-        (= units :radians) amount
-        :else nil))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Specs
 ;;

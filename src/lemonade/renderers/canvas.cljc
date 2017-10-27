@@ -75,17 +75,11 @@
 ;; appear.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn angle [[t a]]
-  (geometry/parse-angle a))
-
 (defmethod render-shape ::core/arc
   [{[x y] :centre r :radius :keys [from to style]}]
-  (let [from (angle from)
-        to (angle to)]
-    (println to)
-    (fn [ctx]
-      (.moveTo ctx (+ x r) y)
-      (.arc ctx x y r from to))))
+  (fn [ctx]
+    (.moveTo ctx (+ x r) y)
+    (.arc ctx x y r from to)))
 
 (defmethod render-shape ::core/line
   [{:keys [from to style]}]

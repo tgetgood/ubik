@@ -89,6 +89,8 @@
     {:type ::polyline
      :points [[x1 y1] [x2 y1] [x2 y2] [x1 y2] [x1 y1]]}))
 
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Affine Transforms
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -99,9 +101,10 @@
   (atx idm b))
 
 (defn rotation
-  "Returns a counterclockwise rotation about the origin by angle (linear)"
+  "Returns a counterclockwise rotation about the origin by angle (linear).
+  Note: angle in degrees."
   [angle]
-  (let [r (geometry/parse-angle angle)
+  (let [r (geometry/deg->rad angle)
         c (cos r)
         s (sin r)]
     (atx [c (- s) s c])))
