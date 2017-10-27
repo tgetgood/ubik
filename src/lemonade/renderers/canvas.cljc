@@ -8,18 +8,20 @@
 
 (defmulti render-fn :type)
 
-(defmethod render-fn nil
-  [_]
-  (println "Can't render nil")
-  noop)
-
+;; REVIEW: This weird special dispatch on default feels pretty kludgy,
 (defmethod render-fn :default
   [x]
-  (if (contains? (set (keys (methods core/template-expand))) (:type x))
-    (render-fn (core/template-expand x))
-    (do
-      (println (str "I don't know how to render a " (:type x)))
-      noop)))
+  (cond
+    (sequential? x)
+      (apply juxt (map render-fn x))
+
+    (contains? (set (keys (methods core/template-expand))) (:type x))
+      (render-fn (core/template-expand x))
+
+    :else
+      (do
+        (println (str "I don't know how to render a " (:type x)))
+        noop)))
 
 (defn renderer
   "Returns a render function which when passed a context, renders the given
@@ -52,17 +54,25 @@
         itx))))
 
 (defmethod render-fn ::core/path
-  [{:keys [closed? contents]}]
+  [{:keys [closed? contents style]}]
   (if (empty? contents)
     noop
     (let [cont (apply juxt (map render-fn contents))]
       (fn [ctx]
+        (.save ctx)
         (.beginPath ctx)
+        ;; FIXME: Adhoc temp single style.
+        (when (:negative style)
+          (aset ctx "globalCompositeOperation" "destination-out")
+          (aset ctx "globalAlpha" 0.e))
         (binding [*in-path?* true]
           (cont ctx))
         (when closed?
-          (.closePath ctx))
-        (.stroke ctx)))))
+          (.closePath ctx)
+          (when (:fill style)
+            (.fill ctx)))
+        (.stroke ctx)
+        (.restore ctx)))))
 
 (defmethod render-fn ::core/composite
   [{:keys [style contents]}]
@@ -81,14 +91,14 @@
   [{[x y] :centre r :radius :keys [from to style]}]
   (fn [ctx]
     (.moveTo ctx (+ x r) y)
-    (.arc ctx x y r from to)))
+    (.arc ctx x y r from to false)))
 
 (defmethod render-fn ::core/line
   [{:keys [from to style] :as o}]
   (fn [ctx]
     (when-not *in-path?*
-      (.beginPath ctx)
-      (.moveTo ctx (first from) (second from)))
+      (.beginPath ctx))
+    (.moveTo ctx (first from) (second from))
     (.lineTo ctx (first to) (second to))
     (when-not *in-path?*
       (.stroke ctx))))

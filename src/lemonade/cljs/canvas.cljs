@@ -51,7 +51,6 @@
 (defn draw-rand []
   (let [shape (gen/generate (s/gen ::core/primitive-shape))]
     (s/explain ::core/shape shape)
-    (pprint shape)
     (draw! shape)))
 
 (defn ^:export init []

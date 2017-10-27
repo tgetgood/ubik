@@ -20,7 +20,7 @@
            ks (keys (dissoc template :type))]
        `(do
           (def ~(symbol (name template-name))
-            ~(assoc template :type template-name))
+            ~(assoc template :type fqkw))
           (defmethod template-expand ~fqkw
             [{:keys [~@(map (comp symbol name) ks)] :as in#}]
             (let [~'style (or ~'style {})]
@@ -79,17 +79,32 @@
 (defn with-style [style & shapes]
   (composite style shapes))
 
+(defn radians [r]
+  (/ (* r 180) geometry/pi))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Shape Templates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn full-arc [c r]
+  {:type   ::arc
+   :centre c
+   :radius r
+   :from   0
+   :to     (* 2 pi)})
+
 (deftemplate circle
   {:style {} :radius 1 :centre [0 0]}
-  (path style ^:closed [{:type   ::arc
-                         :centre centre
-                         :radius radius
-                         :from   0
-                         :to     {:unit :radians :angle (* 2 pi)}}]))
+  (path style ^:closed [(full-arc centre radius)]))
+
+(deftemplate annulus
+  {:style {} :inner-radius 1 :outer-radius 2 :centre [0 0]}
+  (composite
+   [(path style ^:closed [(full-arc centre outer-radius)])
+    (path (cond-> style
+            (contains? style :fill)
+            (assoc :negative true))
+          ^:closed [(full-arc centre inner-radius)])]))
 
 (deftemplate ::polyline
   {:style {} :points []}
