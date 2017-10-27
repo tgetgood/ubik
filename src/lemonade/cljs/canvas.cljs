@@ -2,12 +2,10 @@
   (:require [cljs.pprint :refer [pprint]]
             [cljs.spec.alpha :as s]
             [cljs.spec.gen.alpha :as gen]
-            clojure.test.check.generators
             [lemonade.core :as core]
             [lemonade.examples.basic :as ex]
             [lemonade.geometry :as geometry]
-            [lemonade.renderers.canvas :as rc]
-            [lemonade.spec-gen :as spec-gen]))
+            [lemonade.renderers.canvas :as rc]))
 
 (enable-console-print!)
 

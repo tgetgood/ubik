@@ -1,4 +1,4 @@
-(ns lemonade.style
+(ns lemonade.spec.style
   (:require [clojure.spec.alpha :as s]))
 
 (s/def ::style

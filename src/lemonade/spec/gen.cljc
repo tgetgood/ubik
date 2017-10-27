@@ -1,4 +1,4 @@
-(ns lemonade.spec-gen
+(ns lemonade.spec.gen
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             clojure.test.check.generators
