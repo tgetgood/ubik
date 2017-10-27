@@ -63,7 +63,7 @@
 ;; Non-degenerate
 (s/def ::matrix
   (s/and (s/coll-of ::scalar :kind sequential? :count 4)
-         #(> (apply geometry/det %) 0)))
+         #(not (zero? (apply geometry/det %)))))
 
 (s/def ::translation ::vector)
 

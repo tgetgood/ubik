@@ -61,6 +61,10 @@
 
 ;;;;; Linear and Affine
 
+(def ^:private **
+  "Temporary workaround for spec and big arithmetic"
+  #?(:clj *' :cljs *))
+
 (def idm
   "The 2x2 identity matrix"
   [1.0 0.0 0.0 1.0])
@@ -68,7 +72,7 @@
 (defn det
   "Returns the determinant of a 2x2 matrix"
   [a b c d]
-  (- (* a d) (* b c)))
+  (- (** a d) (** b c)))
 
 (defn atx
   "Convenience fn for building atx maps"
@@ -85,8 +89,8 @@
   [{[a b c d] :matrix [x y] :translation}]
   (let [abs (det a b c d)
         [a' b' c' d'] (map #(/ % abs) [d (- b) (- c) a])
-        x' (- (+ (* a' x) (* b' y)))
-        y' (- (+ (* c' x) (* d' y)))]
+        x' (- (+ (** a' x) (** b' y)))
+        y' (- (+ (** c' x) (** d' y)))]
     (atx [a' b' c' d'] [x' y'])))
 
 (defn comp-atx
