@@ -63,8 +63,7 @@
         (.beginPath ctx)
         ;; FIXME: Adhoc temp single style.
         (when (:negative style)
-          (aset ctx "globalCompositeOperation" "destination-out")
-          (aset ctx "globalAlpha" 0.e))
+          (aset ctx "globalCompositeOperation" "destination-out"))
         (binding [*in-path?* true]
           (cont ctx))
         (when closed?

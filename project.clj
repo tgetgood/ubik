@@ -17,24 +17,31 @@
   :source-paths ["src"]
 
   :cljsbuild {:builds
-              [{:id "dev"
+              [{:id "quil"
                 :source-paths ["src"]
 
-                :figwheel {:on-jsload "lemonade.cljs.canvas/on-js-reload"}
+                :figwheel {:on-jsload "lemonade.demos.quil/on-js-reload"}
 
-                :compiler {:main lemonade.cljs.canvas
-                           :asset-path "js/compiled/out"
-                           :output-to "resources/public/js/compiled/lemonade.js"
-                           :output-dir "resources/public/js/compiled/out"
+                :compiler {:main lemonade.demos.quil
+                           :asset-path "js/quil/out"
+                           :output-to "resources/public/js/quil/quil.js"
+                           :output-dir "resources/public/js/quil/out"
                            :parallel-build true
                            :source-map-timestamp true
                            :preloads [devtools.preload]}}
-               {:id "min"
+               {:id "canvas"
                 :source-paths ["src"]
-                :compiler {:output-to "resources/public/js/compiled/lemonade.js"
-                           :main lemonade.cljs.canvas
-                           :optimizations :advanced
-                           :pretty-print false}}]}
+
+                :figwheel {:on-jsload "lemonade.demos.canvas/on-js-reload"}
+
+                :compiler {:main lemonade.demos.canvas
+                           :asset-path "js/canvas/out"
+                           :output-to "resources/public/js/canvas/canvas.js"
+                           :output-dir "resources/public/js/canvas/out"
+                           :parallel-build true
+                           :source-map-timestamp true
+                           :preloads [devtools.preload]}}
+               ]}
 
   :figwheel {:css-dirs ["resources/public/css"]}
 
