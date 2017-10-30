@@ -1,4 +1,8 @@
 (ns lemonade.renderers.canvas
+  "Render shapes to HTML Canvas. Uses a half baked CPS transform so that some of
+  the work can be done at compile time if the shape is statically known. Not
+  sure how much inlining the CLJS compiler (Closure?) does, but there's
+  potential."
   (:require [clojure.spec.alpha :as s]
             [lemonade.core :as core]
             [lemonade.geometry :as geometry]))
@@ -26,7 +30,14 @@
   "Returns a render function which when passed a context, renders the given
   shape."
   [shape]
-  (render-fn shape))
+  (let [cont (render-fn shape)]
+    ;; Just wrap the render fn in some state guarding.
+    (fn [ctx]
+      (.save ctx)
+      (.setTransform ctx 1 0 0 1 0 0)
+      (cont)
+      (.restore ctx)
+      (.beginPath ctx))))
 
 ;; REVIEW: How much can we do at compile time?
 
@@ -35,7 +46,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def ^:dynamic *in-path?* false)
-(def ^:dynamic *style* {})
+
+(def ^:dynamic *style*
+  "Current style at this point in the render process. Initialised to default
+  style."
+  {:stroke  {:width   0
+             :colour  :black
+             :dashed  []
+             :corners :mitre}
+   :fill    :none
+   :opacity 1
+   :font    "sans serif 10px"})
 
 (defn apply-atx [{[a b c d] :matrix [e f] :translation}]
   (fn [ctx]
@@ -58,19 +79,14 @@
     noop
     (let [cont (apply juxt (map render-fn contents))]
       (fn [ctx]
-        (.save ctx)
         (.beginPath ctx)
-        ;; FIXME: Adhoc temp single style.
-        (when (:negative style)
-          (aset ctx "globalCompositeOperation" "destination-out"))
         (binding [*in-path?* true]
           (cont ctx))
         (when closed?
           (.closePath ctx)
           (when (:fill style)
             (.fill ctx)))
-        (.stroke ctx)
-        (.restore ctx)))))
+        (.stroke ctx)))))
 
 (defmethod render-fn ::core/composite
   [{:keys [style contents]}]

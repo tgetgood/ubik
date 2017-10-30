@@ -10,7 +10,6 @@
    (assoc line :from [800 200] :to [900 200])
    (translate [500 500] #_(assoc core/circle :radius 300)
               (assoc annulus :outer-radius 300 :inner-radius 200
-                     :style {:fill :red}
-                               ))
+                     :style {:fill :red}))
 
    #_(scale 100 circle)])
