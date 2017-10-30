@@ -31,6 +31,7 @@
 
 (s/def ::scalar ::real)
 (s/def ::non-negative (s/and ::scalar (comp not neg?)))
+(s/def ::normalised (s/and ::scalar #(<= 0 % 1)))
 
 (derive-spec ::non-negative
   ::radius
