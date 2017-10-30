@@ -1,6 +1,5 @@
 (ns lemonade.renderers.canvas
-  (:require [#?(:cljs cljs.pprint :clj clojure.pprint) :refer [pprint]]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
             [lemonade.core :as core]
             [lemonade.geometry :as geometry]))
 
@@ -87,10 +86,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmethod render-fn ::core/arc
-  [{[x y] :centre r :radius :keys [from to style]}]
+  [{[x y] :centre r :radius :keys [from to style clockwise?]}]
   (fn [ctx]
     (.moveTo ctx (+ x r) y)
-    (.arc ctx x y r from to false)))
+    (.arc ctx x y r from to (boolean clockwise?))))
 
 (defmethod render-fn ::core/line
   [{:keys [from to style] :as o}]

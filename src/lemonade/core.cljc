@@ -86,12 +86,13 @@
 ;;;;; Shape Templates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn full-arc [c r]
+(defn full-arc [c r & [cw?]]
   {:type   ::arc
    :centre c
    :radius r
    :from   0
-   :to     (* 2 pi)})
+   :to     (* 2 pi)
+   :clockwise? cw?})
 
 (deftemplate circle
   {:style {} :radius 1 :centre [0 0]}
@@ -99,12 +100,9 @@
 
 (deftemplate annulus
   {:style {} :inner-radius 1 :outer-radius 2 :centre [0 0]}
-  (composite
-   [(path style ^:closed [(full-arc centre outer-radius)])
-    (path (cond-> style
-            (contains? style :fill)
-            (assoc :negative true))
-          ^:closed [(full-arc centre inner-radius)])]))
+  (path style
+        ^:closed [(full-arc centre inner-radius)
+                  (full-arc centre outer-radius true)]))
 
 (deftemplate ::polyline
   {:style {} :points []}
