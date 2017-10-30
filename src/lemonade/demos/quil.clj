@@ -1,6 +1,5 @@
 (ns lemonade.demos.quil
-  (:require #?(:cljs [lemonade.demos.util :as util])
-            [quil.core :as q #?@(:cljs [:include-macros true])]
+  (:require [quil.core :as q]
             [quil.middleware :as m]))
 
 (defn setup []
@@ -33,22 +32,16 @@
       ; Draw the circle.
       (q/ellipse x y 100 100))))
 
-#?(:cljs
-   (defn sketch! []
-     (let [[w h] (util/canvas-container-dimensions)]
-       (q/defsketch quil-test
-         :host "canvas"
-         :size [w h]
-         ;; setup function called only once, during sketch initialization.
-         :setup setup
-         ;; update-state is called on each iteration before draw-state.
-         :update update-state
-         :draw draw-state
-         ;; This sketch uses functional-mode middleware.
-         ;; Check quil wiki for more info about middlewares and particularly
-         ;; fun-mode.
-         :middleware [m/fun-mode]))))
-
-#?(:cljs
-   (defn ^:export init []
-     (sketch!)))
+(defn sketch! [w h]
+   (q/defsketch quil-test
+     :host "canvas"
+     :size [w h]
+     ;; setup function called only once, during sketch initialization.
+     :setup setup
+     ;; update-state is called on each iteration before draw-state.
+     :update update-state
+     :draw draw-state
+     ;; This sketch uses functional-mode middleware.
+     ;; Check quil wiki for more info about middlewares and particularly
+     ;; fun-mode.
+     :middleware [m/fun-mode]))
