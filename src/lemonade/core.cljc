@@ -102,7 +102,18 @@
   {:style {} :inner-radius 1 :outer-radius 2 :centre [0 0]}
   (path style
         ^:closed [(full-arc centre inner-radius)
-                  (full-arc centre outer-radius true)]))
+                  (with-meta (full-arc centre outer-radius true)
+                    ;; REVIEW: Abstraction leakage.
+                    ;;
+                    ;; We need this annotation to tell the path system to call
+                    ;; moveTo in this one instance.
+                    ;;
+                    ;; TODO: This can probably be handled by keeping track of
+                    ;; the point and jumping when in a path and from(n) !=
+                    ;; to(n-1)
+                    ;; Maybe keep a shared atom in the path state passed to
+                    ;; segments? Uck, but could work.
+                    {:jump true})]))
 
 (deftemplate ::polyline
   {:style {} :points []}

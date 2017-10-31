@@ -3,7 +3,7 @@
   (:require [clojure.spec.alpha :as s]
             [lemonade.core :as core]
             [lemonade.geometry :as geometry])
-  (:require-macros [lemonade.renderers.canvas :refer [with-style with-style*]]))
+  (:require-macros [lemonade.renderers.canvas :refer [with-path-style]]))
 
 (comment "Uses a half baked CPS transform so that some of the work can be done
   at compile time if the shape is statically known. Not sure how much inlining
@@ -13,26 +13,22 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Setup
-;;
-;; Ubiquitous use of dynamic environments. Is this clever or too clever?
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def ^:private noop
   "What a render-fn returns if it wants to do nothing."
   (constantly nil))
 
-(def ^:dynamic ^:private *in-path?*
-  "Tracks whether we are currently inside a path (by force aligning the canvas
-  sense to the lemonade sense of the term)."
-  false)
-
-(def ^:dynamic ^:private *zoom*
-  "Current zoom level"
-  1)
-
-(def ^:private *style*
-  "Current style at this point in the render process."
-  (atom {}))
+(def default-style
+  "Default style of images in lemonade."
+  {:stroke  {:width   0
+             :colour  :black
+             :dash    []
+             :ends    :butt
+             :corners :mitre}
+   :fill    :none
+   :opacity 1
+   :font    "sans serif 10px"})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
@@ -49,38 +45,23 @@
              (string? stroke) {:colour stroke}
              :else {}))))
 
-(defn push-style [style]
-  (let [new-style (merge (flatten-style style) *style*)]
-    (println new-style)
-    new-style))
+(defmulti style-ctx (fn [state [k v]] k))
 
-(def default-style
-  {:stroke  {:width   0
-             :colour  :black
-             :dash    []
-             :ends    :butt
-             :corners :mitre}
-   :fill    :none
-   :opacity 1
-   :font    "sans serif 10px"})
-
-(defmulti style-ctx (fn [[k v]] k))
-
-(defn safe-style-1 [[k v]]
-  (if (and (contains? *style* k) (not= (get *style* k) v))
+(defn safe-style-1 [{:keys [style] :as state} [k v]]
+  (if (and (contains? style k) (not= (get style k) v))
       noop
-      (style-ctx [k v])))
+      (style-ctx state [k v])))
 
-(defn safe-style [style]
-  (let [style (flatten-style style)]
+(defn safe-style [state style]
+  (let [style (merge (flatten-style default-style) (flatten-style style))]
     (if (empty? style)
       noop
-      (apply juxt (map safe-style-1 style)))))
+      (apply juxt (map (partial safe-style-1 state) style)))))
 
 (defmethod style-ctx :width
-  [[_ v]]
-  (let [w (if (zero? v) (/ 1 *zoom*) v)]
-    (fn [ctx] (aset ctx "lineWidth" v))))
+  [{:keys [zoom]} [_ v]]
+  (let [w (if (zero? v) (/ 1 zoom) v)]
+    (fn [ctx] (aset ctx "lineWidth" w))))
 
 (defn process-gradient [m])
 
@@ -93,7 +74,7 @@
     :else        nil))
 
 (defmethod style-ctx :colour
-  [[_ v]]
+  [_ [_ v]]
   (let [c (process-colour v)]
     (if-not c
       noop
@@ -101,52 +82,52 @@
         (aset ctx "strokeStyle" (if (fn? c) (c ctx) c))))))
 
 (defmethod style-ctx :dash
-  [[_ v]]
+  [_ [_ v]]
   #(.setLineDash % (clj->js v)))
 
 (defmethod style-ctx :ends
-  [[_ v]]
+  [_ [_ v]]
   #(aset % "lineCap" (name v)))
 
 (defmethod style-ctx :corners
-  [[_ v]]
+  [_ [_ v]]
   #(aset % "lineJoin" (name v)))
 
 (defmethod style-ctx :fill
-  [[_ v]]
+  [_ [_ v]]
   (let [c (process-colour v)]
     (if-not c
       noop
       #(aset % "fillStyle" (if (fn? c) (c %) c)))))
 
 (defmethod style-ctx :opacity
-  [[_ v]]
+  [_ [_ v]]
   #(aset % "globalAlpha" v))
 
 (defmethod style-ctx :font
-  [[_ v]]
+  [_ [_ v]]
   #(aset % "font" v))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Main
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmulti render-fn :type)
+(defmulti render-fn (fn [state shape] (:type shape)))
 
-(defn- render-all [shapes]
+(defn- render-all [state shapes]
   (if (empty? shapes)
     noop
-    (apply juxt (map render-fn shapes))))
+    (apply juxt (map (partial render-fn state) shapes))))
 
 ;; REVIEW: This weird special dispatch on default feels pretty kludgy,
 (defmethod render-fn :default
-  [x]
+  [state x]
   (cond
     (sequential? x)
-    (render-all x)
+    (render-all state x)
 
     (contains? (set (keys (methods core/template-expand))) (:type x))
-      (render-fn (core/template-expand x))
+      (render-fn state (core/template-expand x))
 
     :else
       (do
@@ -157,17 +138,13 @@
   "Returns a render function which when passed a context, renders the given
   shape."
   [shape]
-  (let [cont (render-fn shape)
-        normalise (apply juxt (map style-ctx (flatten-style default-style)))]
-    ;; Just wrap the render fn in some state guarding. Ideally we want to be
-    ;; able to insert our code into an existing canvas app without messing it up
-    ;; or being messed up by it. Let's see how that goes...
-    ;; TODO: Need to set default styles by a different (overrideable) mechanism.
-    (with-style {}
-      normalise
-      (.setTransform 1 0 0 1 0 0)
-      cont
-      .beginPath)))
+  (let [cont (render-fn {:style {} :zoom 1 :in-path? false} shape)]
+    #(doto %
+       .save
+       (.setTransform 1 0 0 1 0 0)
+       cont
+       .restore
+       .beginPath)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Internal render logic
@@ -177,34 +154,64 @@
   (fn [ctx]
     (.transform ctx a c b d e f)))
 
+(defn magnitude [atx]
+  ;; HACK: This works for symmetric linear transforms, but as soon as we start
+  ;; talking about skews and asymmetric scalings, it breaks down. I don't see
+  ;; any way to manage this without writing my own pixel shaders. Hopefully I do
+  ;; before I do.
+  ;; !!!!!!!
+  ;; Unless I ditch paths altogether and use bezier curves --- actually pairs of
+  ;; curves --- to represent the edges of objects. They have no stroke, just a
+  ;; fill, and so I can control exactly how thick the line is at all points. Soo
+  ;; much work... But it has the potential to be a solution.
+  (let [m (js/Math.sqrt (apply geometry/det (:matrix atx)))]
+    (if (js/isNaN m)
+      1
+      m)))
+
 (defmethod render-fn ::core/atx
-  [{:keys [base-shape atx]}]
+  [state {:keys [base-shape atx]}]
   (let [tx   (apply-atx atx)
-        cont (render-fn base-shape)]
-    (with-style {}
-      tx
-      cont)))
+        mag (magnitude atx)
+        cont (render-fn (update state :zoom * mag) base-shape)]
+    #(doto %
+       .save
+       tx
+       cont
+       .restore)))
 
 (defmethod render-fn ::core/path
-  [{:keys [closed? contents style]}]
+  [state {:keys [closed? contents style]}]
   (if (empty? contents)
     noop
-    (let [cont (render-all contents)]
-      (with-style* style
-        (fn [ctx]
-          (.beginPath ctx)
-          (binding [*in-path?* true]
-            (cont ctx))
-          (when closed?
-            (.closePath ctx)
-            (when (and (:fill *style*) (not= (:fill *style*) :none))
-              (.fill ctx)))
-          (.stroke ctx))))))
+    (let [sub-state (-> state
+                        (assoc :in-path? true)
+                        (update :style merge (flatten-style style)))
+          cont (render-all sub-state contents)
+          stylise (safe-style state style)]
+      (fn [ctx]
+        (.save ctx)
+        (.beginPath ctx)
+        (stylise ctx)
+        (cont ctx)
+        (when closed?
+          (.closePath ctx)
+          (let [fill (-> sub-state :style :fill)]
+            (when-not (or (nil? fill) (= :none fill))
+              (.fill ctx))))
+        (.stroke ctx)
+        (.restore ctx)))))
 
 (defmethod render-fn ::core/composite
-  [{:keys [style contents]}]
-  (let [cont (render-all contents)]
-    (with-style style cont)))
+  [state {:keys [style contents]}]
+  (let [cont (render-all (update state :style merge (flatten-style style))
+                         contents)
+        stylise (safe-style state style)]
+    #(doto %
+       .save
+       stylise
+       cont
+       .restore)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Leaf renderers
@@ -214,34 +221,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmethod render-fn ::core/arc
-  [{[x y] :centre r :radius :keys [from to style clockwise?]}]
-  (with-style* style
-    (fn [ctx]
-      (when-not *in-path?*
-        (.beginPath ctx))
-      (.moveTo ctx (+ x r) y)
-      (.arc ctx x y r from to (boolean clockwise?))
-      (when-not *in-path?*
-        (.stroke ctx)))))
+  [state {[x y] :centre r :radius :keys [from to style clockwise?] :as arc}]
+  (println (meta arc))
+  (with-path-style (assoc state :override (:jump (meta arc))) style [(+ x r) y]
+    (.arc x y r from to (boolean clockwise?))))
 
 (defmethod render-fn ::core/line
-  [{:keys [from to style] :as o}]
-  (with-style* style
-    (fn [ctx]
-      (when-not *in-path?*
-        (.beginPath ctx))
-      (.moveTo ctx (first from) (second from))
-      (.lineTo ctx (first to) (second to))
-      (when-not *in-path?*
-        (.stroke ctx)))))
+  [state {:keys [from to style] :as o}]
+  (with-path-style state style from
+    (.lineTo (first to) (second to))))
 
 (defmethod render-fn ::core/bezier
-  [{[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 style :style}]
-  (with-style* style
-    (fn [ctx]
-      (when-not *in-path?*
-        (.beginPath ctx))
-      (.moveTo ctx x1 y1)
-      (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)
-      (when-not *in-path?*
-        (.stroke ctx)))))
+  [state {[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 style :style}]
+  (with-path-style state style [x1 y1]
+    (.bezierCurveTo cx1 cy1 cx2 cy2 x2 y2)))

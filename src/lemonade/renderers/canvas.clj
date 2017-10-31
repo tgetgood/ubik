@@ -1,22 +1,20 @@
 (ns lemonade.renderers.canvas)
 
-(defmacro with-style*
-  "Applies styles and manages bookkeeping so that styles are unapplied at the
-  end. cont must be a function of one argument which will be passed the current
-  graphical context."
-  [style cont]
-  `(let [style-setter# (safe-style ~style)]
+(defmacro with-path-style [state style from & body]
+  `(let [stylise# (safe-style ~state ~style)
+         in-path# (:in-path? ~state)
+         [x# y#] ~from
+         ]
      (fn [ctx#]
        (.save ctx#)
-       (style-setter# ctx#)
-       (~cont ctx#)
-       (.restore ctx#))))
-
-(defmacro with-style
-  "Like with-style* but executes body inside implicit (doto ctx ~@body) where
-  ctx is the graphical context."
-  [style & body]
-  `(with-style* ~style
-     (fn [ctx#]
+       (when-not in-path#
+         (.beginPath ctx#))
+       (when (or (:override ~state) (not in-path#))
+         (println "ov")
+         (.moveTo ctx# x# y#))
+       (stylise# ctx#)
        (doto ctx#
-         ~@body))))
+         ~@body)
+       (when-not in-path#
+         (.stroke ctx#))
+       (.restore ctx#))))
