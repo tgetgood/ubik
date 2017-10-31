@@ -5,13 +5,11 @@
   end. cont must be a function of one argument which will be passed the current
   graphical context."
   [style cont]
-  `(let [delta# (apply dissoc (flatten-style ~style) *style*)
-         style-setter# (apply juxt (map style-ctx delta#))]
+  `(let [style-setter# (safe-style ~style)]
      (fn [ctx#]
        (.save ctx#)
        (style-setter# ctx#)
-       (binding [*style* (merge (flatten-style ~style) *style*)]
-         (~cont ctx#))
+       (~cont ctx#)
        (.restore ctx#))))
 
 (defmacro with-style

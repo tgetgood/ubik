@@ -8,8 +8,15 @@
         (scale 2)
         #_(rotate [600 200] 120))
    (assoc line :from [800 200] :to [900 200])
-   (translate [500 500] #_(assoc core/circle :radius 300)
-              (assoc annulus :outer-radius 300 :inner-radius 200
-                     :style {:fill :red}))
+   (core/with-style {:fill   :blue
+                     :stroke {:colour :blue
+                              :width  5
+                              }}
+     (translate [500 500] #_(assoc core/circle :radius 300)
+                (assoc annulus :outer-radius 300 :inner-radius 200
+                       :style {:fill   :red
+                               :dash   []
+                               :stroke :black}
+                       )))
 
    #_(scale 100 circle)])

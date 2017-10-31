@@ -17,7 +17,9 @@
 ;; Ubiquitous use of dynamic environments. Is this clever or too clever?
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def noop (constantly nil))
+(def ^:private noop
+  "What a render-fn returns if it wants to do nothing."
+  (constantly nil))
 
 (def ^:dynamic ^:private *in-path?*
   "Tracks whether we are currently inside a path (by force aligning the canvas
@@ -28,9 +30,9 @@
   "Current zoom level"
   1)
 
-(def ^:dynamic ^:private *style*
+(def ^:private *style*
   "Current style at this point in the render process."
-  {})
+  (atom {}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
@@ -39,19 +41,41 @@
 (defn- flatten-style
   "Converts user input style to internal renderer style format"
   [style]
-  (merge (dissoc style :stroke) (:stroke style)))
+  (let [stroke (:stroke style)]
+    (merge (dissoc style :stroke)
+           (cond
+             (map? stroke) stroke
+             (keyword? stroke) {:colour stroke}
+             (string? stroke) {:colour stroke}
+             :else {}))))
+
+(defn push-style [style]
+  (let [new-style (merge (flatten-style style) *style*)]
+    (println new-style)
+    new-style))
 
 (def default-style
   {:stroke  {:width   0
-                  :colour  :black
-                  :dash  []
-                  :ends :square
-                  :corners :mitre}
+             :colour  :black
+             :dash    []
+             :ends    :butt
+             :corners :mitre}
    :fill    :none
    :opacity 1
    :font    "sans serif 10px"})
 
 (defmulti style-ctx (fn [[k v]] k))
+
+(defn safe-style-1 [[k v]]
+  (if (and (contains? *style* k) (not= (get *style* k) v))
+      noop
+      (style-ctx [k v])))
+
+(defn safe-style [style]
+  (let [style (flatten-style style)]
+    (if (empty? style)
+      noop
+      (apply juxt (map safe-style-1 style)))))
 
 (defmethod style-ctx :width
   [[_ v]]
@@ -62,7 +86,7 @@
 
 (defn process-colour [c]
   (cond
-    (= :none c)  nil
+    (= :none c)  "rgba(0,0,0,0)"
     (keyword? c) (name c)
     (string? c)  c
     (map? c)     (process-gradient c)
@@ -109,12 +133,17 @@
 
 (defmulti render-fn :type)
 
+(defn- render-all [shapes]
+  (if (empty? shapes)
+    noop
+    (apply juxt (map render-fn shapes))))
+
 ;; REVIEW: This weird special dispatch on default feels pretty kludgy,
 (defmethod render-fn :default
   [x]
   (cond
     (sequential? x)
-      (apply juxt (map render-fn x))
+    (render-all x)
 
     (contains? (set (keys (methods core/template-expand))) (:type x))
       (render-fn (core/template-expand x))
@@ -128,12 +157,14 @@
   "Returns a render function which when passed a context, renders the given
   shape."
   [shape]
-  (let [cont (render-fn shape)]
+  (let [cont (render-fn shape)
+        normalise (apply juxt (map style-ctx (flatten-style default-style)))]
     ;; Just wrap the render fn in some state guarding. Ideally we want to be
     ;; able to insert our code into an existing canvas app without messing it up
     ;; or being messed up by it. Let's see how that goes...
     ;; TODO: Need to set default styles by a different (overrideable) mechanism.
     (with-style {}
+      normalise
       (.setTransform 1 0 0 1 0 0)
       cont
       .beginPath)))
@@ -158,10 +189,9 @@
   [{:keys [closed? contents style]}]
   (if (empty? contents)
     noop
-    (let [cont (apply juxt (map render-fn contents))]
+    (let [cont (render-all contents)]
       (with-style* style
         (fn [ctx]
-          (println *style*)
           (.beginPath ctx)
           (binding [*in-path?* true]
             (cont ctx))
@@ -173,7 +203,7 @@
 
 (defmethod render-fn ::core/composite
   [{:keys [style contents]}]
-  (let [cont (apply juxt (map render-fn contents))]
+  (let [cont (render-all contents)]
     (with-style style cont)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -185,26 +215,33 @@
 
 (defmethod render-fn ::core/arc
   [{[x y] :centre r :radius :keys [from to style clockwise?]}]
-  (fn [ctx]
-    (.moveTo ctx (+ x r) y)
-    (.arc ctx x y r from to (boolean clockwise?))
-    (when-not *in-path?*
-      (.stroke ctx))))
+  (with-style* style
+    (fn [ctx]
+      (when-not *in-path?*
+        (.beginPath ctx))
+      (.moveTo ctx (+ x r) y)
+      (.arc ctx x y r from to (boolean clockwise?))
+      (when-not *in-path?*
+        (.stroke ctx)))))
 
 (defmethod render-fn ::core/line
   [{:keys [from to style] :as o}]
-  (fn [ctx]
-    (when-not *in-path?*
-      (.beginPath ctx))
-    (.moveTo ctx (first from) (second from))
-    (.lineTo ctx (first to) (second to))
-    (when-not *in-path?*
-      (.stroke ctx))))
+  (with-style* style
+    (fn [ctx]
+      (when-not *in-path?*
+        (.beginPath ctx))
+      (.moveTo ctx (first from) (second from))
+      (.lineTo ctx (first to) (second to))
+      (when-not *in-path?*
+        (.stroke ctx)))))
 
 (defmethod render-fn ::core/bezier
-  [{[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2}]
-  (fn [ctx]
-    (.moveTo ctx x1 y1)
-    (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)
-    (when-not *in-path?*
-      (.stroke ctx))))
+  [{[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 style :style}]
+  (with-style* style
+    (fn [ctx]
+      (when-not *in-path?*
+        (.beginPath ctx))
+      (.moveTo ctx x1 y1)
+      (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)
+      (when-not *in-path?*
+        (.stroke ctx)))))
