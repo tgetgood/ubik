@@ -5,7 +5,8 @@
 (def default-style
   {:stroke {:width 0
             :colour :black
-            :dashed []
+            :dash []
+            :ends :square
             :corners :mitre}
    :fill :none
    :opacity 1
@@ -21,13 +22,13 @@
 
 (s/def ::width ::geometry/non-negative)
 
-(s/def ::dashed
+(s/def ::dash
   (s/coll-of pos-int? :kind vector? :min-count 1))
 
 (s/def ::corners keyword?)
 
 (s/def ::stroke-map
-  (s/keys :opt-un [::width ::colour ::dashed ::corners]))
+  (s/keys :opt-un [::width ::colour ::dash ::corners]))
 
 (s/def ::stroke
   (s/or :colour ::colour
