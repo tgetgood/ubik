@@ -9,7 +9,7 @@
          style-setter# (apply juxt (map style-ctx delta#))]
      (fn [ctx#]
        (.save ctx#)
-       ;; (style-setter# ctx#)
+       (style-setter# ctx#)
        (binding [*style* (merge (flatten-style ~style) *style*)]
          (~cont ctx#))
        (.restore ctx#))))

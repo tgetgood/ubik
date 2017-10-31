@@ -132,7 +132,8 @@
     ;; Just wrap the render fn in some state guarding. Ideally we want to be
     ;; able to insert our code into an existing canvas app without messing it up
     ;; or being messed up by it. Let's see how that goes...
-    (with-style default-style
+    ;; TODO: Need to set default styles by a different (overrideable) mechanism.
+    (with-style {}
       (.setTransform 1 0 0 1 0 0)
       cont
       .beginPath)))
@@ -160,6 +161,7 @@
     (let [cont (apply juxt (map render-fn contents))]
       (with-style* style
         (fn [ctx]
+          (println *style*)
           (.beginPath ctx)
           (binding [*in-path?* true]
             (cont ctx))
