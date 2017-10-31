@@ -2,7 +2,8 @@
   "Render shapes to HTML Canvas."
   (:require [clojure.spec.alpha :as s]
             [lemonade.core :as core]
-            [lemonade.geometry :as geometry]))
+            [lemonade.geometry :as geometry])
+  (:require-macros [lemonade.renderers.canvas :refer [with-style with-style*]]))
 
 (comment "Uses a half baked CPS transform so that some of the work can be done
   at compile time if the shape is statically known. Not sure how much inlining
@@ -10,7 +11,101 @@
   anything at compile time.")
 ;; REVIEW: Diabled
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Setup
+;;
+;; Ubiquitous use of dynamic environments. Is this clever or too clever?
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (def noop (constantly nil))
+
+(def ^:dynamic ^:private *in-path?*
+  "Tracks whether we are currently inside a path (by force aligning the canvas
+  sense to the lemonade sense of the term)."
+  false)
+
+(def ^:dynamic ^:private *zoom*
+  "Current zoom level"
+  1)
+
+(def ^:dynamic ^:private *style*
+  "Current style at this point in the render process."
+  {})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Styling
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- flatten-style
+  "Converts user input style to internal renderer style format"
+  [style]
+  (merge (dissoc style :stroke) (:stroke style)))
+
+(def default-style
+  {:stroke  {:width   0
+                  :colour  :black
+                  :dash  []
+                  :ends :square
+                  :corners :mitre}
+   :fill    :none
+   :opacity 1
+   :font    "sans serif 10px"})
+
+(defmulti style-ctx (fn [[k v]] k))
+
+(defmethod style-ctx :width
+  [[_ v]]
+  (let [w (if (zero? v) (/ 1 *zoom*) v)]
+    (fn [ctx] (aset ctx "lineWidth" v))))
+
+(defn process-gradient [m])
+
+(defn process-colour [c]
+  (cond
+    (= :none c)  nil
+    (keyword? c) (name c)
+    (string? c)  c
+    (map? c)     (process-gradient c)
+    :else        nil))
+
+(defmethod style-ctx :colour
+  [[_ v]]
+  (let [c (process-colour v)]
+    (if-not c
+      noop
+      (fn [ctx]
+        (aset ctx "strokeStyle" (if (fn? c) (c ctx) c))))))
+
+(defmethod style-ctx :dash
+  [[_ v]]
+  #(.setLineDash % (clj->js v)))
+
+(defmethod style-ctx :ends
+  [[_ v]]
+  #(aset % "lineCap" (name v)))
+
+(defmethod style-ctx :corners
+  [[_ v]]
+  #(aset % "lineJoin" (name v)))
+
+(defmethod style-ctx :fill
+  [[_ v]]
+  (let [c (process-colour v)]
+    (if-not c
+      noop
+      #(aset % "fillStyle" (if (fn? c) (c %) c)))))
+
+(defmethod style-ctx :opacity
+  [[_ v]]
+  #(aset % "globalAlpha" v))
+
+(defmethod style-ctx :font
+  [[_ v]]
+  #(aset % "font" v))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Main
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmulti render-fn :type)
 
@@ -37,40 +132,14 @@
     ;; Just wrap the render fn in some state guarding. Ideally we want to be
     ;; able to insert our code into an existing canvas app without messing it up
     ;; or being messed up by it. Let's see how that goes...
-    (fn [ctx]
-      (doto ctx
-        .save
-        (.setTransform 1 0 0 1 0 0)
-        cont
-        .restore
-        .beginPath))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Styling
-;;
-;; Ubiquitous use of dynamic environments. Is this clever or too clever?
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def ^:dynamic *style*
-  "Current style at this point in the render process. Initialised to default
-  style."
-  {:stroke  {:width   0
-             :colour  :black
-             :dashed  []
-             :corners :mitre}
-   :fill    :none
-   :opacity 1
-   :font    "sans serif 10px"})
-
-(defn set-style! [s])
-(defn unset-style! [s])
-(defn push-style [s])
+    (with-style default-style
+      (.setTransform 1 0 0 1 0 0)
+      cont
+      .beginPath)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Internal render logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def ^:dynamic *in-path?* false)
 
 (defn apply-atx [{[a b c d] :matrix [e f] :translation}]
   (fn [ctx]
@@ -79,40 +148,31 @@
 (defmethod render-fn ::core/atx
   [{:keys [base-shape atx]}]
   (let [tx   (apply-atx atx)
-        itx  (apply-atx (geometry/invert-atx atx))
         cont (render-fn base-shape)]
-    (fn [ctx]
-      (doto ctx
-        tx
-        cont
-        itx))))
+    (with-style {}
+      tx
+      cont)))
 
 (defmethod render-fn ::core/path
   [{:keys [closed? contents style]}]
   (if (empty? contents)
     noop
     (let [cont (apply juxt (map render-fn contents))]
-      (fn [ctx]
-        (set-style! style)
-        (.beginPath ctx)
-        (binding [*in-path?* true
-                  *style* (push-style style)]
-          (cont ctx))
-        (when closed?
-          (.closePath ctx)
-          (when (:fill style)
-            (.fill ctx)))
-        (.stroke ctx)
-        (unset-style! style)))))
+      (with-style* style
+        (fn [ctx]
+          (.beginPath ctx)
+          (binding [*in-path?* true]
+            (cont ctx))
+          (when closed?
+            (.closePath ctx)
+            (when (and (:fill *style*) (not= (:fill *style*) :none))
+              (.fill ctx)))
+          (.stroke ctx))))))
 
 (defmethod render-fn ::core/composite
   [{:keys [style contents]}]
   (let [cont (apply juxt (map render-fn contents))]
-    (fn [ctx]
-      (set-style! style)
-      (binding [*style* (push-style style)]
-        (cont ctx))
-      (unset-style! style))))
+    (with-style style cont)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Leaf renderers
