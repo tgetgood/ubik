@@ -37,8 +37,7 @@
         {[a b c d] :matrix [e f] :translation} atx]
     (fn []
       (q/push-matrix)
-      #?(:cljs (q/apply-matrix a b 0 e c d 0 f 0 0 1 0 0 0 0 1)
-         :clj  (q/apply-matrix a b e c d f))
+      (q/apply-matrix a b e c d f)
       (cont)
       (q/pop-matrix))))
 
