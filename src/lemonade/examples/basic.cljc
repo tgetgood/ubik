@@ -11,8 +11,8 @@
                                 }
                        :fill :purple})
         (scale 3)
-        #_(rotate  20)
-        (translate [10 10]))
+        (rotate  20)
+        (translate [300 40]))
    (assoc line :from [800 100] :to [900 100])
    (core/with-style {:fill :pink
                      :stroke {:colour :blue

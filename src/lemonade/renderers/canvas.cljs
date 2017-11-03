@@ -114,17 +114,17 @@
 
 (defmulti render-fn (fn [state shape] (:type shape)))
 
-(defn- render-all [state shapes]
+(defn- render-all [states shapes]
   (if (empty? shapes)
     noop
-    (apply juxt (map (partial render-fn state) shapes))))
+    (apply juxt (map render-fn states shapes))))
 
 ;; REVIEW: This weird special dispatch on default feels pretty kludgy,
 (defmethod render-fn :default
   [state x]
   (cond
     (sequential? x)
-    (render-all state x)
+    (render-all (repeat state) x)
 
     (contains? (set (keys (methods core/template-expand))) (:type x))
       (render-fn state (core/template-expand x))
@@ -187,7 +187,10 @@
     (let [sub-state (-> state
                         (assoc :in-path? true)
                         (update :style merge (flatten-style style)))
-          cont (render-all sub-state contents)
+          ;; HACK: We need to make the first move explicitely despite the canvas
+          ;; docs saying the first move is implicit...
+          cont (render-all (cons (assoc sub-state :override true)
+                                 (repeat sub-state)) contents)
           stylise (safe-style state style)]
       (fn [ctx]
         (.save ctx)
@@ -204,7 +207,8 @@
 
 (defmethod render-fn ::core/composite
   [state {:keys [style contents]}]
-  (let [cont (render-all (update state :style merge (flatten-style style))
+  (let [sub-state (update state :style merge (flatten-style style))
+        cont (render-all (repeat sub-state)
                          contents)
         stylise (safe-style state style)]
     #(doto %
