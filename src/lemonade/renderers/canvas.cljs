@@ -222,7 +222,6 @@
 
 (defmethod render-fn ::core/arc
   [state {[x y] :centre r :radius :keys [from to style clockwise?] :as arc}]
-  (println (meta arc))
   (with-path-style (assoc state :override (:jump (meta arc))) style [(+ x r) y]
     (.arc x y r from to (boolean clockwise?))))
 

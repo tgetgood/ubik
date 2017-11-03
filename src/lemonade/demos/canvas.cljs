@@ -1,7 +1,6 @@
 (ns lemonade.demos.canvas
-  (:require [cljs.spec.alpha :as s]
-            [cljs.spec.gen.alpha :as gen]
-            [lemonade.core :as core]
+  (:require [lemonade.core :as core]
+            [lemonade.draw :refer [start-event-loop]]
             [lemonade.examples.basic :as ex]
             [lemonade.geometry :as geometry]
             [lemonade.renderers.canvas :as rc]))
@@ -37,32 +36,31 @@
 (defn context []
   (.getContext (canvas-elem) "2d"))
 
+;;;;; Drawing
+
 (defn clear-screen! []
   (let [[w h] (canvas-container-dimensions)]
     (.clearRect (context) 0 0 w h)))
-
-;;;;; Drawing
 
 (defn get-coord-inversion []
   (let [[_ h] (canvas-container-dimensions)]
     (geometry/atx [1 0 0 -1] [0 h])))
 
-(defn draw! [shape]
-  (let [shape* (core/transform shape (get-coord-inversion))
-        render (rc/renderer shape*)]
-    (clear-screen!)
-    (render (context))))
-
-(defn draw-rand []
-  (let [shape (gen/generate (s/gen ::core/primitive-shape))]
-    (s/explain ::core/shape shape)
-    (draw! shape)))
+(def main
+  (core/transform ex/ex (get-coord-inversion)))
 
 ;;;;; Export
 
+(def stop (atom nil))
+
 (defn ^:export init []
   (fullscreen-canvas!)
-  (draw! ex/ex))
+
+  (when @stop
+    (@stop))
+
+  (reset! stop
+          (start-event-loop #'main clear-screen! rc/renderer (context))))
 
 (defn on-js-reload []
   (init))

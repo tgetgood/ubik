@@ -10,7 +10,6 @@
        (when-not in-path#
          (.beginPath ctx#))
        (when (or (:override ~state) (not in-path#))
-         (println "ov")
          (.moveTo ctx# x# y#))
        (stylise# ctx#)
        (doto ctx#
