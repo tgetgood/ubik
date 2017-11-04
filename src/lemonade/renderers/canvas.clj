@@ -17,3 +17,6 @@
        (when-not in-path#
          (.stroke ctx#))
        (.restore ctx#))))
+
+(defmacro static-render [shape]
+  )

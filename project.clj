@@ -28,7 +28,15 @@
                            :output-dir "resources/public/js/compiled/out"
                            :parallel-build true
                            :source-map-timestamp true
-                           :preloads [devtools.preload]}}]}
+                           :preloads [devtools.preload]}}
+               {:id           "min"
+                :source-paths ["src"]
+                :compiler     {:main            lemonade.demos.canvas
+                               :output-to       "resources/public/js/compiled/app.js"
+                               :optimizations   :advanced
+                               :parallel-build  true
+                               :closure-defines {goog.DEBUG false}
+                               :pretty-print    false}}]}
 
   :figwheel {:css-dirs ["resources/public/css"]}
 
