@@ -2,10 +2,10 @@
   (:require [clojure.string :as string]
             [lemonade.core :as core]
             [lemonade.draw :refer [start-event-loop]]
-            [lemonade.examples.basic :as ex]
-            [lemonade.window :as window]
+            [lemonade.examples.elections :as elections]
             [lemonade.geometry :as geometry]
-            [lemonade.renderers.canvas :as rc]))
+            [lemonade.renderers.canvas :as rc]
+            [lemonade.window :as window]))
 
 ;; Setup
 
@@ -50,7 +50,7 @@
         [ox oy] (canvas-container-offset)]
     [(- (.-clientX e) ox) (- h (- (.-clientY e) oy))]))
 
-(def window (atom {:zoom 1 :offset [0 0]}))
+(defonce window (atom {:zoom 1 :offset [0 0]}))
 
 (def handlers
   (let [drag-state (atom nil)]
@@ -118,7 +118,7 @@
 
 (defn main [window]
   (juxt clear-screen!
-        (-> ex/ex
+        (-> elections/election
             (core/transform (window/windowing-atx window))
             (core/transform (get-coord-inversion))
             rc/renderer)))

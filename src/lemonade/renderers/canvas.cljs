@@ -131,7 +131,8 @@
 
     :else
       (do
-        (println (str "I don't know how to render a " (:type x)))
+        (println (str "I don't know how to render a "
+                      (or (:type x) (type x))))
         noop)))
 
 (defn renderer
