@@ -25,4 +25,4 @@
                                :stroke :pink}
                        )))
 
-   (scale [1000 500] core/circle)])
+   (scale [4000 500] core/circle)])

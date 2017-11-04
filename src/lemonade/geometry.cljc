@@ -11,6 +11,10 @@
   For those who don't like programming with unicode."
   π)
 
+(def e
+  #?(:clj Math/E
+     :cljs js/Math.E))
+
 (defn deg->rad
   "Converts degrees to radians"
   [d]
@@ -26,6 +30,16 @@
   (if (< x 0)
     (- x)
     x))
+
+(defn exp
+  "Exponential function. Returns b^n. If b not specified defaults to Euler's
+  number."
+  ;; REVIEW: For small n, there's expm1 which can be much more accurate. I
+  ;; should look into that for windowing effects.
+  ([n]
+   (#?(:clj Math/exp :cljs js/Math.exp) n))
+  ([b n]
+   (#?(:clj Math/pow :cljs js/Math.pow) b n)))
 
 ;;;;;; Path topology
 
