@@ -5,7 +5,7 @@
   "Starts an event loop which draws the contents of an iref to context with
   renderer. Runs on requestAnimationFrame.
   Returns a function which when invoked kills the event loop."
-  [state-ref render draw]
+  [state-ref render draw profile?]
   (let [last-state (atom nil)
         continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
@@ -13,9 +13,10 @@
                (fn [now]
                  (let [state @state-ref]
                    (when-not (= state @last-state)
-                     (draw (render state))))
+                     (draw (render state))
+                     (reset! last-state state)))
                  (when @continue?
-                   (if (< 10000 (- now last-run))
+                   (if (and profile? (< 10000 (- now last-run)))
                      (do
                        (println (* 1000 (/ counter (- now last-run))))
                        (recurrent 0 now))

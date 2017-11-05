@@ -143,7 +143,7 @@
     (@stop))
 
   (reset! stop
-          (start-event-loop window main render)))
+          (start-event-loop window main render false)))
 
 (defn on-js-reload []
   (init))
