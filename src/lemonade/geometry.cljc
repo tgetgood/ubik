@@ -31,6 +31,12 @@
     (- x)
     x))
 
+(defn sqrt [x]
+  (#?(:cljs js/Math.sqrt :clj Math/sqrt) x))
+
+(defn nan? [x]
+  (#?(:cljs js/isNaN :clj Double/isNaN) x))
+
 (defn exp
   "Exponential function. Returns b^n. If b not specified defaults to Euler's
   number."
