@@ -112,22 +112,25 @@
   (let [[w h] (canvas-container-dimensions)]
     (.clearRect ctx 0 0 w h)))
 
+(defn render [frame]
+  (doto (context)
+    clear-screen!
+    (rc/render frame)))
+
 (defn get-coord-inversion []
   (let [[_ h] (canvas-container-dimensions)]
     (geometry/atx [1 0 0 -1] [0 h])))
 
 (defn main [window]
-  (juxt clear-screen!
-        (-> elections/election
-            (core/transform (window/windowing-atx window))
-            (core/transform (get-coord-inversion))
-            rc/renderer)))
+  (-> elections/election
+      (core/transform (window/windowing-atx window))
+      (core/transform (get-coord-inversion))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Export
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def stop (atom nil))
+(defonce stop (atom nil))
 
 (defn ^:export init []
   (fullscreen-canvas!)
@@ -140,7 +143,7 @@
     (@stop))
 
   (reset! stop
-          (start-event-loop window main (context))))
+          (start-event-loop window main render)))
 
 (defn on-js-reload []
   (init))
