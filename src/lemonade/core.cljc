@@ -40,6 +40,11 @@
               (let [~'style (or ~'style {})]
                 ~expansion)))))))
 
+(defn template-expand-all [shape]
+  (if (contains? (methods template-expand) (:type shape))
+    (recur (template-expand shape))
+    shape))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Core Geometry
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
