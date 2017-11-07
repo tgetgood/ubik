@@ -195,7 +195,7 @@
 ;;;;; Histogram
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(core/deftemplate rectangle
+#_(core/deftemplate `rectangle
   {:style {} :corner [0 0] :width 1 :height 1}
   (let [[x y] corner]
     {:type ::core/polyline
@@ -227,7 +227,7 @@
      (assoc line :from [0 100] :to [480 100])]))
 
 (def bar
-  (->> rectangle
+  (->> core/rectangle
        (with-style {:stroke :none
                     :fill :magenta})
        (scale [50 1000])))

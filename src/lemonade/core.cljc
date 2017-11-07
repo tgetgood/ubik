@@ -13,18 +13,32 @@
          (keyword current-ns (name sym))))))
 
 #?(:clj
+   (defn resolve-name [n]
+     (cond
+       (keyword? n) n
+
+       (and (sequential? n)
+            (= 'quote (first n))) (second n)
+
+       :else (throw (Exception. "inapprorpriate template name")))))
+
+#?(:clj
    (defmacro deftemplate
      "Defines a new shape template. Something like a macro"
      [template-name template expansion]
-     (let [fqkw (namespace-qualified-kw template-name)
-           ks (keys (dissoc template :type))]
-       `(do
-          (def ~(symbol (name template-name))
-            ~(assoc template :type fqkw))
-          (defmethod template-expand ~fqkw
-            [{:keys [~@(map (comp symbol name) ks)] :as in#}]
-            (let [~'style (or ~'style {})]
-              ~expansion))))))
+     (let [template-name (resolve-name template-name)]
+       (if-not (namespace template-name)
+         (throw (Exception. "Template names must be namespace qualified"))
+         `(do
+            (def ~(symbol (name template-name))
+              ~(assoc template :type (keyword template-name)))
+
+            (defmethod template-expand ~(keyword template-name)
+              [{:keys [~@(map (comp symbol name) (keys (dissoc template :type)))]}]
+              ;; REVIEW: I'm using lexical capture to prevent null styles. There's
+              ;; probably a better way.
+              (let [~'style (or ~'style {})]
+                ~expansion)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Core Geometry
@@ -94,11 +108,11 @@
    :to     (* 2 pi)
    :clockwise? cw?})
 
-(deftemplate circle
+(deftemplate ::circle
   {:style {} :radius 1 :centre [0 0]}
   (path style ^:closed [(full-arc centre radius)]))
 
-(deftemplate annulus
+(deftemplate ::annulus
   {:style {} :inner-radius 1 :outer-radius 2 :centre [0 0]}
   (path style
         ^:closed [(full-arc centre inner-radius)
@@ -115,7 +129,7 @@
                     ;; segments? Uck, but could work.
                     {:jump true})]))
 
-(deftemplate polyline
+(deftemplate ::polyline
   {:style {} :points []}
   (let [segs (map (fn [[x y]]
                       {:type ::line
@@ -126,7 +140,7 @@
                                   {:closed true}
                                   {})))))
 
-(deftemplate rectangle
+(deftemplate ::rectangle
   {:style  {}
    :corner [0 0]
    :height 1
