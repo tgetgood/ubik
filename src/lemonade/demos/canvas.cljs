@@ -5,6 +5,7 @@
             [lemonade.examples.elections :as elections]
             [lemonade.geometry :as geometry]
             [lemonade.renderers.canvas :as rc]
+            [lemonade.space :as space]
             [lemonade.window :as window]))
 
 ;; Setup
@@ -52,6 +53,8 @@
 
 (defonce window (atom {:zoom 1 :offset [0 0]}))
 
+(def main elections/election)
+
 (def handlers
   (let [drag-state (atom nil)]
     {:mouse-down (fn [e]
@@ -59,7 +62,10 @@
      :mouse-up   (fn [e]
                    (reset! drag-state nil))
 
-     :click      (fn [e] (println (c-space-point e)))
+     :click      (fn [e]
+                   (println
+                    (space/trace main
+                     (c-space-point e))))
 
      ;; :key-down
      ;; (fn [e]
@@ -121,8 +127,8 @@
   (let [[_ h] (canvas-container-dimensions)]
     (geometry/atx [1 0 0 -1] [0 h])))
 
-(defn main [window]
-  (-> elections/election
+(defn prerender [window]
+  (-> main
       (core/transform (window/windowing-atx window))
       (core/transform (get-coord-inversion))))
 
@@ -143,7 +149,7 @@
     (@stop))
 
   (reset! stop
-          (start-event-loop window main render false)))
+          (start-event-loop window prerender render false)))
 
 (defn on-js-reload []
   (init))

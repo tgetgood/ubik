@@ -47,6 +47,9 @@
   ([b n]
    (#?(:clj Math/pow :cljs js/Math.pow) b n)))
 
+(defn dot [x y]
+  (reduce + (map * x y)))
+
 ;;;;;; Path topology
 
 (defn connected?
