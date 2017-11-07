@@ -115,15 +115,18 @@
                     ;; segments? Uck, but could work.
                     {:jump true})]))
 
-(deftemplate ::polyline
+(deftemplate polyline
   {:style {} :points []}
-  (path style (mapv (fn [[x y]]
+  (let [segs (map (fn [[x y]]
                       {:type ::line
                        :from x
-                       :to y})
-                    (partition 2 (interleave points (rest points))))))
+                       :to   y})
+                   (partition 2 (interleave points (rest points))))]
+    (path style (with-meta segs (if (= (first points) (last points))
+                                  {:closed true}
+                                  {})))))
 
-(deftemplate ::rectangle
+(deftemplate rectangle
   {:style  {}
    :corner [0 0]
    :height 1
