@@ -1,15 +1,8 @@
 (ns lemonade.renderers.canvas
-  "Render shapes to HTML Canvas."
-  (:require [clojure.spec.alpha :as s]
-            [lemonade.core :as core]
+  "HTML Canvas renderer."
+  (:require [lemonade.core :as core]
             [lemonade.geometry :as geometry])
   (:require-macros [lemonade.renderers.canvas :refer [with-path-style]]))
-
-(comment "Uses a half baked CPS transform so that some of the work can be done
-  at compile time if the shape is statically known. Not sure how much inlining
-  the CLJS compiler (Closure?) does, but there's potential. Doesn't actually do
-  anything at compile time.")
-;; REVIEW: Diabled
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Setup
@@ -21,11 +14,7 @@
 
 (def default-style
   "Default style of images in lemonade."
-  {:stroke  {:width   0
-             :colour  :black
-             :dash    []
-             :ends    :butt
-             :corners :mitre}
+  {:stroke  :black
    :fill    :none
    :opacity 1
    :font    "sans serif 10px"})
@@ -34,30 +23,14 @@
 ;;;;; Styling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- flatten-style
-  "Converts user input style to internal renderer style format"
-  [style]
-  (let [stroke (:stroke style)]
-    (merge (dissoc style :stroke)
-           (cond
-             (map? stroke) stroke
-             (keyword? stroke) {:colour stroke}
-             (string? stroke) {:colour stroke}
-             :else {}))))
-
 (defmulti style-ctx (fn [ctx state [k v]] k))
 
 (defn safe-style [ctx state style]
   (let [parent-style (:style state)
-        child-style (merge {:width 0} (flatten-style style))]
+        child-style (merge {:stroke :black} style)]
     (doseq [[k v] child-style]
       (when (or (not (contains? parent-style k)) (= (get parent-style k) v))
         (style-ctx ctx state [k v])))))
-
-(defmethod style-ctx :width
-  [ctx {:keys [zoom]} [_ v]]
-  (let [w (if (zero? v) (/ 1 zoom) v)]
-    (aset ctx "lineWidth" w)))
 
 (defn process-gradient [m])
 
@@ -69,23 +42,12 @@
     (map? c)     (process-gradient c)
     :else        nil))
 
-(defmethod style-ctx :colour
-  [ctx _ [_ v]]
+(defmethod style-ctx :stroke
+  [ctx {:keys [zoom]} [_ v]]
   (let [c (process-colour v)]
     (when c
+      (aset ctx "lineWidth" (/ 1 zoom))
       (aset ctx "strokeStyle" (if (fn? c) (c ctx) c)))))
-
-(defmethod style-ctx :dash
-  [ctx _ [_ v]]
-  (.setLineDash ctx (clj->js v)))
-
-(defmethod style-ctx :ends
-  [ctx _ [_ v]]
-  (aset ctx "lineCap" (name v)))
-
-(defmethod style-ctx :corners
-  [ctx _ [_ v]]
-  (aset ctx "lineJoin" (name v)))
 
 (defmethod style-ctx :fill
   [ctx _ [_ v]]
@@ -168,7 +130,7 @@
   [ctx state {:keys [closed? contents style]}]
   (let [sub-state (-> state
                       (assoc :in-path? true)
-                      (update :style #(merge (flatten-style style) %)))
+                      (update :style #(merge style %)))
         ;; HACK: We need to make the first move explicitely despite the canvas
         ;; docs saying the first move is implicit...
         states (cons (assoc sub-state :override true)
@@ -190,7 +152,7 @@
 
 (defmethod render-fn ::core/composite
   [ctx state {:keys [style contents]}]
-  (let [sub-state (update state :style #(merge (flatten-style style) %))]
+  (let [sub-state (update state :style #(merge style %))]
     (.save ctx)
     (safe-style ctx state style)
     (render-all ctx (repeat sub-state) contents)
