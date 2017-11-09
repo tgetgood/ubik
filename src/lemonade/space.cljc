@@ -5,8 +5,11 @@
             [lemonade.spec.geometry :as gs]
             [clojure.spec.alpha :as s]))
 
-;;; Given a point in space and a shape tree, detect which paths in the tree were
-;;; clicked on.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Generalised Distance Computation
+;;
+;; I'm starting the think this is actually overkill
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn classify [x]
   (if (s/valid? ::gs/point x)
@@ -48,6 +51,23 @@
     0
     (let [lines (:contents (core/template-expand-all rect))]
       (apply min (map (partial distance [x y]) lines)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Affine Application
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn jerry [state shape]
+  (cond
+    (sequential? shape) (map (partial jerry state) shape)
+
+    (= ::core/atx (:type shape))
+    (jerry (geometry/comp-atx state (:atx shape)) (:base-shape shape))
+
+    (contains? :contents shape) ()))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; I don't know
 
 (defn trace* [shape point]
   (cond
