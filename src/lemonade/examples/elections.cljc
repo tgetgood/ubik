@@ -243,25 +243,28 @@
                 (->> results
                      (sum-tail 8)
                      (sort-by second)
+                     (filter (fn [[k v]] (< 0 v)))
                      reverse))])
 
-(defn summary [interpret]
+(defn summary [election-data]
   (->> election-data
-       (map (fn [[k v]] [k (interpret v)]))
-        (map histogram)
-        (map-indexed (fn [i s] (translate [(* i 550) 0] s)))))
+       (map histogram)
+       (map-indexed (fn [i s] (translate [(* i 550) 0] s)))))
 
-(def election
-  [(summary seat-proportions)
+(defn apv [m f]
+  (map (fn [[k v]] [k (f v)]) m))
+
+(defn election [data]
+  [(summary (apv data seat-proportions))
    (->> (textline "Commons")
        (scale 4)
        (translate [-300 250]))
-   (->> (summary simple-proportions)
+   (->> (summary (apv data simple-proportions))
        (translate [0 600]))
    (->> (textline "Proportional")
        (scale 4)
        (translate [-300 850]))
-   (->> (summary proportions)
+   (->> (summary (apv data proportions))
         (translate [0 1200]))
    (->> (textline "With Abstentions" )
        (scale 4)

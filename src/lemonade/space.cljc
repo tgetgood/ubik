@@ -56,14 +56,25 @@
 ;;;;; Affine Application
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn jerry [state shape]
+(defn jerry [state point shape]
   (cond
-    (sequential? shape) (map (partial jerry state) shape)
+    (sequential? shape) (map (partial jerry state point) shape)
 
     (= ::core/atx (:type shape))
-    (jerry (geometry/comp-atx state (:atx shape)) (:base-shape shape))
+    (jerry (geometry/comp-atx state (:atx shape)) point (:base-shape shape))
 
-    (contains? :contents shape) ()))
+    (contains? shape :contents)
+    (map (partial jerry state point) (:contents shape))
+
+    (= (:type shape) ::core/rectangle)
+    (let [d (distance
+             (geometry/apply-atx (geometry/invert-atx state) point)
+             shape)]
+      (when (zero? d)
+        {:atx state :shape shape}))
+
+    :else
+    nil))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -79,7 +90,12 @@
 
     :else                         (distance point shape)))
 
-(defn trace [shape point]
-  (->> (trace* shape point)
+(defn trace [point shape]
+  (->>
+   (jerry geometry/id point shape)
+   flatten
+   (remove nil?)
+   first)
+  #_(->> (trace* shape point)
        flatten
        sort))

@@ -128,3 +128,8 @@
         [(+ x (* a x') (* b y'))
          (+ y (* c x') (* d y'))]))
   ([a b & more] (reduce comp-atx (comp-atx a b) more)))
+
+(defn apply-atx
+  "Applies affine tx to a point and returns the result."
+  [{[a b c d] :matrix [e f] :translation} [x y]]
+  [(+ (* a x) (* b y) e) (+ (* c x) (* d y) f)])

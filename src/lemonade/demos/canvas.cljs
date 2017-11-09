@@ -51,21 +51,28 @@
         [ox oy] (canvas-container-offset)]
     [(- (.-clientX e) ox) (- h (- (.-clientY e) oy))]))
 
-(defonce window (atom {:zoom 1 :offset [0 0]}))
-
 (def main elections/election)
 
 (def handlers
   (let [drag-state (atom nil)]
-    {:mouse-down (fn [e]
+    {:mouse-down (fn [_ e]
                    (reset! drag-state (c-space-point e)))
-     :mouse-up   (fn [e]
+     :mouse-up   (fn [_ e]
                    (reset! drag-state nil))
 
-     :click      (fn [e]
-                   (println
-                    (space/trace main
-                     (c-space-point e))))
+     :click      (fn [state e]
+                   (let [{:keys [lemonade.core/world window]} @state]
+                     (when-let [{:keys [atx shape]}
+                                (->> world
+                                     (core/transform (window/windowing-atx window))
+                                     (space/trace (c-space-point e)))]
+                       (swap! state assoc :interactive
+                              (->> shape
+                                  (core/transform atx)
+                                  (core/scale 1.1)
+                                  (core/with-style
+                                    {:fill "rgba(200,100,0,0.5)"
+                                     :stroke :none}))))))
 
      ;; :key-down
      ;; (fn [e]
@@ -74,23 +81,28 @@
      ;;               (= (.-key e) "k") (db/prev-slide)
      ;;               :else nil))
 
-     :mouse-move (fn [e]
+     :mouse-move (fn [state e]
                    (when @drag-state
                      (let [q     (c-space-point e)
                            p     @drag-state
                            delta (mapv - p q)]
                        (reset! drag-state q)
-                       (swap! window window/update-offset delta))))
-     :wheel      (fn [e]
+                       (swap! state update :window window/update-offset delta))))
+     :wheel      (fn [state e]
                    (let [p  (c-space-point e)
                          dz (window/normalise-zoom (js/parseInt (.-deltaY e)))]
-                     (swap! window window/update-zoom p dz)))}))
+                     (swap! state update :window window/update-zoom p dz)))}))
+
+(defonce state
+  (atom {:window {:zoom 1 :offset [0 0]}
+         :election-data elections/election-data
+         :interactive []}))
 
 (def canvas-event-handlers
   (into {}
         (map (fn [[k v]]
-               [(keyword (str "on-" (name k))) v])
-          handlers)))
+               [(name k) (partial v state)])
+              handlers)))
 
 ;;;;; Handler Registration
 
@@ -100,7 +112,7 @@
 (defonce registered-listeners (atom nil))
 
 (defn register-handlers! [elem]
-  (reset! registered-listeners handlers)
+  (reset! registered-listeners canvas-event-handlers)
   ;; HACK: Allows keypress events on canvas
   (aset elem "tabIndex" 1000)
   (doseq [[event cb] @registered-listeners]
@@ -127,10 +139,11 @@
   (let [[_ h] (canvas-container-dimensions)]
     (geometry/atx [1 0 0 -1] [0 h])))
 
-(defn prerender [window]
-  (-> main
-      (core/transform (window/windowing-atx window))
-      (core/transform (get-coord-inversion))))
+(defn prerender [{:keys [window election-data interactive]}]
+  (->> [(elections/election election-data)
+        interactive]
+       (core/transform (window/windowing-atx window))
+       (core/transform (get-coord-inversion))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Export
@@ -149,7 +162,7 @@
     (@stop))
 
   (reset! stop
-          (start-event-loop window prerender render false)))
+          (start-event-loop state prerender render false)))
 
 (defn on-js-reload []
   (init))

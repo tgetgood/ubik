@@ -5,7 +5,7 @@
   "Starts an event loop which draws the contents of an iref to context with
   renderer. Runs on requestAnimationFrame.
   Returns a function which when invoked kills the event loop."
-  [state-ref render draw profile?]
+  [state-ref prerender render profile?]
   (let [last-state (atom nil)
         continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
@@ -13,7 +13,9 @@
                (fn [now]
                  (let [state @state-ref]
                    (when-not (= state @last-state)
-                     (draw (render state))
+                     (let [world (prerender state)]
+                       (swap! state-ref assoc :lemonade.core/world world)
+                       (render world))
                      (reset! last-state state)))
                  (when @continue?
                    (if (and profile? (< 10000 (- now last-run)))
