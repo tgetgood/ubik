@@ -1,23 +1,9 @@
 (ns lemonade.renderers.canvas
   "HTML Canvas renderer."
   (:require [lemonade.core :as core]
-            [lemonade.geometry :as geometry])
+            [lemonade.geometry :as geometry]
+            [lemonade.renderers.util :as util])
   (:require-macros [lemonade.renderers.canvas :refer [with-path-style]]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Setup
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def ^:private noop
-  "What a render-fn returns if it wants to do nothing."
-  (constantly nil))
-
-(def default-style
-  "Default style of images in lemonade."
-  {:stroke  :black
-   :fill    :none
-   :opacity 1
-   :font    "sans serif 10px"})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
@@ -80,7 +66,7 @@
     (sequential? shape)
     (render-all ctx (repeat state) shape)
 
-    (contains? (set (keys (methods core/template-expand))) (:type shape))
+    (contains? (methods core/template-expand) (:type shape))
       (render-fn ctx state (core/template-expand shape))
 
     :else
