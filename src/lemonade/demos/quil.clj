@@ -1,18 +1,24 @@
 (ns lemonade.demos.quil
-  (:require [quil.core :as q]
-            [lemonade.renderers.quil :refer [renderer]]
-            [lemonade.examples.basic :as basic]))
+  (:require [clojure.pprint :refer [pprint]]
+            [lemonade.examples.basic :as basic]
+            [lemonade.renderers.quil :refer [render]]
+            [quil.core :as q]))
 
 (defn draw! []
+  (q/fill 0 100 200)
+
   (q/clear)
   (q/background 255)
-  (q/reset-matrix)
-  (let [r (renderer basic/ex)]
-    (r)))
+  (q/begin-shape)
+  (q/line [100 100] [200 200])
+  (q/line [200 200] [100 200])
+  (q/line [100 200] [100 100])
+  #_(render basic/ex2)
+  (q/end-shape))
 
-(defn sketch! [w h]
+(defn sketch! []
    (q/defsketch quil-test
      :host "canvas"
      :renderer :p2d
-     :size [w h]
+     :features [:resizable]
      :draw draw!))

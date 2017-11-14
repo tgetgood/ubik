@@ -24,3 +24,9 @@
          (translate [500 500])))
 
    (scale core/circle [4000 500])])
+
+
+(def ex2
+  [(assoc line :from [100 100] :to [200 200])
+   (assoc line :from [200 200] :to [100 200])
+   (assoc line :from [100 200] :to [100 100])])
