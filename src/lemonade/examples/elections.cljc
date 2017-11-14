@@ -227,19 +227,20 @@
      (assoc line :from [0 100] :to [480 100])]))
 
 (def bar
-  (->> core/rectangle
-       (with-style {:stroke :none
-                    :fill :magenta})
-       (scale [50 1000])))
+  (-> core/rectangle
+      (assoc :style {:stroke :none
+                     :fill :magenta}
+             :width 50
+             :height 1000)))
 
 (defn histogram [[year results]]
-  [(translate [-20 0] grid-lines)
-   (scale [200 -40] 3 (textline (name year) [200 -40]))
+  [(translate grid-lines [-20 0])
+   (scale (textline (name year) [200 -40]) [200 -40] 3)
    (map-indexed (fn [i [k v]]
-                  (->> bar
-                       (with-style {:fill (get colours k :magenta)})
-                       (scale [1 v])
-                       (translate [(* i 60) 0])))
+                  (-> bar
+                      (assoc :style {:fill (get colours k :magenta)})
+                      (scale [1 v])
+                      (translate [(* i 60) 0])))
                 (->> results
                      (sum-tail 8)
                      (sort-by second)
@@ -249,24 +250,24 @@
 (defn summary [election-data]
   (->> election-data
        (map histogram)
-       (map-indexed (fn [i s] (translate [(* i 550) 0] s)))))
+       (map-indexed (fn [i s] (translate s [(* i 550) 0])))))
 
 (defn apv [m f]
   (map (fn [[k v]] [k (f v)]) m))
 
 (defn election [data]
   [(summary (apv data seat-proportions))
-   (->> (textline "Commons")
+   (-> (textline "Commons")
        (scale 4)
        (translate [-300 250]))
-   (->> (summary (apv data simple-proportions))
+   (-> (summary (apv data simple-proportions))
        (translate [0 600]))
-   (->> (textline "Proportional")
+   (-> (textline "Proportional")
        (scale 4)
        (translate [-300 850]))
-   (->> (summary (apv data proportions))
+   (-> (summary (apv data proportions))
         (translate [0 1200]))
-   (->> (textline "With Abstentions" )
+   (-> (textline "With Abstentions" )
        (scale 4)
        (translate [-350 1450]))])
 

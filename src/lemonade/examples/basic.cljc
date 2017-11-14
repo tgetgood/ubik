@@ -4,25 +4,23 @@
 
 (def ex
 
-  [(->> (assoc polyline
-               :points [[0 0] [100 100] [300 100] [100 300] [0 0]]
-               :style {:stroke {:corners :square
-                                :colour :cyan
-                                }
-                       :fill :purple})
-        (scale 3)
-        (rotate  20)
-        (translate [300 40]))
+  [(-> polyline
+       (assoc :points [[0 0] [100 100] [300 100] [100 300] [0 0]]
+              :style {:stroke {:corners :square
+                               :colour  :cyan}
+                      :fill   :purple})
+       (scale 3)
+       (rotate 20)
+       (translate [300 40]))
    (assoc line :from [800 100] :to [900 100])
-   (core/with-style {:fill :pink
-                     :stroke {:colour :blue
-                              :dash []
-                              :width  5}}
-     (translate [500 500]
-                (assoc annulus :outer-radius 300 :inner-radius 200
-                       :style {:fill   :red
-                               :dash   [5 5]
-                               :stroke :pink}
-                       )))
+   (core/with-style {:fill   :pink
+                     :stroke {:colour :blue}}
+     (-> annulus
+         (assoc :outer-radius 300
+                :inner-radius 200
+                :style {:fill   :red
 
-   (scale [4000 500] core/circle)])
+                        :stroke :pink})
+         (translate [500 500])))
+
+   (scale core/circle [4000 500])])

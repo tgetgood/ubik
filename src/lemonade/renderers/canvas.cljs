@@ -93,6 +93,7 @@
   "Returns a render function which when passed a context, renders the given
   shape."
   [ctx shape]
+  (println shape)
   (.save ctx)
   (.setTransform ctx 1 0 0 1 0 0)
   (render-fn ctx {:style {} :zoom 1 :in-path? false} shape)

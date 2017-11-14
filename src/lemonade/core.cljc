@@ -86,6 +86,7 @@
       :contents segments})))
 
 (defn conj-path [{:keys [style contents]} segment]
+  ;; TODO: Assert that the composition is a path.
   (path style (conj contents segment)))
 
 (defn composite
@@ -97,6 +98,9 @@
 
 (defn with-style [style & shapes]
   (composite style shapes))
+
+(defn style [shape style]
+  (with-style style shape))
 
 (defn radians [r]
   (/ (* r 180) geometry/pi))
@@ -209,35 +213,35 @@
   ;; simultaneously. It would seem on the surface that just returning a default
   ;; shape that renders to nothing in this case would be far superior to
   ;; actually inflicting degenerate math on the system. But null pointers...
-  [atx base]
+  [shape atx]
   {:type ::atx
-   :base-shape base
+   :base-shape shape
    :atx atx})
 
 (defn translate
   "Returns a copy of shape translated by [x y],"
-  [b shape]
-  (transform (translation b) shape))
+  [shape b]
+  (transform shape (translation b)))
 
 (defn rotate
   "Returns a copy of shape rotated by angle around the given centre of
   rotation."
-  ([angle shape] (rotate [0 0] angle shape))
-  ([centre angle shape]
-   (transform (recentre centre (rotation angle)) shape)))
+  ([shape angle] (rotate shape [0 0] angle))
+  ([shape centre angle]
+   (transform shape (recentre centre (rotation angle)))))
 
 (defn scale
   "Returns a copy of shape scaled horizontally by a and verticaly by b. Centre
   is the origin (fixed point) of the transform."
-  ([a shape]
-   (scale [0 0] a shape))
-  ([centre a shape]
+  ([shape a]
+   (scale shape [0 0] a))
+  ([shape centre a]
    (let [extent (if (vector? a) a [a a])]
-     (transform (recentre centre (scaling extent)) shape))))
+     (transform shape (recentre centre (scaling extent))))))
 
 (defn reflect
   "Returns a copy of shaped reflected around the line with direction dir through
   centre."
-  ([dir shape] (reflect [0 0] dir shape))
-  ([centre dir shape]
-   (transform (recentre centre (reflection dir)) shape)))
+  ([shape dir] (reflect shape [0 0] dir))
+  ([shape centre dir]
+   (transform shape (recentre centre (reflection dir)))))

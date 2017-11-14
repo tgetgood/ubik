@@ -63,16 +63,16 @@
      :click      (fn [state e]
                    (let [{:keys [lemonade.core/world window]} @state]
                      (when-let [{:keys [atx shape]}
-                                (->> world
-                                     (core/transform (window/windowing-atx window))
-                                     (space/trace (c-space-point e)))]
+                                (-> world
+                                    (core/transform (window/windowing-atx window))
+                                    (space/trace (c-space-point e)))]
                        (swap! state assoc :interactive
-                              (->> shape
+                              (-> shape
                                   (core/transform atx)
                                   (core/scale 1.1)
-                                  (core/with-style
-                                    {:fill "rgba(200,100,0,0.5)"
-                                     :stroke :none}))))))
+                                  (core/style
+                                   {:fill "rgba(200,100,0,0.5)"
+                                    :stroke :none}))))))
 
      ;; :key-down
      ;; (fn [e]
@@ -95,14 +95,14 @@
 
 (defonce state
   (atom {:window {:zoom 1 :offset [0 0]}
-         :election-data elections/election-data
+         :election-data  elections/election-data
          :interactive []}))
 
 (def canvas-event-handlers
   (into {}
         (map (fn [[k v]]
                [(name k) (partial v state)])
-              handlers)))
+             handlers)))
 
 ;;;;; Handler Registration
 
@@ -140,10 +140,9 @@
     (geometry/atx [1 0 0 -1] [0 h])))
 
 (defn prerender [{:keys [window election-data interactive]}]
-  (->> [(elections/election election-data)
-        interactive]
-       (core/transform (window/windowing-atx window))
-       (core/transform (get-coord-inversion))))
+  (-> (elections/election election-data)
+      (core/transform (window/windowing-atx window))
+      (core/transform (get-coord-inversion))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Export

@@ -90,7 +90,7 @@
 
     :else                         (distance point shape)))
 
-(defn trace [point shape]
+(defn trace [shape point]
   (->>
    (jerry geometry/id point shape)
    flatten
