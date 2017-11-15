@@ -2,6 +2,7 @@
   (:require [clojure.string :as string]
             [lemonade.core :as core]
             [lemonade.draw :refer [start-event-loop]]
+            [lemonade.examples.basic :as basic]
             [lemonade.examples.elections :as elections]
             [lemonade.geometry :as geometry]
             [lemonade.renderers.canvas :as rc]

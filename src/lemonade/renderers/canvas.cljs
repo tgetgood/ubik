@@ -73,7 +73,7 @@
       (do
         (println (str "I don't know how to render a "
                       (or (:type shape) (type shape))))
-        noop)))
+        util/noop)))
 
 (defn render
   "Returns a render function which when passed a context, renders the given

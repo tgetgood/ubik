@@ -238,7 +238,7 @@
    (scale (textline (name year) [200 -40]) [200 -40] 3)
    (map-indexed (fn [i [k v]]
                   (-> bar
-                      (assoc :style {:fill (get colours k :magenta)})
+                      (core/style {:fill (get colours k :magenta)})
                       (scale [1 v])
                       (translate [(* i 60) 0])))
                 (->> results
