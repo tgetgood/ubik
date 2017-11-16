@@ -79,7 +79,6 @@
   "Returns a render function which when passed a context, renders the given
   shape."
   [ctx shape]
-  (println shape)
   (.save ctx)
   (.setTransform ctx 1 0 0 1 0 0)
   (render-fn ctx {:style {} :zoom 1 :in-path? false} shape)
@@ -167,3 +166,20 @@
   [ctx state {[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 style :style}]
   (with-path-style ctx state style [x1 y1]
     (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; API
+;;
+;; This should be the only outside reference
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- context [elem]
+  (.getContext elem "2d"))
+
+(defn clear-screen! [ctx w h]
+  (.clearRect ctx 0 0 w h))
+
+(defn draw! [canvas-element world]
+  (doto (context canvas-element)
+    (clear-screen! (.-width canvas-element) (.-height canvas-element))
+    (render world)))
