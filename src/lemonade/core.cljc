@@ -266,20 +266,23 @@
   (let [last-state (atom nil)
         continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
-              (js/window.requestAnimationFrame
-               (fn [now]
-                 (let [state @state-ref]
-                   (when-not (= state @last-state)
-                     (let [world (app-fn state)]
-                       (swap! state-ref assoc :lemonade.core/world world)
-                       (draw-fn world))
-                     (reset! last-state @state-ref)))
-                 (when @continue?
-                   (if (and profile? (< 10000 (- now last-run)))
-                     (do
-                       (println (* 1000 (/ counter (- now last-run))))
-                       (recurrent 0 now))
-                     (recurrent (inc counter) last-run))))))]
+              #?(:clj
+                 (draw-fn (app-fn @state-ref))
+                 :cljs
+                 (js/window.requestAnimationFrame
+                  (fn [now]
+                    (let [state @state-ref]
+                      (when-not (= state @last-state)
+                        (let [world (app-fn state)]
+                          (swap! state-ref assoc :lemonade.core/world world)
+                          (draw-fn world))
+                        (reset! last-state @state-ref)))
+                    (when @continue?
+                      (if (and profile? (< 10000 (- now last-run)))
+                        (do
+                          (println (* 1000 (/ counter (- now last-run))))
+                          (recurrent 0 now))
+                        (recurrent (inc counter) last-run)))))))]
       (recurrent 0 0)
 
       (reset! idem
