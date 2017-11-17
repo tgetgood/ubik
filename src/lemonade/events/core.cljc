@@ -3,7 +3,7 @@
 (defonce ^:private registered-callbacks (atom {}))
 
 (defn fire! [evt]
-  (loop [[{cb ::cb} & more] (get @registered-callbacks (:lemonade.events/type evt))]
+  (loop [[{cb ::cb} & more] (get @registered-callbacks (:type evt))]
     (when cb
       (cb evt))
     (when more

@@ -46,10 +46,6 @@
   (fn [state]
     (core/transform (render state) (get-coord-inversion elem))))
 
-(defn wrap-windowing [render]
-  (fn [state]
-    (core/transform (render state) (window/windowing-atx state))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Export
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -68,10 +64,10 @@
 (def handler
   (let [elem (canvas-elem)]
     (-> prerender
-        wrap-windowing
+        window/wrap-windowing
         (wrap-invert-coordinates elem))))
 
-(defn ^:export init []
+(defn on-js-reload []
   (fullscreen-canvas!)
 
   (let [elem (canvas-elem)]
@@ -79,11 +75,11 @@
 
     ;; TODO: Somehow set up the lemonade event system.
     (events/clear-events!)
-    (events/register-event-handlers (window/window-events state) ::window/events )
-
-    (lemonade.events.core/fire! {:lemonade.events/type :lemonade.events/init})
+    (events/register-event-handlers (window/window-events state) ::window/events)
 
     (core/draw-loop state handler (partial rc/draw! elem) false)))
 
-(defn on-js-reload []
-  (init))
+(defn ^:export init []
+  (on-js-reload)
+  ;; Init app state just once.
+  (events/fire! {:type :lemonade.events/init}))

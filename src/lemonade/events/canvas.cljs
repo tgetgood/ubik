@@ -26,14 +26,12 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 (fire! #:lemonade.events
-                                {:type     :lemonade.events/left-mouse-down
+                       0 (fire! {:type     :lemonade.events/left-mouse-down
                                  :location p})
                        nil)))
    :mouse-move   (fn [e]
                    (.preventDefault e)
-                   (fire! #:lemonade.events
-                          {:type     :lemonade.events/mouse-move
+                   (fire! {:type     :lemonade.events/mouse-move
                            :location (pixel-point elem e)}))
 
    :mouse-up     (fn [e]
@@ -46,14 +44,12 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 (fire! #:lemonade.events
-                                {:type     :lemonade.events/left-mouse-up
+                       0 (fire! {:type     :lemonade.events/left-mouse-up
                                  :location p})
                        nil)))
    :wheel        (fn [e]
                    (.preventDefault e)
-                   (fire! #:lemonade.events
-                          {:type     :lemonade.events/wheel
+                   (fire! {:type     :lemonade.events/wheel
                            :location (pixel-point elem e)
                            :dx       (js/parseInt (.-deltaX e))
                            :dy       (js/parseInt (.-deltaY e))}))
@@ -61,13 +57,13 @@
    :key-down     (fn [e]
                    (.preventDefault e)
                    ;; TODO: Process
-                   (fire! #:lemonade.events{:type :key-down
-                                           :raw  e}))
+                   (fire! {:type :key-down
+                           :raw  e}))
 
    :key-up       (fn [e]
                    (.preventDefault e)
-                   (fire! #:lemonade.events{:type :key-up
-                                            :raw  e}))})
+                   (fire! {:type :key-up
+                           :raw  e}))})
 
 (defonce ^:private registered-listeners (atom {}))
 

@@ -10,17 +10,16 @@
     (geometry/exp (/ (- dz) scale))))
 
 (defn zoom-c [dz ox zx]
-  (+ (* dz ox) (* zx (- 1 dz))))
+  (let [dz (normalise-zoom dz)]
+    (+ (* dz ox) (* zx (- 1 dz)))))
 
 (defn update-zoom [{z :zoom o :offset :as w} zc dz]
   (assoc w
          :zoom (+ z dz)
          :offset (mapv (partial zoom-c dz) o zc)))
 
-(defn update-offset [{:keys [zoom] :as w} [dx dy]]
-  (update w :offset
-          (fn [[x y]]
-            [(- x dx) (- y dy)])))
+(defn update-offset [w delta]
+  (update w :offset #(mapv - % delta)))
 
 (defn windowing-atx [{{:keys [zoom offset]} ::window}]
   (let [zoom (normalise-zoom zoom)]
@@ -38,7 +37,6 @@
   (let [drag-state (atom nil)]
     #::events
     {:init            (fn [_]
-                        (println "init")
                         (swap! state assoc ::window {:zoom 0 :offset [0 0]}))
 
      :wheel           (fn [{:keys [dy location]}]
@@ -49,9 +47,13 @@
 
      :mouse-move      (fn [{:keys [location]}]
                         (when @drag-state
-                          (let [delta (map - location @drag-state)]
+                          (let [delta (mapv - @drag-state location)]
                             (reset! drag-state location)
-                            (swap! state update ::window delta))))
+                            (swap! state update ::window update-offset delta))))
 
      :left-mouse-up   (fn [_]
                         (reset! drag-state nil))}))
+
+(defn wrap-windowing [render]
+  (fn [state]
+    (core/transform (render state) (windowing-atx state))))
