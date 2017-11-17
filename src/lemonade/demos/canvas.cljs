@@ -1,6 +1,7 @@
 (ns lemonade.demos.canvas
   (:require [lemonade.core :as core]
             [lemonade.events.canvas :as dom-events]
+            [lemonade.events.core :as events]
             [lemonade.examples.elections :as elections]
             [lemonade.geometry :as geometry]
             [lemonade.renderers.canvas :as rc]
@@ -77,6 +78,10 @@
     (dom-events/init-event-system! elem)
 
     ;; TODO: Somehow set up the lemonade event system.
+    (events/clear-events!)
+    (events/register-event-handlers (window/window-events state) ::window/events )
+
+    (lemonade.events.core/fire! {:lemonade.events/type :lemonade.events/init})
 
     (core/draw-loop state handler (partial rc/draw! elem) false)))
 

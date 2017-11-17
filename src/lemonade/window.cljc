@@ -28,7 +28,7 @@
      (core/translation offset)
      (core/scaling [zoom zoom]))))
 
-(def window-events
+(defn window-events [state]
   ;; REVIEW: These guys are going to mutatate state which has to be an
   ;; atom. Something like re-frame or javelin with a signal graph could help a
   ;; lot here.
@@ -37,20 +37,21 @@
   ;; infinite canvas from the browser. I think,..
   (let [drag-state (atom nil)]
     #::events
-    {:init            (fn [state]
+    {:init            (fn [_]
+                        (println "init")
                         (swap! state assoc ::window {:zoom 0 :offset [0 0]}))
 
-     :wheel           (fn [state {:keys [dy location]}]
+     :wheel           (fn [{:keys [dy location]}]
                         (swap! state update ::window update-zoom location dy))
 
-     :left-mouse-down (fn [_ {:keys [location]}]
+     :left-mouse-down (fn [{:keys [location]}]
                         (reset! drag-state location))
 
-     :mouse-move      (fn [state {:keys [location]}]
+     :mouse-move      (fn [{:keys [location]}]
                         (when @drag-state
                           (let [delta (map - location @drag-state)]
                             (reset! drag-state location)
                             (swap! state update ::window delta))))
 
-     :left-mouse-up   (fn [_ _]
+     :left-mouse-up   (fn [_]
                         (reset! drag-state nil))}))

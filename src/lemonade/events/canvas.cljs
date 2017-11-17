@@ -61,7 +61,7 @@
    :key-down     (fn [e]
                    (.preventDefault e)
                    ;; TODO: Process
-                   (fire! :lemonade.events{:type :key-down
+                   (fire! #:lemonade.events{:type :key-down
                                            :raw  e}))
 
    :key-up       (fn [e]
