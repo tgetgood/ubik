@@ -1,0 +1,86 @@
+(ns lemonade.events.canvas
+  (:require [clojure.string :as string]
+            [lemonade.events.core :as core :refer [fire!]]))
+
+(defn- kw->js [kw]
+  (string/replace (name kw) #"-" ""))
+
+(defn pixel-point
+  "Returns pixel clicked on relative to canvas element."
+  [elem e]
+  [(- (.-clientX e) (.-offsetLeft elem)) (- (.-clientY e) (.-offsetTop elem))])
+
+(defn ^:private event-map
+  [elem]
+  {:context-menu (fn [e]
+                   (.preventDefault e)
+                   (.stopPropagation e))
+   ;; We need this to get the focus back to the element for keystrokes.
+   ;; REVIEW: Is this the right level for this?
+   :click        (fn [e]
+                   (.preventDefault e)
+                   (.focus elem))
+   :mouse-down   (fn [e]
+                   (.preventDefault e)
+                   (let [b (.-button e)
+                         p (pixel-point elem e)]
+                     (case b
+                       ;; Only handling left click for now.
+                       0 (fire! #:lemonade.events
+                                {:type     :lemonade.events/left-mouse-down
+                                 :location p})
+                       nil)))
+   :mouse-move   (fn [e]
+                   (.preventDefault e)
+                   (fire! #:lemonade.events
+                          {:type     :lemonade.events/mouse-move
+                           :location (pixel-point elem e)}))
+
+   :mouse-up     (fn [e]
+                   (.preventDefault e)
+                   ;; REVIEW: Is this really to right place to decide what
+                   ;; buttons a mouse has? We do need some kind of layer between
+                   ;; "button 0" and "left click", but here might not be the
+                   ;; place...
+                   (let [b (.-button e)
+                         p (pixel-point elem e)]
+                     (case b
+                       ;; Only handling left click for now.
+                       0 (fire! #:lemonade.events
+                                {:type     :lemonade.events/left-mouse-up
+                                 :location p})
+                       nil)))
+   :wheel        (fn [e]
+                   (.preventDefault e)
+                   (fire! #:lemonade.events
+                          {:type     :lemonade.events/wheel
+                           :location (pixel-point elem e)
+                           :dx       (js/parseInt (.-deltaX e))
+                           :dy       (js/parseInt (.-deltaY e))}))
+
+   :key-down     (fn [e]
+                   (.preventDefault e)
+                   ;; TODO: Process
+                   (fire! :lemonade.events{:type :key-down
+                                           :raw  e}))
+
+   :key-up       (fn [e]
+                   (.preventDefault e)
+                   (fire! #:lemonade.events{:type :key-up
+                                            :raw  e}))})
+
+(defonce ^:private registered-listeners (atom {}))
+
+(defn init-event-system! [elem]
+
+  ;; Stop previous handlers
+  (doseq [[event cb] @registered-listeners]
+    (.removeEventListener elem (kw->js event) cb))
+
+  ;; Setup new ones
+  (let [handlers (event-map elem)]
+    (reset! registered-listeners handlers)
+    ;; HACK: Allows keypress events on canvas
+    (.focus elem)
+    (doseq [[event cb] handlers]
+      (.addEventListener elem (kw->js event) cb))))

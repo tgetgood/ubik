@@ -1,6 +1,6 @@
 (ns lemonade.demos.canvas
   (:require [lemonade.core :as core]
-            [lemonade.events :as events]
+            [lemonade.events.canvas :as dom-events]
             [lemonade.examples.elections :as elections]
             [lemonade.geometry :as geometry]
             [lemonade.renderers.canvas :as rc]
@@ -74,7 +74,10 @@
   (fullscreen-canvas!)
 
   (let [elem (canvas-elem)]
-    (events/init-event-system! elem)
+    (dom-events/init-event-system! elem)
+
+    ;; TODO: Somehow set up the lemonade event system.
+
     (core/draw-loop state handler (partial rc/draw! elem) false)))
 
 (defn on-js-reload []
