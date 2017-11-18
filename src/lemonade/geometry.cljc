@@ -118,6 +118,7 @@
 
 (defn comp-atx
   "Returns the composition of affine transformations"
+  ([] id)
   ([a] a)
   ([{[a b c d] :matrix [x y] :translation}
     {[a' b' c' d'] :matrix [x' y'] :translation}]
