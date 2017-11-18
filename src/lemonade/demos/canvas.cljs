@@ -1,9 +1,9 @@
 (ns lemonade.demos.canvas
-  (:require [lemonade.core :as core]
+  (:require [lemonade.coordinates :as coords]
+            [lemonade.core :as core]
             [lemonade.events.canvas :as dom-events]
             [lemonade.events.core :as events]
             [lemonade.examples.elections :as elections]
-            [lemonade.geometry :as geometry]
             [lemonade.renderers.canvas :as rc]
             [lemonade.window :as window]))
 
@@ -36,17 +36,6 @@
     (set-canvas-size! (canvas-elem) dim)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Drawing
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-coord-inversion [elem]
-  (geometry/atx [1 0 0 -1] [0 (.-height elem)]))
-
-(defn wrap-invert-coordinates [render elem]
-  (fn [state]
-    (core/transform (render state) (get-coord-inversion elem))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Export
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -65,7 +54,7 @@
   (let [elem (canvas-elem)]
     (-> prerender
         window/wrap-windowing
-        (wrap-invert-coordinates elem))))
+        (coords/wrap-invert-coordinates elem))))
 
 (defn on-js-reload []
   (fullscreen-canvas!)
