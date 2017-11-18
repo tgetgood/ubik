@@ -53,27 +53,11 @@
 ;;;;; Main
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmulti render-fn (fn [ctx state shape] (:type shape)))
+(defmulti render-fn (fn [ctx state shape] (core/classify shape)))
 
 (defn- render-all [ctx states shapes]
   (doseq [[state shape] (partition 2 (interleave states shapes))]
     (render-fn ctx state shape)))
-
-;; REVIEW: This weird special dispatch on default feels pretty kludgy,
-(defmethod render-fn :default
-  [ctx state shape]
-  (cond
-    (sequential? shape)
-    (render-all ctx (repeat state) shape)
-
-    (contains? (methods core/template-expand) (:type shape))
-      (render-fn ctx state (core/template-expand shape))
-
-    :else
-      (do
-        (println (str "I don't know how to render a "
-                      (or (:type shape) (type shape))))
-        util/noop)))
 
 (defn render
   "Returns a render function which when passed a context, renders the given
@@ -88,6 +72,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Internal render logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmethod render-fn :default
+  [ctx state shape]
+  (println (str "I don't know how to render a "
+                (or (core/classify shape) (type shape))))
+  util/noop)
+
+(defmethod render-fn ::core/sequential
+  [ctx state shape]
+  (render-all ctx (repeat state) shape))
+
+(defmethod render-fn ::core/template
+  [ctx state shape]
+  (render-fn ctx state (core/template-expand shape)))
 
 (defn magnitude [a b c d]
   ;; HACK: This works for symmetric linear transforms, but as soon as we start
