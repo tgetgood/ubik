@@ -40,26 +40,35 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defonce state
-  (atom {:election-data  elections/election-data
-         :interactive []}))
+  (atom {:election-data elections/election-data
+         :interactive   []}))
 
-(defn prerender
+(defn base
   "Main render fn."
   [{:keys [window election-data interactive]}]
   [(elections/election election-data)
    interactive])
 
+(defn interactive-hud [render]
+  (fn [state]
+    [(render state) (assoc core/circle :radius 200
+                           :style {:fill :yellow
+                                   :opacity 0.4
+                                   :stroke :none})]))
+
 ;; ideal scenario
 (def handler
   (let [elem (canvas-elem)]
-    (-> prerender
+    (-> base
         window/wrap-windowing
+        interactive-hud
         (coords/wrap-invert-coordinates elem))))
 
 (defn on-js-reload []
   (fullscreen-canvas!)
 
   (let [elem (canvas-elem)]
+
     (dom-events/init-event-system! elem)
 
     ;; TODO: Somehow set up the lemonade event system.
