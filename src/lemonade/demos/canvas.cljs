@@ -68,14 +68,15 @@
   (fullscreen-canvas!)
 
   (let [elem (canvas-elem)]
-
-    (dom-events/init-event-system! elem)
+    (core/initialise!
+     {:event-system (dom-events/event-system elem)
+      :render       (partial rc/draw! elem)
+      :handler      handler
+      :app-db       state})
 
     ;; TODO: Somehow set up the lemonade event system.
     (events/clear-events!)
-    (events/register-event-handlers (window/window-events state) ::window/events)
-
-    (core/draw-loop state handler (partial rc/draw! elem) false)))
+    (events/register-event-handlers (window/window-events state) ::window/events)))
 
 (defn ^:export init []
   (on-js-reload)

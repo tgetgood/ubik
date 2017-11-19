@@ -56,4 +56,6 @@
 
 (defn wrap-windowing [render]
   (fn [state]
-    (core/transform (render state) (windowing-atx state))))
+    (assoc
+     (core/transform (render state) (windowing-atx state))
+     :lemonade.events/handlers (window-events state))))

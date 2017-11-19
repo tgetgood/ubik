@@ -20,6 +20,7 @@
    :click        (fn [e]
                    (.preventDefault e)
                    (.focus elem))
+
    :mouse-down   (fn [e]
                    (.preventDefault e)
                    (let [b (.-button e)
@@ -29,6 +30,7 @@
                        0 (fire! {:type     :lemonade.events/left-mouse-down
                                  :location p})
                        nil)))
+
    :mouse-move   (fn [e]
                    (.preventDefault e)
                    (fire! {:type     :lemonade.events/mouse-move
@@ -47,6 +49,7 @@
                        0 (fire! {:type     :lemonade.events/left-mouse-up
                                  :location p})
                        nil)))
+
    :wheel        (fn [e]
                    (.preventDefault e)
                    (fire! {:type     :lemonade.events/wheel
@@ -67,16 +70,20 @@
 
 (defonce ^:private registered-listeners (atom {}))
 
+(defn event-system [elem]
+  {:teardown (fn []
+               (doseq [[event cb] @registered-listeners]
+                 (.removeEventListener elem (kw->js event) cb)))
+
+   :setup (fn []
+            (let [handlers (event-map elem)]
+              (reset! registered-listeners handlers)
+              ;; HACK: Allows keypress events on canvas
+              (.focus elem)
+              (doseq [[event cb] handlers]
+                (.addEventListener elem (kw->js event) cb))))})
+
 (defn init-event-system! [elem]
-
-  ;; Stop previous handlers
-  (doseq [[event cb] @registered-listeners]
-    (.removeEventListener elem (kw->js event) cb))
-
-  ;; Setup new ones
-  (let [handlers (event-map elem)]
-    (reset! registered-listeners handlers)
-    ;; HACK: Allows keypress events on canvas
-    (.focus elem)
-    (doseq [[event cb] handlers]
-      (.addEventListener elem (kw->js event) cb))))
+  (let [es (event-system elem)]
+    ((:teardown es))
+    ((:setup es))))
