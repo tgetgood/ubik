@@ -1,10 +1,11 @@
 (ns lemonade.demos.canvas
   (:require [lemonade.coordinates :as coords]
             [lemonade.core :as core]
+            [lemonade.events :as events]
             [lemonade.events.canvas :as dom-events]
-            [lemonade.events.core :as events]
             [lemonade.examples.elections :as elections]
             [lemonade.renderers.canvas :as rc]
+            [lemonade.system :as system]
             [lemonade.window :as window]))
 
 ;; Setup
@@ -68,17 +69,13 @@
   (fullscreen-canvas!)
 
   (let [elem (canvas-elem)]
-    (core/initialise!
+    (system/initialise!
      {:event-system (dom-events/event-system elem)
       :render       (partial rc/draw! elem)
       :handler      handler
-      :app-db       state})
-
-    ;; TODO: Somehow set up the lemonade event system.
-    (events/clear-events!)
-    (events/register-event-handlers (window/window-events state) ::window/events)))
+      :app-db       state})))
 
 (defn ^:export init []
   (on-js-reload)
   ;; Init app state just once.
-  (events/fire! {:type :lemonade.events/init}))
+  (events/init-event-handlers! state))
