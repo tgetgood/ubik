@@ -28,6 +28,7 @@
                            :output-dir "resources/public/js/compiled/out"
                            :parallel-build true
                            :source-map-timestamp true
+                           :checked-arrays :warn
                            :preloads [devtools.preload]}}
                {:id           "min"
                 :source-paths ["src"]
