@@ -27,35 +27,29 @@
      (core/translation offset)
      (core/scaling [zoom zoom]))))
 
-(defn window-events [state]
-  ;; REVIEW: These guys are going to mutatate state which has to be an
-  ;; atom. Something like re-frame or javelin with a signal graph could help a
-  ;; lot here.
-  ;;
-  ;; REVIEW: Cool. I've separated the event logic for the windowing into an
-  ;; infinite canvas from the browser. I think,..
+(def window-events
   (let [drag-state (atom nil)]
     #::events
-    {:init            (fn [_]
+    {:init            (fn [state _]
                         (swap! state assoc ::window {:zoom 0 :offset [0 0]}))
 
-     :wheel           (fn [{:keys [dy location]}]
+     :wheel           (fn [state {:keys [dy location]}]
                         (swap! state update ::window update-zoom location dy))
 
-     :left-mouse-down (fn [{:keys [location]}]
+     :left-mouse-down (fn [_ {:keys [location]}]
                         (reset! drag-state location))
 
-     :mouse-move      (fn [{:keys [location]}]
+     :mouse-move      (fn [state {:keys [location]}]
                         (when @drag-state
                           (let [delta (mapv - @drag-state location)]
                             (reset! drag-state location)
                             (swap! state update ::window update-offset delta))))
 
-     :left-mouse-up   (fn [_]
+     :left-mouse-up   (fn [_ _]
                         (reset! drag-state nil))}))
 
 (defn wrap-windowing [render]
   (fn [state]
     (assoc
      (core/transform (render state) (windowing-atx state))
-     :lemonade.events/handlers (window-events state))))
+     :lemonade.events/handlers window-events)))

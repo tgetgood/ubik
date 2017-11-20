@@ -1,6 +1,5 @@
 (ns lemonade.events.canvas
-  (:require [clojure.string :as string]
-            [lemonade.events.core :as core :refer [fire!]]))
+  (:require [clojure.string :as string]))
 
 (defn- kw->js [kw]
   (string/replace (name kw) #"-" ""))
@@ -11,7 +10,7 @@
   [(- (.-clientX e) (.-offsetLeft elem)) (- (.-clientY e) (.-offsetTop elem))])
 
 (defn ^:private event-map
-  [elem]
+  [elem fire!]
   {:context-menu (fn [e]
                    (.preventDefault e)
                    (.stopPropagation e))
@@ -75,8 +74,8 @@
                (doseq [[event cb] @registered-listeners]
                  (.removeEventListener elem (kw->js event) cb)))
 
-   :setup (fn []
-            (let [handlers (event-map elem)]
+   :setup (fn [fire!]
+            (let [handlers (event-map elem fire!)]
               (reset! registered-listeners handlers)
               ;; HACK: Allows keypress events on canvas
               (.focus elem)
