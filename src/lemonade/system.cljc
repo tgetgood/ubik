@@ -56,7 +56,7 @@
   (when-let [f (:teardown event-system)]
     (f))
   (when-let [f (:setup event-system)]
-    (f (events/shape-traversing-event-handler app-db)))
+    (f))
 
   ;; TODO: Set global ref pointing at app-db, or pass two args through
   ;; everything?

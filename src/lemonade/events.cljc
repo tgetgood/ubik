@@ -33,15 +33,27 @@
                        (update event :location #(geometry/apply-atx inv %))))
     (event-traversal (:base-shape shape) state-ref event)))
 
-(defn shape-traversing-event-handler [state]
+(defn- shape-traversing-event-handler [state]
   (fn [ev]
     (event-traversal (:lemonade.core/world @state) state ev)))
+
+;; HACK: This method of setting up the event queue isn't going to last.
+
+(defonce ^:private watcher (atom nil))
+
+;; Just ignore events issued before the system initialises.
+(defn dispatch! [ev]
+  (let [cb @watcher]
+    (when (fn? cb)
+      (cb ev))))
 
 (defn init-event-handlers! [state]
   #?(:clj (throw (Exception. "Not Implemented"))
      ;; Invoke on the first animation frame after something has rendered.
      :cljs (letfn [(recurrent []
                      (if (contains? @state ::core/world)
-                       ((shape-traversing-event-handler state) {:type ::init})
+                       (do
+                         (reset! watcher (shape-traversing-event-handler state))
+                         (dispatch! {:type ::init}))
                        (js/window.requestAnimationFrame recurrent)))]
              (recurrent))))

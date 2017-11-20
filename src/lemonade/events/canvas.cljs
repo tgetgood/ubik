@@ -1,5 +1,6 @@
 (ns lemonade.events.canvas
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string]
+            [lemonade.events :as events]))
 
 (defn- kw->js [kw]
   (string/replace (name kw) #"-" ""))
@@ -10,7 +11,7 @@
   [(- (.-clientX e) (.-offsetLeft elem)) (- (.-clientY e) (.-offsetTop elem))])
 
 (defn ^:private event-map
-  [elem fire!]
+  [elem]
   {:context-menu (fn [e]
                    (.preventDefault e)
                    (.stopPropagation e))
@@ -26,14 +27,14 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 (fire! {:type     :lemonade.events/left-mouse-down
-                                 :location p})
+                       0 (events/dispatch! {:type     ::events/left-mouse-down
+                                            :location p})
                        nil)))
 
    :mouse-move   (fn [e]
                    (.preventDefault e)
-                   (fire! {:type     :lemonade.events/mouse-move
-                           :location (pixel-point elem e)}))
+                   (events/dispatch! {:type     ::events/mouse-move
+                                      :location (pixel-point elem e)}))
 
    :mouse-up     (fn [e]
                    (.preventDefault e)
@@ -45,27 +46,27 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 (fire! {:type     :lemonade.events/left-mouse-up
-                                 :location p})
+                       0 (events/dispatch! {:type     ::events/left-mouse-up
+                                            :location p})
                        nil)))
 
    :wheel        (fn [e]
                    (.preventDefault e)
-                   (fire! {:type     :lemonade.events/wheel
-                           :location (pixel-point elem e)
-                           :dx       (js/parseInt (.-deltaX e))
-                           :dy       (js/parseInt (.-deltaY e))}))
+                   (events/dispatch! {:type     ::events/wheel
+                                      :location (pixel-point elem e)
+                                      :dx       (js/parseInt (.-deltaX e))
+                                      :dy       (js/parseInt (.-deltaY e))}))
 
    :key-down     (fn [e]
                    (.preventDefault e)
                    ;; TODO: Process
-                   (fire! {:type :key-down
-                           :raw  e}))
+                   (events/dispatch! {:type ::events/key-down
+                                      :raw  e}))
 
    :key-up       (fn [e]
                    (.preventDefault e)
-                   (fire! {:type :key-up
-                           :raw  e}))})
+                   (events/dispatch! {:type ::events/key-up
+                                      :raw  e}))})
 
 (defonce ^:private registered-listeners (atom {}))
 
@@ -74,15 +75,11 @@
                (doseq [[event cb] @registered-listeners]
                  (.removeEventListener elem (kw->js event) cb)))
 
-   :setup (fn [fire!]
-            (let [handlers (event-map elem fire!)]
+   :setup (fn []
+            (let [handlers (event-map elem)]
               (reset! registered-listeners handlers)
-              ;; HACK: Allows keypress events on canvas
+              ;; Force keypresses to be allowed on canvas.
+              ;; REVIEW: This will prevent us from playing nice with others.
               (.focus elem)
               (doseq [[event cb] handlers]
                 (.addEventListener elem (kw->js event) cb))))})
-
-(defn init-event-system! [elem]
-  (let [es (event-system elem)]
-    ((:teardown es))
-    ((:setup es))))
