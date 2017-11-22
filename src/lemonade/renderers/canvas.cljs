@@ -115,8 +115,8 @@
   (let [sub-state (-> state
                       (assoc :in-path? true)
                       (update :style #(merge style %)))
-        ;; HACK: We need to make the first move explicitely despite the canvas
-        ;; docs saying the first move is implicit...
+        ;; We need to make the first move explicitely despite the canvas docs
+        ;; saying the first move is implicit...
         states (cons (assoc sub-state :override true)
                                  (repeat sub-state))]
     (.save ctx)

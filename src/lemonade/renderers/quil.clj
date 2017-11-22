@@ -7,8 +7,7 @@
 
 (defmethod render-fn :default
   [state shape]
-  ;; FIXME: This is identical to the canvas renderer. How can this kind of code
-  ;; be reused?
+  ;; TODO: Refactor to use core/classify
   (cond
     (sequential? shape)
     (mapcat (partial render-fn state) shape)

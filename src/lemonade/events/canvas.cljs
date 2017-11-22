@@ -59,7 +59,7 @@
 
    :key-down     (fn [e]
                    (.preventDefault e)
-                   ;; TODO: Process
+                   ;; FIXME: stub
                    (events/dispatch! {:type ::events/key-down
                                       :raw  e}))
 
@@ -78,8 +78,5 @@
    :setup    (fn []
                (let [handlers (event-map elem)]
                  (reset! registered-listeners handlers)
-                 ;; Force keypresses to be allowed on canvas.
-                 ;; REVIEW: This will prevent us from playing nice with others.
-                 (.focus elem)
                  (doseq [[event cb] handlers]
                    (.addEventListener elem (kw->js event) cb))))})

@@ -6,7 +6,6 @@
 
 (defn normalise-zoom [dz]
   (let [scale 100]
-    ;; TODO: Compare result with expm1.
     (geometry/exp (/ (- dz) scale))))
 
 (defn zoom-c [dz ox zx]

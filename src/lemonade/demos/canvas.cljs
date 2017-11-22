@@ -47,7 +47,7 @@
 
 (defn base
   "Main render fn."
-  [{:keys [window election-data interactive]}]
+  [{:keys [election-data interactive]}]
   [(elections/election election-data)
    interactive])
 

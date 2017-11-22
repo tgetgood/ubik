@@ -1,6 +1,6 @@
 (defproject lemonade "0.1.0-SNAPSHOT"
   :description "High level language for graphical and UI programming. No markup."
-  :url "http://example.com/FIXME"
+  :url "https://github.com/tgetgood/lemonade"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
 

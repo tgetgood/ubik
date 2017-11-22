@@ -60,13 +60,6 @@
 ;;;;; Core Geometry
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; REVIEW: The line and bezier here are not very reusable. They're a royal pain
-;; to manipulate via affine transformations. Path segments are manipulated by
-;; their boundaries, not as shapes in the plane.
-;;
-;; Maybe there's a fundamental distinction to be made between path segments and
-;; everything else?
-
 (def line
   {:type ::line
    :from [0 0]
@@ -84,8 +77,6 @@
 ;;;;; Higher Order Shapes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; REVIEW: It would be nice if these were types that one could conj onto. As is
-;; I'm implementing custom conj for each anyway...
 (defn path
   ([segments] (path {} segments))
   ([style segments]
@@ -106,6 +97,11 @@
    {:type ::composite
     :style style
     :contents shapes}))
+
+;; TODO: Create a group helper and stop allowing vectors of shapes.
+;;
+;; TODO: Make sure nothing assumes :contents is a vector. It's important that it
+;; be allowed to be any sequential.
 
 (defn with-style [style & shapes]
   (composite style shapes))
@@ -219,16 +215,17 @@
 ;;;;; Applied affine txs
 
 (defn transform
-  "Returns a new shape which is the given affine map applies to the base shape."
-  ;; REVIEW: If an affine transformation is degenerate, then whatever it's
-  ;; applied to will disappear from view, and fuck up the math
-  ;; simultaneously. It would seem on the surface that just returning a default
-  ;; shape that renders to nothing in this case would be far superior to
-  ;; actually inflicting degenerate math on the system. But null pointers...
+  "Returns a new shape which is the given affine map applies to the base shape.
+  N.B.: If the atx is degenerate (det = 0) then an empty shape is returned."
+  ;; REVIEW: This is technically incorrect since shapes can be collapsed to 1
+  ;; dimension, and would thus still have a (degenerate but drawable)
+  ;; boundary. Is there any valid use case here?
   [shape atx]
-  {:type ::atx
-   :base-shape shape
-   :atx atx})
+  (if (zero? (apply geometry/det (:matrix atx)))
+    []
+    {:type ::atx
+     :base-shape shape
+     :atx atx}))
 
 (defn translate
   "Returns a copy of shape translated by [x y],"

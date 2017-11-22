@@ -47,24 +47,11 @@
 ;;;;; Plugins (middleware?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defonce ^:private initialised? (atom false))
-
 (defn initialise! [{:keys [render app-db handler profile? event-system]}]
-  ;; start event system (teardown previous)
-  ;; setup draw loop
-  ;; pass state ref into upper event system.
   (when-let [f (:teardown event-system)]
     (f))
+
   (when-let [f (:setup event-system)]
     (f))
 
-  ;; TODO: Set global ref pointing at app-db, or pass two args through
-  ;; everything?
-  ;; Passing just the ref is no good since this has to work in a threaded
-  ;; context on the jvm and consistent render state is essential.
-  ;; Dynamic binding might be an option, but is that really any better than an
-  ;; atom? It would require one less deref.
-
-  ;; Should we manage the app db ourselves a la re-frame, and just have the user
-  ;; pass in the initial state? That's another option.
   (draw-loop app-db handler render profile?))

@@ -40,8 +40,6 @@
 (defn exp
   "Exponential function. Returns b^n. If b not specified defaults to Euler's
   number."
-  ;; REVIEW: For small n, there's expm1 which can be much more accurate. I
-  ;; should look into that for windowing effects.
   ([n]
    (#?(:clj Math/exp :cljs js/Math.exp) n))
   ([b n]
@@ -57,7 +55,6 @@
 
 (defn connected?
   "Returns true if the sequential of paths passed in are pairwise connected."
-  ;; TODO: spec
   [[x & more]]
   (if (empty? more)
     true
@@ -75,7 +72,6 @@
   that's a good call...
   Simply connected not necessary, just no point connections."
   [paths]
-  ;; TODO: spec.
   (and (connected? paths) (= (:from (first paths)) (:to (last paths)))))
 
 (defn closed?
