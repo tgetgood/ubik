@@ -28,25 +28,17 @@
      (core/scaling [zoom zoom]))))
 
 (def window-events
-  (let [drag-state (atom nil)]
-    #::events
-    {:init            (fn [state _]
-                        (swap! state assoc ::window {:zoom 0 :offset [0 0]}))
+  #::events
+  {:init      (fn [state _]
+                (swap! state assoc ::window {:zoom 0 :offset [0 0]}))
 
-     :wheel           (fn [state {:keys [dy location]}]
-                        (swap! state update ::window update-zoom location dy))
+   :scroll    (fn [state {:keys [dy location]}]
+                (swap! state update ::window update-zoom location dy))
 
-     :left-mouse-down (fn [_ {:keys [location]}]
-                        (reset! drag-state location))
-
-     :mouse-move      (fn [state {:keys [location]}]
-                        (when @drag-state
-                          (let [delta (mapv - @drag-state location)]
-                            (reset! drag-state location)
-                            (swap! state update ::window update-offset delta))))
-
-     :left-mouse-up   (fn [_ _]
-                        (reset! drag-state nil))}))
+   :left-click (fn [_ e]
+                 (println e))
+   :left-drag (fn [state {:keys [delta]}]
+                (swap! state update ::window update-offset delta))})
 
 (defn wrap-windowing [render]
   (fn [state]

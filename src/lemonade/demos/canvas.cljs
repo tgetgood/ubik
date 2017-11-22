@@ -3,6 +3,7 @@
             [lemonade.core :as core]
             [lemonade.events :as events]
             [lemonade.events.canvas :as dom-events]
+            [lemonade.events.hlei :as hlei]
             [lemonade.examples.elections :as elections]
             [lemonade.renderers.canvas :as rc]
             [lemonade.system :as system]
@@ -63,6 +64,7 @@
     (-> base
         window/wrap-windowing
         interactive-hud
+        hlei/wrap
         (coords/wrap-invert-coordinates elem))))
 
 (defn on-js-reload []

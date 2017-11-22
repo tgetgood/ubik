@@ -75,11 +75,11 @@
                (doseq [[event cb] @registered-listeners]
                  (.removeEventListener elem (kw->js event) cb)))
 
-   :setup (fn []
-            (let [handlers (event-map elem)]
-              (reset! registered-listeners handlers)
-              ;; Force keypresses to be allowed on canvas.
-              ;; REVIEW: This will prevent us from playing nice with others.
-              (.focus elem)
-              (doseq [[event cb] handlers]
-                (.addEventListener elem (kw->js event) cb))))})
+   :setup    (fn []
+               (let [handlers (event-map elem)]
+                 (reset! registered-listeners handlers)
+                 ;; Force keypresses to be allowed on canvas.
+                 ;; REVIEW: This will prevent us from playing nice with others.
+                 (.focus elem)
+                 (doseq [[event cb] handlers]
+                   (.addEventListener elem (kw->js event) cb))))})

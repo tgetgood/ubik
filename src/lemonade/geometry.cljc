@@ -50,6 +50,9 @@
 (defn dot [x y]
   (reduce + (map * x y)))
 
+(defn norm [[x y]]
+  (+ (* x x) (* y y)))
+
 ;;;;;; Path topology
 
 (defn connected?

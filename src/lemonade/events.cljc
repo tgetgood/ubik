@@ -24,6 +24,14 @@
   [shape state-ref event]
   (mapv #(event-traversal % state-ref event) shape))
 
+(defmethod event-traversal* ::core/composite
+  [shape state-ref event]
+  (mapv #(event-traversal % state-ref event) (:contents shape)))
+
+(defmethod event-traversal* ::core/path
+  [shape state-ref event]
+  (mapv #(event-traversal % state-ref event) (:contents shape)))
+
 (defmethod event-traversal* ::core/atx
   [shape state-ref event]
   (if (contains? event :location)
