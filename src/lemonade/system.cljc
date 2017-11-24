@@ -1,5 +1,5 @@
 (ns lemonade.system
-  (:require [lemonade.events :as events]))
+  (:require [lemonade.db :as db]))
 
 (defonce ^:private idem (atom nil))
 
@@ -39,18 +39,11 @@
               (fn []
                 (reset! continue? false))))))
 
-(defonce ^{:dynamic true :private true} *app-db* nil)
-
-(defn mutate!
-  "Like swap!, but signals global state change."
-  [f & args]
-  (apply swap! *app-db* f args))
-
 (defn initialise!
   "Initialises the system, whatever that means right now."
   [{:keys [render app-db handler profile? event-system]}]
 
-  (set! *app-db* app-db)
+  (db/_set-db! app-db)
 
   (when-let [f (:teardown event-system)]
     (f))

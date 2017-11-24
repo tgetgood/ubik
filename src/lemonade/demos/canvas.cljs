@@ -1,6 +1,7 @@
 (ns lemonade.demos.canvas
   (:require [lemonade.coordinates :as coords]
             [lemonade.core :as core]
+            [lemonade.db :as db]
             [lemonade.events :as events]
             [lemonade.events.canvas :as dom-events]
             [lemonade.events.hlei :as hlei]
@@ -8,7 +9,6 @@
             [lemonade.renderers.canvas :as rc]
             [lemonade.system :as system]
             [lemonade.window :as window]))
-
 
 ;; Setup
 
@@ -68,9 +68,8 @@
    :contents         base})
 
 (def event-test-handlers
-  {::events/left-click (fn [state {:keys [location]}]
-                         (println location)
-                         (swap! state assoc ::last-click location))})
+  {::events/left-click (fn [{:keys [location]}]
+                         (db/mutate! assoc ::last-click location))})
 
 (defn event-test-wrapper [handler]
   (fn [state]
