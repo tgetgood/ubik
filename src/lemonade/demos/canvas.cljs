@@ -1,7 +1,6 @@
 (ns lemonade.demos.canvas
   (:require [lemonade.coordinates :as coords]
             [lemonade.core :as core]
-            [lemonade.db :as db]
             [lemonade.events :as events]
             [lemonade.events.canvas :as dom-events]
             [lemonade.events.hlei :as hlei]
@@ -69,7 +68,7 @@
 
 (def event-test-handlers
   {::events/left-click (fn [{:keys [location]}]
-                         (db/mutate! assoc ::last-click location))})
+                         {:mutation [assoc ::last-click location]})})
 
 (defn event-test-wrapper [handler]
   (fn [state]
@@ -100,4 +99,4 @@
 (defn ^:export init []
   (on-js-reload)
   ;; Init app state just once.
-  (events/init-event-handlers! state))
+  (events/init-event-handlers!))

@@ -1,8 +1,6 @@
 (ns lemonade.window
   "Model the canvas as a window into R^2."
   (:require [lemonade.core :as core]
-            [lemonade.db :as db]
-            [lemonade.events :as events]
             [lemonade.geometry :as geometry]))
 
 (defn normalise-zoom [dz]
@@ -28,15 +26,15 @@
      (core/scaling [zoom zoom]))))
 
 (def window-events
-  #::events
+  #:lemonade.events
   {:init      (fn [_]
-                (db/mutate! assoc ::window {:zoom 0 :offset [0 0]}))
+                {:mutation [assoc ::window {:zoom 0 :offset [0 0]}]})
 
    :scroll    (fn [{:keys [dy location]}]
-                (db/mutate! update ::window update-zoom location dy))
+                {:mutation [update ::window update-zoom location dy]})
 
    :left-drag (fn [{:keys [delta]}]
-                (db/mutate! update ::window update-offset delta))})
+                {:mutation [update ::window update-offset delta]})})
 
 (defn wrap-windowing [render]
   (fn [state]

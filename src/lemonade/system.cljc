@@ -1,5 +1,4 @@
-(ns lemonade.system
-  (:require [lemonade.db :as db]))
+(ns lemonade.system)
 
 (defonce ^:private idem (atom nil))
 
@@ -39,11 +38,28 @@
               (fn []
                 (reset! continue? false))))))
 
+;; Intentionally not defonce so that I can catch attempts to access it before
+;; initalisation. The app-db passed into initialise! should be defonced, so hot
+;; loading should be okay.
+(def ^{:dynamic true :private true} *app-db* nil)
+
+(defn handle-mutation
+  "Like swap!, but signals global state change."
+  [[f & args]]
+  (apply swap! *app-db* f args))
+
+(defn world
+  "Returns the 'world', the root of the render tree. Note, that updates to the
+  world tree are batched on animation frames, so this value is only up to date
+  as of the last render."
+  []
+  (:lemonade.core/world @*app-db*))
+
 (defn initialise!
   "Initialises the system, whatever that means right now."
   [{:keys [render app-db handler profile? event-system]}]
 
-  (db/_set-db! app-db)
+  (set! *app-db* app-db)
 
   (when-let [f (:teardown event-system)]
     (f))

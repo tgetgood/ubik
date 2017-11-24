@@ -1,6 +1,7 @@
 (ns lemonade.events
   (:require [lemonade.core :as core]
-            [lemonade.geometry :as geometry]))
+            [lemonade.geometry :as geometry]
+            [lemonade.system :as system]))
 
 (defn- handle
   "Check if event applies to shape, and if so deal with it."
@@ -14,10 +15,13 @@
 
 (defn- event-traversal [shape event]
   (let [res (handle shape event)]
-    (doseq [ev (::dispatch! res)]
-      (println ev)
+    (doseq [ev (:dispatches res)]
       (event-traversal-walk shape ev))
-    (when-not (::stop res)
+    (when-let [ev (:dispatch res)]
+      (event-traversal shape ev))
+    (when-let [mutation (:mutation res)]
+      (system/handle-mutation mutation))
+    (when-not (:stop res)
       (event-traversal-walk shape event))))
 
 (defmethod event-traversal-walk :default
@@ -44,27 +48,18 @@
                        (update event :location #(geometry/apply-atx inv %))))
     (event-traversal (:base-shape shape) event)))
 
-(defn- shape-traversing-event-handler [state]
-  (fn [ev]
-    (event-traversal (:lemonade.core/world @state) ev)))
-
-;; HACK: This method of setting up the event queue isn't going to last.
-
-(defonce ^:private watcher (atom nil))
-
 ;; Just ignore events issued before the system initialises.
-(defn dispatch! [ev]
-  (let [cb @watcher]
-    (when (fn? cb)
-      (cb ev))))
+(defn dispatch!
+  "Dispatch an event from the very top. Meant for integration with low level
+  event systems like processing graphics or the dom."
+  [ev]
+  (event-traversal (system/world) ev))
 
-(defn init-event-handlers! [state]
+(defn init-event-handlers! []
   #?(:clj (throw (Exception. "Not Implemented"))
      ;; Invoke on the first animation frame after something has rendered.
      :cljs (letfn [(recurrent []
-                     (if (contains? @state ::core/world)
-                       (do
-                         (reset! watcher (shape-traversing-event-handler state))
-                         (dispatch! {:type ::init}))
+                     (if (system/world)
+                       (dispatch! {:type ::init})
                        (js/window.requestAnimationFrame recurrent)))]
              (recurrent))))
