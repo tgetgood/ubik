@@ -15,9 +15,8 @@
   {:context-menu (fn [e]
                    (.preventDefault e)
                    (.stopPropagation e))
-   ;; We need this to get the focus back to the element for keystrokes.
-   ;; REVIEW: Is this the right level for this?
-   :click        (fn [e]
+
+   :mouse-over   (fn [e]
                    (.preventDefault e)
                    (.focus elem))
 
