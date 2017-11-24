@@ -9,6 +9,7 @@
             [lemonade.system :as system]
             [lemonade.window :as window]))
 
+
 ;; Setup
 
 (enable-console-print!)
@@ -42,28 +43,48 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defonce state
-  (atom {:election-data elections/election-data
-         :interactive   []}))
+  (atom {:election-data elections/election-data}))
 
 (defn base
   "Main render fn."
-  [{:keys [election-data interactive]}]
-  [(elections/election election-data)
-   interactive])
+  [{:keys [election-data]}]
+  (elections/election election-data))
 
 (defn interactive-hud [render]
   (fn [state]
-    [(render state) (assoc core/circle :radius 200
+    [(render state) (assoc core/circle
+                           :radius 200
+                           :centre (or (::last-click state) [0 0])
                            :style {:fill :yellow
                                    :opacity 0.4
                                    :stroke :none})]))
+
+(core/deftemplate ::event-layer
+  {:handlers {}
+   :base     []}
+  {:type             ::core/composite
+   :style            {}
+   ::events/handlers handlers
+   :contents         base})
+
+(def event-test-handlers
+  {::events/left-click (fn [state {:keys [location]}]
+                         (println location)
+                         (swap! state assoc ::last-click location))})
+
+(defn event-test-wrapper [handler]
+  (fn [state]
+    {:type ::event-layer
+     :base (handler state)
+     ::events/handlers event-test-handlers}))
 
 ;; ideal scenario
 (def handler
   (let [elem (canvas-elem)]
     (-> base
-        window/wrap-windowing
+        event-test-wrapper
         interactive-hud
+        window/wrap-windowing
         hlei/wrap
         (coords/wrap-invert-coordinates elem))))
 

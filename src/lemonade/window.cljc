@@ -34,8 +34,6 @@
    :scroll    (fn [state {:keys [dy location]}]
                 (swap! state update ::window update-zoom location dy))
 
-   :left-click (fn [_ e]
-                 (println e))
    :left-drag (fn [state {:keys [delta]}]
                 (swap! state update ::window update-offset delta))})
 
