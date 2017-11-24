@@ -35,10 +35,7 @@
 
             (defmethod template-expand ~(keyword template-name)
               [{:keys [~@(map (comp symbol name) (keys (dissoc template :type)))]}]
-              ;; REVIEW: I'm using lexical capture to prevent null styles. There's
-              ;; probably a better way.
-              (let [~'style (or ~'style {})]
-                ~expansion)))))))
+              ~expansion))))))
 
 (defn template-expand-all [shape]
   (if (contains? (methods template-expand) (:type shape))
