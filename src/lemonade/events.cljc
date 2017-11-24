@@ -34,11 +34,11 @@
 
 (defmethod event-traversal-walk ::core/composite
   [shape event]
-  (mapv #(event-traversal % event) (:contents shape)))
+  (event-traversal (:contents shape) event))
 
 (defmethod event-traversal-walk ::core/path
   [shape event]
-  (mapv #(event-traversal % event) (:contents shape)))
+  (event-traversal (:contents shape) event))
 
 (defmethod event-traversal-walk ::core/atx
   [shape event]

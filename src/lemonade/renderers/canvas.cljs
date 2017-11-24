@@ -141,7 +141,7 @@
   (let [sub-state (update state :style #(merge style %))]
     (.save ctx)
     (safe-style ctx state style)
-    (render-all ctx (repeat sub-state) contents)
+    (render-fn ctx sub-state contents)
     (.restore ctx)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
