@@ -75,8 +75,10 @@
 
 (defmethod render-fn :default
   [ctx state shape]
-  (println (str "I don't know how to render a "
-                (or (core/classify shape) (type shape))))
+  (if (nil? shape)
+    (println "I don't know how to render nil.")
+    (println (str "I don't know how to render a "
+                  (or (core/classify shape) (type shape)))))
   util/noop)
 
 (defmethod render-fn ::core/sequential
