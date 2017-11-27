@@ -1,7 +1,7 @@
 (ns lemonade.demos.quil
-  (:require [clojure.pprint :refer [pprint]]
+  (:require [clojure.pprint :refer [pprint pp]]
             [lemonade.examples.basic :as basic]
-            [lemonade.renderers.quil :refer [render]]
+            [lemonade.renderers.quil :refer [renderer]]
             [quil.core :as q]))
 
 (defn draw! []
@@ -13,7 +13,6 @@
   (q/line [100 100] [200 200])
   (q/line [200 200] [100 200])
   (q/line [100 200] [100 100])
-  #_(render basic/ex2)
   (q/end-shape))
 
 (defn sketch! []

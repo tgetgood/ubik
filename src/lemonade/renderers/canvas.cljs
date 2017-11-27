@@ -1,7 +1,6 @@
 (ns lemonade.renderers.canvas
   "HTML Canvas renderer."
   (:require [lemonade.core :as core]
-            [lemonade.geometry :as geometry]
             [lemonade.renderers.util :as util])
   (:require-macros [lemonade.renderers.canvas :refer [with-path-style]]))
 
@@ -75,11 +74,7 @@
 
 (defmethod render-fn :default
   [ctx state shape]
-  (if (nil? shape)
-    (println "I don't know how to render nil.")
-    (println (str "I don't know how to render a "
-                  (or (core/classify shape) (type shape)))))
-  util/noop)
+  (util/render-catchall shape))
 
 (defmethod render-fn ::core/sequential
   [ctx state shape]
@@ -89,24 +84,9 @@
   [ctx state shape]
   (render-fn ctx state (core/template-expand shape)))
 
-(defn magnitude [a b c d]
-  ;; HACK: This works for symmetric linear transforms, but as soon as we start
-  ;; talking about skews and asymmetric scalings, it breaks down. I don't see
-  ;; any way to manage this without writing my own pixel shaders. Hopefully I do
-  ;; before I do.
-  ;; !!!!!!!
-  ;; Unless I ditch paths altogether and use bezier curves --- actually pairs of
-  ;; curves --- to represent the edges of objects. They have no stroke, just a
-  ;; fill, and so I can control exactly how thick the line is at all points. Soo
-  ;; much work... But it has the potential to be a solution.
-  (let [m (geometry/sqrt (geometry/det a b c d))]
-    (if (geometry/nan? m)
-      1
-      m)))
-
 (defmethod render-fn ::core/atx
   [ctx state {:keys [base-shape] {[a b c d] :matrix [e f] :translation} :atx}]
-  (let [mag (magnitude a b c d)]
+  (let [mag (util/magnitude a b c d)]
     (.save ctx)
     (.transform ctx a c b d e f)
     (render-fn ctx (update state :zoom * mag) base-shape)

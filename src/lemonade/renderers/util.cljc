@@ -1,12 +1,29 @@
-(ns lemonade.renderers.util)
+(ns lemonade.renderers.util
+  (:require [lemonade.core :as core]
+            [lemonade.geometry :as geometry]))
 
 (def noop
   "What a render-fn returns if it wants to do nothing."
   (constantly nil))
 
-(def default-style
-  "Default style of images in lemonade."
-  {:stroke  :black
-   :fill    :none
-   :opacity 1
-   :font    "sans serif 10px"})
+(defn render-catchall [shape]
+  (if (nil? shape)
+    (println "I don't know how to render nil.")
+    (println (str "I don't know how to render a "
+                  (or (core/classify shape) (type shape)))))
+  noop)
+
+(defn magnitude [a b c d]
+  ;; HACK: This works for symmetric linear transforms, but as soon as we start
+  ;; talking about skews and asymmetric scalings, it breaks down. I don't see
+  ;; any way to manage this without writing my own pixel shaders. Hopefully I do
+  ;; before I do.
+  ;; !!!!!!!
+  ;; Unless I ditch paths altogether and use bezier curves --- actually pairs of
+  ;; curves --- to represent the edges of objects. They have no stroke, just a
+  ;; fill, and so I can control exactly how thick the line is at all points. Soo
+  ;; much work... But it has the potential to be a solution.
+  (let [m (geometry/sqrt (geometry/det a b c d))]
+    (if (geometry/nan? m)
+      1
+      m)))
