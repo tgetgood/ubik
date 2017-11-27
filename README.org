@@ -53,24 +53,27 @@ Experiment in higher order visual programming.
 	 changes should update automatically.
 
 * Development
-** Ideal Demo
-	 Something that really shows off the power of an infinite canvas with lazy
-	 rendering, and the data model.
+** Demo
+	 I think the best demo would show what the system can do, explain how it's
+	 different that makes it possible, and shows interactively how it works.
 
-	 Ideally I could make what looks and acts like a normal webpage — with
-	 hyperlinks that jump to different parts of the page — but where the user can
-	 hit tab or something and switch into infinite canvas mode.
+	 I have this vague notion of multilevel documents that have content,
+	 metacontent, etc. where you can go from tldr to intensely detailed through a
+	 series of "show me more" type requests.
 
-	 Lots of easter eggs.
+	 The problem is that I have too many ideas and they all reach in different
+	 directions.
+
+	 What am I building?
 ** Actions needed
 *** TODO Text
 	 Render text lines and boxes. Selection/copy can wait.
+*** TODO Finish Elections Demo
+		This has lots of little bits that are needed for polish
 *** TODO Second Implementation
 		The Quil based JVM renderer is just a stub really. I need a second
 		implementation to call me out anywhere I might be thinking in terms of
 		canvas.
-*** TODO Finish Elections Demo
-		This has lots of little bits that are needed for polish
 *** TODO Animations in event loop
 		If the app state doesn't change then render won't be called. So interactive
 		animations need to return a lazy seq of frames which will be poped off by
