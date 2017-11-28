@@ -5,6 +5,7 @@
             [lemonade.events.canvas :as dom-events]
             [lemonade.events.hlei :as hlei]
             [lemonade.examples.elections :as elections]
+            [lemonade.examples.infinite :as infinite]
             [lemonade.renderers.canvas :as rc]
             [lemonade.system :as system]
             [lemonade.window :as window]))
@@ -46,9 +47,9 @@
 
 (defn base
   "Main render fn."
-  [{:keys [election-data]}]
+  [{:keys [election-data] :as state}]
   [(elections/election election-data)
-   elections/ring-example])
+   (core/translate (infinite/example state) [-10 0])])
 
 (defn interactive-hud [render]
   (fn [state]
@@ -82,8 +83,8 @@
   (let [elem (canvas-elem)]
     (-> base
         event-test-wrapper
-        interactive-hud
         window/wrap-windowing
+        interactive-hud
         hlei/wrap
         (coords/wrap-invert-coordinates elem))))
 
