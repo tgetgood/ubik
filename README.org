@@ -66,9 +66,10 @@ Experiment in higher order visual programming.
 
 	 What am I building?
 ** Actions needed
-*** TODO Text
-	 Render text lines and boxes. Selection/copy can wait.
-*** TODO Finish Elections Demo
+*** DONE Text
+		 CLOSED: [2017-11-28 Tue 11:58]
+*** DONE Finish Elections Demo
+		 CLOSED: [2017-11-28 Tue 11:57]
 		This has lots of little bits that are needed for polish
 *** TODO Second Implementation
 		The Quil based JVM renderer is just a stub really. I need a second
@@ -90,6 +91,9 @@ Experiment in higher order visual programming.
 		So, play around and try to find idioms that are productive and fit.
 
 *** TODO Physics
+*** TODO Text boxes
+		Given a long string and a bounding shape, we should be able to do things
+		like wrapping and justifying.
 *** TODO Demo animation / game
 		The line between the two can be very blurry if we think of physics as
 		strictly Newtonian. Without input from the user, the "game" is an animation
@@ -119,6 +123,14 @@ Experiment in higher order visual programming.
 	 - [[https://www.html5rocks.com/en/tutorials/canvas/performance/][Canvas performance techniques]]
 		 If optimisation becomes necessary
 
+* Notable flaws
+** Zoom misbehaviour
+	 At zoom level approximately -1000 things start to go haywire. That shouldn't
+	 be surprising since the exponent in a dou̱ble is 11 bits -1023 to 1023.
+
+	 Note negative zoom factors are magnified. That should probably be flipped.
+
+	 We should expect the same thing when zoomed out too far.
 * License
 
 	Copyright © 2017 Thomas Getgood

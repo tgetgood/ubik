@@ -47,7 +47,8 @@
 (defn base
   "Main render fn."
   [{:keys [election-data]}]
-  (elections/election election-data))
+  [(elections/election election-data)
+   elections/ring-example])
 
 (defn interactive-hud [render]
   (fn [state]

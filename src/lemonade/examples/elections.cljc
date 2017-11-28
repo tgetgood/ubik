@@ -2,7 +2,8 @@
   "Demo of shape manipulation via affine transformations"
   (:require [lemonade.core :as core
              :refer [scale translate line with-style]
-             #?@(:cljs [:include-macros true])]))
+             #?@(:cljs [:include-macros true])]
+            [lemonade.geometry :as geometry]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Example Data
@@ -137,7 +138,7 @@
    "N.D.P."                   "#F4A460"
    "Green Party"              "#99C955"
    "Independent"              "purple"
-   "Abstentions"              "black"
+   "Abstentions"              "#666"
    "Spoilt"                   "red"
    "Other"                    "grey"})
 
@@ -153,7 +154,6 @@
 
 (defn electors [stats]
   (or (get stats "Electors/Électeurs") (get stats "Electors/�lecteurs")))
-
 
 (defn cast-ballots [stats]
   (get stats "Total Votes/Total des votes"))
@@ -263,3 +263,74 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Pies
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(core/deftemplate ::annular-wedge
+  {:style        {}
+   :inner-radius 1
+   :outer-radius 2
+   :from         0
+   :to           geometry/pi
+   :centre       [0 0]}
+  (let [fc (geometry/cos from)
+        tc (geometry/cos to)
+        fs (geometry/sin from)
+        ts (geometry/sin to)
+
+        ix1 (* inner-radius fc)
+        iy1 (* inner-radius fs)
+        ix2 (* inner-radius tc)
+        iy2 (* inner-radius ts)
+
+        ox1 (* outer-radius fc)
+        oy1 (* outer-radius fs)
+        ox2 (* outer-radius tc)
+        oy2 (* outer-radius ts)]
+    ;; Fun fact, none of the math above is necessary when rendering to canvas
+    ;; because of the stateful strokes. I don't want to leave it out though,
+    ;; because I don't want to be beholden to canvas.
+    (core/path style
+               ^:closed [(assoc core/arc
+                                :centre centre
+                                :radius inner-radius
+                                :from from
+                                :to to
+                                :clockwise? false)
+                         (assoc line :from [ix2 iy2] :to [ox2 oy2])
+                         (assoc core/arc
+                                :centre centre
+                                :radius outer-radius
+                                :from to
+                                :to from
+                                :clockwise? true)
+                         (assoc line :from [ox1 oy1] :to [ix1 iy1])])))
+
+(defn wedge [party from to]
+  "Normalised"
+  (assoc annular-wedge
+         :inner-radius 5
+         :outer-radius 8
+         :style {:fill (get colours party :magenta)}
+         :from (* 2 geometry/pi from)
+         :to (* 2 geometry/pi to)))
+
+(defn ring-election [year accounting]
+  (->> election-data
+       year
+       accounting
+       (sort-by second)
+       (reduce (fn [{:keys [count shapes]} [party prop]]
+                 {:count (+ count prop)
+                  :shapes (conj shapes (wedge party count (+ count prop)))})
+               {:count 0 :shapes []})
+       :shapes))
+
+(defn recursive-rings [f [year & more]]
+  (if more
+    [(ring-election year f)
+     (-> (recursive-rings f more)
+         (scale (/ 5 8)))]
+    (ring-election year f)))
+
+(def ring-example
+  (recursive-rings proportions (keys election-data)))
