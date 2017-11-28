@@ -71,6 +71,9 @@ Experiment in higher order visual programming.
 *** DONE Finish Elections Demo
 		 CLOSED: [2017-11-28 Tue 11:57]
 		This has lots of little bits that are needed for polish
+*** TODO Pacman
+		Not the full game, just enough to force test lazy animations and
+		interactivity.
 *** TODO Second Implementation
 		The Quil based JVM renderer is just a stub really. I need a second
 		implementation to call me out anywhere I might be thinking in terms of
