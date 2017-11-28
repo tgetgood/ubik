@@ -70,6 +70,13 @@
    :c2 [1 1]
    :to [1 1]})
 
+(def arc
+  {:type   ::arc
+   :centre [0 0]
+   :radius 1
+   :from   0
+   :to     (* 2 pi)
+   :clockwise? false})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Higher Order Shapes
@@ -115,12 +122,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn full-arc [c r & [cw?]]
-  {:type   ::arc
-   :centre c
-   :radius r
-   :from   0
-   :to     (* 2 pi)
-   :clockwise? cw?})
+  (assoc arc
+         :centre c
+         :radius r
+         :from   0
+         :to     (* 2 pi)
+         :clockwise? cw?))
 
 (deftemplate ::circle
   {:style {} :radius 1 :centre [0 0]}
