@@ -148,6 +148,13 @@
   (with-path-style ctx state style [x1 y1]
     (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)))
 
+(defmethod render-fn ::core/raw-text
+  [ctx state {:keys [style corner text]}]
+  (.save ctx)
+  (safe-style ctx state style)
+  (.fillText ctx text (first corner) (second corner))
+  (.restore ctx))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; API
 ;;

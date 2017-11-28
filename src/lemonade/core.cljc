@@ -70,6 +70,7 @@
    :c2 [1 1]
    :to [1 1]})
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Higher Order Shapes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -251,3 +252,23 @@
   ([shape dir] (reflect shape [0 0] dir))
   ([shape centre dir]
    (transform shape (recentre centre (reflection dir)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Text
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def raw-text
+  "Single line of text. No wrapping or truncation."
+  {:type   ::raw-text
+   :style  {:font "sans serif 10px"}
+   :corner [0 0]
+   :text   ""})
+
+;; Renders text fit for the global coord transform (origin in the bottom left)
+(deftemplate ::text
+  {:style {:font "sans serif 10px"}
+   :corner [0 0]
+   :text ""}
+  (-> raw-text
+      (assoc :text text :style style :corner corner)
+      (reflect corner [1 0])))
