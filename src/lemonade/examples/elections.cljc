@@ -195,36 +195,25 @@
 ;;;;; Histogram
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#_(core/deftemplate `rectangle
-  {:style {} :corner [0 0] :width 1 :height 1}
-  (let [[x y] corner]
-    {:type ::core/polyline
-     :style style
-     :points [corner
-              [(+ x width) y]
-              [(+ x width) (+ y height)]
-              [x (+ y height)]
-              corner]}))
-
-(defn textline [& args]
-  [])
-
-(def ts {:font "16px serif"})
+(def textline
+  (assoc core/text :style {:font "16px serif"}))
 
 (def grid-lines
-  (with-style {:stroke :darkgrey}
-    [(assoc line :from [10 500] :to [10 0])
-     (assoc line :from [0 0] :to [480 0])
-     (textline ts "50%" [-30 500])
-     (assoc line :from [0 500] :to [480 500])
-     (textline ts "40%" [-30 400])
-     (assoc line :from [0 400] :to [480 400])
-     (textline ts "30%" [-30 300])
-     (assoc line :from [0 300] :to [480 300])
-     (textline ts "20%" [-30 200])
-     (assoc line :from [0 200] :to [480 200])
-     (textline ts "10%" [-30 100])
-     (assoc line :from [0 100] :to [480 100])]))
+  (let [horizontal (assoc line :from [0 0] :to [480 0])
+        vertical (assoc line :from [10 500] :to [10 0])]
+    (with-style {:stroke :darkgrey}
+      [; axis
+       vertical horizontal
+       ;; Horizontal bars
+       (map (fn [[caption offset]]
+              (-> [(-> textline (assoc :text caption) (translate [-30 -5]))
+                   horizontal]
+                  (translate offset)))
+            [["50%" [0 500]]
+             ["40%" [0 400]]
+             ["30%" [0 300]]
+             ["20%" [0 200]]
+             ["10%" [0 100]]])])))
 
 (def bar
   (-> core/rectangle
@@ -235,7 +224,10 @@
 
 (defn histogram [[year results]]
   [(translate grid-lines [-20 0])
-   (scale (textline (name year) [200 -40]) [200 -40] 3)
+   (-> textline
+       (assoc :text (name year))
+       (translate [70 -20])
+       (scale 3))
    (map-indexed (fn [i [k v]]
                   (-> bar
                       (core/style {:fill (get colours k :magenta)})
@@ -255,21 +247,18 @@
 (defn apv [m f]
   (map (fn [[k v]] [k (f v)]) m))
 
+(defn title [text]
+  (-> textline
+      (assoc :text text)
+      (scale 3)
+      (translate  [-500 250])))
+
 (defn election [data]
-  [(summary (apv data seat-proportions))
-   (-> (textline "Commons")
-       (scale 4)
-       (translate [-300 250]))
-   (-> (summary (apv data simple-proportions))
+  [[(title "Commons") (summary (apv data seat-proportions))]
+   (-> [(title "Proportional") (summary (apv data simple-proportions))]
        (translate [0 600]))
-   (-> (textline "Proportional")
-       (scale 4)
-       (translate [-300 850]))
-   (-> (summary (apv data proportions))
-        (translate [0 1200]))
-   (-> (textline "With Abstentions" )
-       (scale 4)
-       (translate [-350 1450]))])
+   (-> [(title "With Abstentions") (summary (apv data proportions))]
+        (translate [0 1200]))])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Pies
