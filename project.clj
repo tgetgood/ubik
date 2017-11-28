@@ -6,12 +6,12 @@
 
   :min-lein-version "2.7.1"
 
-  :dependencies [[org.clojure/clojure "1.9.0-RC1"]
+  :dependencies [[org.clojure/clojure "1.9.0-RC2"]
                  [org.clojure/clojurescript "1.9.946"]
                  [org.clojure/spec.alpha "0.1.134"]
                  [quil "2.6.0" :exclusions [[org.clojure/clojure]]]]
 
-  :plugins [[lein-figwheel "0.5.13"]
+  :plugins [[lein-figwheel "0.5.14"]
             [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
 
   :source-paths ["src"]
@@ -45,7 +45,7 @@
   :profiles
   {:dev {:dependencies  [[binaryage/devtools "0.9.4"]
                          [org.clojure/tools.namespace "0.2.11"]
-                         [figwheel-sidecar "0.5.13"]
+                         [figwheel-sidecar "0.5.14"]
                          [com.cemerick/piggieback "0.2.2"]
                          [org.clojure/test.check "0.9.0"]]
          ;; need to add dev source path here to get user.clj loaded
