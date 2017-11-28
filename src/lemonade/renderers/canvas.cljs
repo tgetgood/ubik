@@ -1,6 +1,7 @@
 (ns lemonade.renderers.canvas
   "HTML Canvas renderer."
-  (:require [lemonade.core :as core]
+  (:require [goog.object :as obj]
+            [lemonade.core :as core]
             [lemonade.renderers.util :as util])
   (:require-macros [lemonade.renderers.canvas :refer [with-path-style]]))
 
@@ -31,22 +32,22 @@
   [ctx {:keys [zoom]} [_ v]]
   (let [c (process-colour v)]
     (when c
-      (aset ctx "lineWidth" (/ 1 zoom))
-      (aset ctx "strokeStyle" (if (fn? c) (c ctx) c)))))
+      (obj/set ctx "lineWidth" (/ 1 zoom))
+      (obj/set ctx "strokeStyle" (if (fn? c) (c ctx) c)))))
 
 (defmethod style-ctx :fill
   [ctx _ [_ v]]
   (let [c (process-colour v)]
     (when c
-      (aset ctx "fillStyle" (if (fn? c) (c ctx) c)))))
+      (obj/set ctx "fillStyle" (if (fn? c) (c ctx) c)))))
 
 (defmethod style-ctx :opacity
   [ctx _ [_ v]]
-  (aset ctx "globalAlpha" v))
+  (obj/set ctx "globalAlpha" v))
 
 (defmethod style-ctx :font
   [ctx _ [_ v]]
-  (aset ctx "font" v))
+  (obj/set ctx "font" v))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Main
