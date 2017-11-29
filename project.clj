@@ -45,7 +45,9 @@
   :profiles
   {:dev {:dependencies  [[binaryage/devtools "0.9.4"]
                          [org.clojure/tools.namespace "0.2.11"]
-                         [figwheel-sidecar "0.5.14"]
+                         [org.clojure/core.async "0.3.465"]
+                         [figwheel-sidecar "0.5.14"
+                          :exclusions [org.clojure/core.async]]
                          [com.cemerick/piggieback "0.2.2"]
                          [org.clojure/test.check "0.9.0"]]
          ;; need to add dev source path here to get user.clj loaded
