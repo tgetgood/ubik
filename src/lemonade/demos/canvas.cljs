@@ -78,11 +78,15 @@
      :base (handler state)
      ::events/handlers event-test-handlers}))
 
+(defn canvas-width [elem]
+  (fn []
+    [(.-width elem) (.-height elem)]))
+
 ;; ideal scenario
 (def handler
   (let [elem (canvas-elem)]
     (-> #_base
-        (infinite/example (.-width elem) (.-height elem))
+        (infinite/example (canvas-width elem))
         ;; event-test-wrapper
         window/wrap-windowing
         ;; interactive-hud
