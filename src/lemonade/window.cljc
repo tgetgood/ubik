@@ -25,10 +25,13 @@
      (core/translation offset)
      (core/scaling [zoom zoom]))))
 
+(def initial-window
+  {:zoom 0 :offset [0 0]})
+
 (def window-events
   #:lemonade.events
   {:init      (fn [_]
-                {:mutation [assoc ::window {:zoom 0 :offset [0 0]}]})
+                {:mutation [assoc ::window initial-window]})
 
    :scroll    (fn [{:keys [dy location]}]
                 {:mutation [update ::window update-zoom location dy]})

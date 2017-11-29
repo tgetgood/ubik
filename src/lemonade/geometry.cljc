@@ -31,11 +31,20 @@
     (- x)
     x))
 
+(defn floor [x]
+  (#?(:clj Math/floor :cljs js/Math.floor) x))
+
 (defn sqrt [x]
   (#?(:cljs js/Math.sqrt :clj Math/sqrt) x))
 
 (defn nan? [x]
   (#?(:cljs js/isNaN :clj Double/isNaN) x))
+
+(defn log
+  ([x]
+   (#?(:clj Math/log :cljs js/Math.log) x))
+  ([base x]
+   (/ (log x) (log base))))
 
 (defn exp
   "Exponential function. Returns b^n. If b not specified defaults to Euler's

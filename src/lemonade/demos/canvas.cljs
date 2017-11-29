@@ -49,7 +49,7 @@
   "Main render fn."
   [{:keys [election-data] :as state}]
   [(elections/election election-data)
-   (core/translate (infinite/example state) [-10 0])])
+   ])
 
 (defn interactive-hud [render]
   (fn [state]
@@ -81,10 +81,11 @@
 ;; ideal scenario
 (def handler
   (let [elem (canvas-elem)]
-    (-> base
-        event-test-wrapper
+    (-> #_base
+        (infinite/example (.-width elem) (.-height elem))
+        ;; event-test-wrapper
         window/wrap-windowing
-        interactive-hud
+        ;; interactive-hud
         hlei/wrap
         (coords/wrap-invert-coordinates elem))))
 
