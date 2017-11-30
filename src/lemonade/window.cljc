@@ -13,7 +13,7 @@
 
 (defn update-zoom [{z :zoom o :offset :as w} zc dz]
   (assoc w
-         :zoom (+ z dz)
+         :zoom (max -8000 (min 8000 (+ z dz)))
          :offset (mapv (partial zoom-c dz) o zc)))
 
 (defn update-offset [w delta]
