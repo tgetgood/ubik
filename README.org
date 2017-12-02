@@ -128,12 +128,57 @@ Experiment in higher order visual programming.
 
 * Notable flaws
 ** Zoom misbehaviour
-	 At zoom level approximately -1000 things start to go haywire. That shouldn't
-	 be surprising since the exponent in a dou̱ble is 11 bits -1023 to 1023.
+	 Zoom only works in the range of about [-9000 9000]. That's ~[1e-40 1e38].
 
-	 Note negative zoom factors are magnified. That should probably be flipped.
+	 I don't know why that is. It's nowhere near the precision limit of floats,
+	 let alone doubles. What's most fascinating is that when you multiply the zoom
+	 matrix by the scale matrix at the limit you get values on the order of 0.3!
+	 perfectly precise for our application.
 
-	 We should expect the same thing when zoomed out too far.
+	 Maybe this is a limit in the significant part, not the exponential part. That
+	 would align roughly with the failure conditions.
+
+	 So I need to look for some mathematical trick to not recover small numbers by
+	 multiplying really big ones and really small ones. That sounds hard. I also
+	 don't know that it will solve my problem. Better diagnosis tools would be in
+	 order.
+
+	 A zoom scale of ~100 doublings isn't that bad. For the time being I can make
+	 progress by just bounding the zoom.
+** Windowing [2017-12-02 Sat 12:15]
+	 At present we can render effectively infinite drawings by having the base
+	 image handler refer to the window data and decide what to show based on the
+	 current window position.
+
+	 This works, but it needlessly couples the window handling with the
+	 image. Furthermore, it means that we can't use the image in a static
+	 windowless context without stubbing out a window. Of course that's kind of
+	 obvious that you need to choose a window to determine what you see, but at
+	 the same time the coupling in code between the so called framework piece and
+	 the business logic is ugly.
+
+	 In principle we should be able to compute the extent of a vo and decide in
+	 the runtime whether to render it or not. This is the kind of global
+	 optimisation that can pay huge returns potentially, but how can we do it?
+
+	 The only way that I can figure is to make a new kind of composite which knows
+	 its extent. Its children can in turn be of the same sort. In this way an
+	 image with infinite content can be represented by a lazy tree and rendering
+	 will get cut off at the point where an element and all its children are
+	 invisible.
+
+	 This doesn't solve the problem of images that are infinite in extent, like
+	 grid lines, or images that are unreasonably large in extent like a highly
+	 zoomed in mandlebrot set.
+
+	 Maybe the concept of window needs to be fundamental to the framework. You may
+	 not need the dynamic window interaction, but you do need to specify the
+	 mapping from real space into coordinate space. Everything depends on that, so
+	 that dependency should be explicit.
+
+	 Things are getting less and less declarative as we go. This is going to make
+	 my life more difficult. Especially in regards to automatic code
+	 simplification.
 * License
 
 	Copyright © 2017 Thomas Getgood
