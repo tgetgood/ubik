@@ -1,9 +1,9 @@
 (ns lemonade.coordinates
   (:require [lemonade.core :as core]
-            [lemonade.geometry :as geometry]))
+            [lemonade.math :as math]))
 
 (defn get-coord-inversion [canvas]
-  #?(:cljs (geometry/atx [1 0 0 -1] [0 (.-height canvas)])))
+  #?(:cljs (math/atx [1 0 0 -1] [0 (.-height canvas)])))
 
 (defn invert-coordinates [shape elem]
   (core/transform shape (get-coord-inversion elem)))

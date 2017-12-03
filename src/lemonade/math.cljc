@@ -1,4 +1,4 @@
-(ns lemonade.geometry)
+(ns lemonade.math)
 
 ;;;;; Trig
 

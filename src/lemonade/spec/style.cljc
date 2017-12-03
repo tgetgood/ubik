@@ -1,6 +1,6 @@
 (ns lemonade.spec.style
   (:require [clojure.spec.alpha :as s]
-            [lemonade.spec.geometry :as geometry]))
+            [lemonade.spec.math :as math]))
 
 (def default-style
   {:stroke {:width 0
@@ -20,7 +20,7 @@
         :hash (s/and string? #(re-matches #"\#[1234567890AaBbCcDdEeFf]{3,6}" %))
         :rgba (s/and string? #(re-matches rgba-re %))))
 
-(s/def ::width ::geometry/non-negative)
+(s/def ::width ::math/non-negative)
 
 (s/def ::dash
   (s/coll-of pos-int? :kind vector? :min-count 1))
@@ -38,7 +38,7 @@
   (s/map-of pos-int? ::colour))
 
 (s/def ::gradient
-  (s/keys :req-un [::geometry/from ::geometry/to ::stops]))
+  (s/keys :req-un [::math/from ::math/to ::stops]))
 
 (s/def ::fill
   (s/or :colour ::colour
@@ -47,7 +47,7 @@
 
 (s/def ::font string?)
 
-(s/def ::opacity ::geometry/normalised)
+(s/def ::opacity ::math/normalised)
 
 (s/def ::style
   (s/keys :opt-un [::stroke ::fill ::font ::opacity]))

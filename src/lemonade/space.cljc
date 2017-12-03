@@ -1,8 +1,8 @@
 (ns lemonade.space
   #?(:cljs (:require-macros [lemonade.space :refer [distance-fn]]))
   (:require [lemonade.core :as core]
-            [lemonade.geometry :as geometry]
-            [lemonade.spec.geometry :as gs]
+            [lemonade.math :as math]
+            [lemonade.spec.math :as gs]
             [clojure.spec.alpha :as s]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -30,13 +30,13 @@
 
 (distance-fn [::gs/point ::gs/point]
   [[x1 y1] [x2 y2]]
-  (geometry/sqrt (+ (geometry/exp (- x2 x1) 2) (geometry/exp (- y2 y1) 2))))
+  (math/sqrt (+ (math/exp (- x2 x1) 2) (math/exp (- y2 y1) 2))))
 
 (distance-fn [::gs/point ::core/line]
   [[x y] {[px py] :from [qx qy] :to}]
   (let [pq [(- qx px) (- qy py)]
-        t* (- (/ (geometry/dot [(- px x) (- py y)] pq)
-                 (geometry/dot pq pq)))
+        t* (- (/ (math/dot [(- px x) (- py y)] pq)
+                 (math/dot pq pq)))
         t (min 1 (max 0 t*))
         s (map + [px py] (map (partial * t) pq))]
     (distance s [x y])))
@@ -61,14 +61,14 @@
     (sequential? shape) (map (partial jerry state point) shape)
 
     (= ::core/atx (:type shape))
-    (jerry (geometry/comp-atx state (:atx shape)) point (:base-shape shape))
+    (jerry (math/comp-atx state (:atx shape)) point (:base-shape shape))
 
     (contains? shape :contents)
     (map (partial jerry state point) (:contents shape))
 
     (= (:type shape) ::core/rectangle)
     (let [d (distance
-             (geometry/apply-atx (geometry/invert-atx state) point)
+             (math/apply-atx (math/invert-atx state) point)
              shape)]
       (when (zero? d)
         {:atx state :shape shape}))
@@ -91,7 +91,7 @@
 
 (defn trace [shape point]
   (->>
-   (jerry geometry/id point shape)
+   (jerry math/id point shape)
    flatten
    (remove nil?)
    first)

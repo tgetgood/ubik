@@ -1,7 +1,7 @@
 (ns lemonade.core
   #?(:cljs (:require-macros [lemonade.core :refer [deftemplate]]))
   (:require [clojure.pprint :refer [pprint pp]]
-            [lemonade.geometry :as geometry :refer [atx cos idm pi sin]]))
+            [lemonade.math :as math :refer [atx cos idm pi sin]]))
 
 (defmulti template-expand :type)
 
@@ -86,7 +86,7 @@
   ([segments] (path {} segments))
   ([style segments]
    (let [closed? (or (:closed (meta segments))
-                     (geometry/closed? segments))]
+                     (math/closed? segments))]
      {:type ::path
       :closed? closed?
       :style style
@@ -115,7 +115,7 @@
   (with-style style shape))
 
 (defn radians [r]
-  (/ (* r 180) geometry/pi))
+  (/ (* r 180) math/pi))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Shape Templates
@@ -186,7 +186,7 @@
   "Returns a counterclockwise rotation about the origin by angle (linear).
   Note: angle in degrees."
   [angle]
-  (let [r (geometry/deg->rad angle)
+  (let [r (math/deg->rad angle)
         c (cos r)
         s (sin r)]
     (atx [c (- s) s c])))
@@ -212,7 +212,7 @@
   "Given a linear transformation and a point, return an affine transformation
   corresponding to the transformation about the point."
   [origin atx]
-  (geometry/comp-atx
+  (math/comp-atx
    (translation origin)
    atx
    (translation (map - origin))))
@@ -226,7 +226,7 @@
   ;; dimension, and would thus still have a (degenerate but drawable)
   ;; boundary. Is there any valid use case here?
   [shape atx]
-  (if (zero? (apply geometry/det (:matrix atx)))
+  (if (zero? (apply math/det (:matrix atx)))
     []
     {:type ::atx
      :base-shape shape

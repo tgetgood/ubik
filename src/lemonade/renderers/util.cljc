@@ -1,6 +1,6 @@
 (ns lemonade.renderers.util
   (:require [lemonade.core :as core]
-            [lemonade.geometry :as geometry]))
+            [lemonade.math :as math]))
 
 (def noop
   "What a render-fn returns if it wants to do nothing."
@@ -23,7 +23,7 @@
   ;; curves --- to represent the edges of objects. They have no stroke, just a
   ;; fill, and so I can control exactly how thick the line is at all points. Soo
   ;; much work... But it has the potential to be a solution.
-  (let [m (geometry/sqrt (geometry/det a b c d))]
-    (if (geometry/nan? m)
+  (let [m (math/sqrt (math/det a b c d))]
+    (if (math/nan? m)
       1
       m)))

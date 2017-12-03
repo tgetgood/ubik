@@ -1,7 +1,7 @@
 (ns lemonade.events.hlei
   (:require [lemonade.core :as core]
             [lemonade.events :as events]
-            [lemonade.geometry :as geometry]))
+            [lemonade.math :as math]))
 
 (defn now []
   #?(:cljs (js/Date.now)
@@ -43,7 +43,7 @@
                            :dispatch
                            (when (and
                                   (< (- (now) d) click-timeout)
-                                  (< (geometry/norm (map - start location))
+                                  (< (math/norm (map - start location))
                                      click-move-threshold))
                              (assoc ev :type ::events/left-click))}))}))
 

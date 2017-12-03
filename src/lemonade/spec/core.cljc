@@ -1,22 +1,22 @@
 (ns lemonade.spec.core
   (:require [clojure.spec.alpha :as s]
-            [lemonade.geometry :as geo]
+            [lemonade.math :as geo]
             [lemonade.spec.gen :as gen]
-            [lemonade.spec.geometry :as geometry]
+            [lemonade.spec.math :as math]
             [lemonade.spec.style :as style]))
 
 ;;; Paths
 
 (s/def ::line
-  (s/keys :req-un [::geometry/from ::geometry/to]  :opt-un [::style/style]))
+  (s/keys :req-un [::math/from ::math/to]  :opt-un [::style/style]))
 
 (s/def ::bezier
-   (s/keys :req-un [::geometry/from ::geometry/to ::geometry/c1 ::geometry/c2]
+   (s/keys :req-un [::math/from ::math/to ::math/c1 ::math/c2]
            :opt-un [::style/style]))
 
 (s/def ::arc
-  (s/keys :req-un [::geometry/centre ::geometry/radius :lemonade.geometry.angle/to
-                   :lemonade.geometry.angle/from]
+  (s/keys :req-un [::math/centre ::math/radius :lemonade.math.angle/to
+                   :lemonade.math.angle/from]
           :opt-un [::style/style]))
 
 (defmulti path-segment :type)
@@ -63,4 +63,4 @@
 (s/def ::base-shape ::shape)
 
 (s/def ::affine-transform
-  (s/keys :req-un [::geometry/atx ::base-shape]))
+  (s/keys :req-un [::math/atx ::base-shape]))

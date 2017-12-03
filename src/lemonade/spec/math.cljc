@@ -1,7 +1,7 @@
-(ns lemonade.spec.geometry
-  #?(:cljs (:require-macros [lemonade.spec.geometry :refer [derive-spec]]))
+(ns lemonade.spec.math
+  #?(:cljs (:require-macros [lemonade.spec.math :refer [derive-spec]]))
   (:require [clojure.spec.alpha :as s]
-            [lemonade.geometry :as geometry]))
+            [lemonade.math :as math]))
 
 #?(:clj
    (defmacro derive-spec
@@ -64,7 +64,7 @@
 ;; Non-degenerate
 (s/def ::matrix
   (s/and (s/coll-of ::scalar :kind sequential? :count 4)
-         #(not (zero? (apply geometry/det %)))))
+         #(not (zero? (apply math/det %)))))
 
 (s/def ::translation ::vector)
 
@@ -75,7 +75,7 @@
 ;;;;; fns
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(s/fdef lemonade.geometry/deg->rad
+(s/fdef lemonade.math/deg->rad
         :args (s/cat :angle ::real)
         :ret ::real)
 
@@ -83,7 +83,7 @@
   (let [as (concat (:matrix a) (:translation a))
         bs (concat (:matrix b) (:translation b))]
     (->> (map - as bs)
-         (map geometry/abs)
+         (map math/abs)
          (apply max)
          (> 1e-11))))
 
@@ -91,11 +91,11 @@
 ;; a bad word, this only comes up with huge translations. Well, 2000+ for 1e-12,
 ;; 32k for 1e-11. We're bleeding accuracy, so I suspect things will fail as you
 ;; zoom in.
-(s/fdef lemonade.geometry/invert-atx
+(s/fdef lemonade.math/invert-atx
         :args (s/cat :atx ::atx)
         :ret ::atx
         :fn #(and
-              (close-enough? geometry/id
-                             (geometry/comp-atx (-> % :args :atx) (:ret %)))
-              (close-enough? geometry/id
-                             (geometry/comp-atx (:ret %) (-> % :args :atx)))))
+              (close-enough? math/id
+                             (math/comp-atx (-> % :args :atx) (:ret %)))
+              (close-enough? math/id
+                             (math/comp-atx (:ret %) (-> % :args :atx)))))

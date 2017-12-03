@@ -1,6 +1,6 @@
 (ns lemonade.events
   (:require [lemonade.core :as core]
-            [lemonade.geometry :as geometry]
+            [lemonade.math :as math]
             [lemonade.system :as system]))
 
 (defn- handle
@@ -43,9 +43,9 @@
 (defmethod event-traversal-walk ::core/atx
   [shape event]
   (if (contains? event :location)
-    (let [inv (geometry/invert-atx (:atx shape))]
+    (let [inv (math/invert-atx (:atx shape))]
       (event-traversal (:base-shape shape)
-                       (update event :location #(geometry/apply-atx inv %))))
+                       (update event :location #(math/apply-atx inv %))))
     (event-traversal (:base-shape shape) event)))
 
 ;; Just ignore events issued before the system initialises.

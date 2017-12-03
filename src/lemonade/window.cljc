@@ -1,11 +1,11 @@
 (ns lemonade.window
   "Model the canvas as a window into R^2."
   (:require [lemonade.core :as core]
-            [lemonade.geometry :as geometry]))
+            [lemonade.math :as math]))
 
 (defn normalise-zoom [dz]
   (let [scale 100]
-    (geometry/exp (/ (- dz) scale))))
+    (math/exp (/ (- dz) scale))))
 
 (defn zoom-c [dz ox zx]
   (let [dz (normalise-zoom dz)]
@@ -21,7 +21,7 @@
 
 (defn windowing-atx [{{:keys [zoom offset]} ::window}]
   (let [zoom (normalise-zoom zoom)]
-    (geometry/comp-atx
+    (math/comp-atx
      (core/translation offset)
      (core/scaling [zoom zoom]))))
 

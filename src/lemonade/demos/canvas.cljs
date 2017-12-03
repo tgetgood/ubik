@@ -48,8 +48,8 @@
 (defn base
   "Main render fn."
   [{:keys [election-data] :as state}]
-  [(elections/election election-data)
-   ])
+  elections/ring-example
+  #_(elections/election election-data))
 
 (defn interactive-hud [render]
   (fn [state]
@@ -85,9 +85,9 @@
 ;; ideal scenario
 (def handler
   (let [elem (canvas-elem)]
-    (-> #_base
-        (infinite/example (canvas-width elem))
-        ;; event-test-wrapper
+    (-> base
+        ;; (infinite/example (canvas-width elem))
+        event-test-wrapper
         window/wrap-windowing
         ;; interactive-hud
         hlei/wrap

@@ -3,7 +3,7 @@
   (:require [lemonade.core :as core
              :refer [scale translate line with-style]
              #?@(:cljs [:include-macros true])]
-            [lemonade.geometry :as geometry]))
+            [lemonade.math :as math]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Example Data
@@ -270,12 +270,12 @@
    :inner-radius 1
    :outer-radius 2
    :from         0
-   :to           geometry/pi
+   :to           math/pi
    :centre       [0 0]}
-  (let [fc (geometry/cos from)
-        tc (geometry/cos to)
-        fs (geometry/sin from)
-        ts (geometry/sin to)
+  (let [fc (math/cos from)
+        tc (math/cos to)
+        fs (math/sin from)
+        ts (math/sin to)
 
         ix1 (* inner-radius fc)
         iy1 (* inner-radius fs)
@@ -311,8 +311,8 @@
          :inner-radius 5
          :outer-radius 8
          :style {:fill (get colours party :magenta)}
-         :from (* 2 geometry/pi from)
-         :to (* 2 geometry/pi to)))
+         :from (* 2 math/pi from)
+         :to (* 2 math/pi to)))
 
 (defn ring-election [year accounting]
   (->> election-data
