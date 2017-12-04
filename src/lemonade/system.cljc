@@ -18,7 +18,7 @@
         continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
               #?(:clj
-                 (draw-fn (app-fn @state-ref ))
+                 (draw-fn (app-fn @state-ref))
                  :cljs
                  (js/window.requestAnimationFrame
                   (fn [now]
@@ -59,7 +59,7 @@
 
 (defn initialise!
   "Initialises the system, whatever that means right now."
-  [{{:keys [event-system render-fn]} :host :keys [app-db handler]}]
+  [{{:keys [event-system interceptor render-fn]} :host :keys [app-db handler]}]
 
   (set! *app-db* app-db)
 
@@ -69,4 +69,4 @@
   (when-let [f (:setup event-system)]
     (f))
 
-  (draw-loop app-db handler render-fn))
+  (draw-loop app-db (interceptor handler) render-fn))

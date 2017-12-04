@@ -13,5 +13,5 @@
     (invert-coordinates (render state) elem)))
 
 (defn coord-inversion-export [canvas]
-  {:type :atx
+  {:type   :atx
    :atx-fn (constantly (get-coord-inversion canvas))})

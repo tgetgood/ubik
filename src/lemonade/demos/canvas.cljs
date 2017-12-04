@@ -1,12 +1,10 @@
 (ns lemonade.demos.canvas
-  (:require [lemonade.coordinates :as coords]
+  (:require [goog.object :as obj]
             [lemonade.core :as core]
             [lemonade.events :as events]
-            [lemonade.events.canvas :as dom-events]
             [lemonade.events.hlei :as hlei]
             [lemonade.examples.elections :as elections]
-            [lemonade.examples.infinite :as infinite]
-            [lemonade.renderers.canvas :as rc]
+            [lemonade.hosts :as hosts]
             [lemonade.system :as system]
             [lemonade.window :as window]))
 
@@ -17,22 +15,22 @@
 ;;;;; Canvas Element handling
 
 (defn canvas-elem []
-  (.getElementById js/document "canvas"))
+  (js/document.getElementById "canvas"))
 
 (defn canvas-container []
-  (.getElementById js/document "canvas-container"))
+  (js/document.getElementById "canvas-container"))
 
 (defn canvas-container-dimensions []
   (let [cc (canvas-container)]
-    [(.-clientWidth cc) (.-clientHeight cc)]))
+    [(obj/get cc "clientWidth") (obj/get cc "clientHeight")]))
 
 (defn set-canvas-size! [canvas [width height]]
-  (set! (.-width canvas) width)
-  (set! (.-height canvas) height))
+  (obj/set canvas "width" width)
+  (obj/set canvas "height" height))
 
 (defn canvas-container-offset []
   (let [c (canvas-container)]
-    [(.-offsetLeft c) (.-offsetTop c)]))
+    [(obj/get c "offsetLeft") (obj/get c "offsetTop")]))
 
 (defn fullscreen-canvas! []
   (let [[w h :as dim] (canvas-container-dimensions)]
@@ -78,20 +76,13 @@
      :base (handler state)
      ::events/handlers event-test-handlers}))
 
-(defn canvas-width [elem]
-  (fn []
-    [(.-width elem) (.-height elem)]))
-
 ;; ideal scenario
 (def handler
-  (let [elem (canvas-elem)]
-    (-> base
-        ;; (infinite/example (canvas-width elem))
-        event-test-wrapper
-        window/wrap-windowing
-        ;; interactive-hud
-        hlei/wrap
-        (coords/wrap-invert-coordinates elem))))
+  (-> base
+      event-test-wrapper
+      window/wrap-windowing
+      ;; interactive-hud
+      hlei/wrap))
 
 (defn on-js-reload []
   (fullscreen-canvas!)
