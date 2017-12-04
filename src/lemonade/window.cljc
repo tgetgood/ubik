@@ -19,7 +19,7 @@
 (defn update-offset [w delta]
   (update w :offset #(mapv - % delta)))
 
-(defn windowing-atx [{{:keys [zoom offset]} ::window}]
+(defn windowing-atx [{{:keys [zoom offset]} ::core/window}]
   (let [zoom (normalise-zoom zoom)]
     (math/comp-atx
      (core/translation offset)
@@ -31,10 +31,10 @@
 (def window-events
   #:lemonade.events
   {:scroll    (fn [{:keys [dy location]}]
-                {:mutation [update ::window update-zoom location dy]})
+                {:mutation [update ::core/window update-zoom location dy]})
 
    :left-drag (fn [{:keys [delta]}]
-                {:mutation [update ::window update-offset delta]})})
+                {:mutation [update ::core/window update-offset delta]})})
 
 (defn wrap-windowing [render]
   (fn [state]

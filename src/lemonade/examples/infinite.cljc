@@ -41,6 +41,6 @@
 
 (defn example [size-fn]
   (fn [state]
-    (if-let [window (::window/window state)]
+    (if-let [window (:lemonade.core/window state)]
       (rings (size-fn) window)
       [])))

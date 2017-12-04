@@ -11,4 +11,4 @@
 (defn wrap-invert-coordinates [render]
   (fn [state]
     (invert-coordinates (render state)
-                        (-> state :lemonade.window/window :height))))
+                        (-> state ::core/window :height))))

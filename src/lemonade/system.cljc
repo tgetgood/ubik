@@ -64,10 +64,10 @@
   [{{:keys [event-system height width render-fn]} :host
     :keys [app-db handler]}]
 
-  (when-not (::window/window @app-db)
-    (swap! app-db assoc ::window/window window/initial-window))
+  (when-not (:lemonade.core/window @app-db)
+    (swap! app-db assoc :lemonade.core/window window/initial-window))
 
-  (swap! app-db update ::window/window assoc
+  (swap! app-db update :lemonade.core/window assoc
          :height (height)
          :width  (width))
 
