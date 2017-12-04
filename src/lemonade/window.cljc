@@ -30,10 +30,7 @@
 
 (def window-events
   #:lemonade.events
-  {:init      (fn [_]
-                {:mutation [assoc ::window initial-window]})
-
-   :scroll    (fn [{:keys [dy location]}]
+  {:scroll    (fn [{:keys [dy location]}]
                 {:mutation [update ::window update-zoom location dy]})
 
    :left-drag (fn [{:keys [delta]}]

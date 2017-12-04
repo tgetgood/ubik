@@ -2,16 +2,13 @@
   (:require [lemonade.core :as core]
             [lemonade.math :as math]))
 
-(defn get-coord-inversion [canvas]
-  #?(:cljs (math/atx [1 0 0 -1] [0 (.-height canvas)])))
+(defn get-coord-inversion [height]
+  (math/atx [1 0 0 -1] [0 height]))
 
-(defn invert-coordinates [shape elem]
-  (core/transform shape (get-coord-inversion elem)))
+(defn invert-coordinates [shape height]
+  (core/transform shape (get-coord-inversion height)))
 
-(defn wrap-invert-coordinates [render elem]
+(defn wrap-invert-coordinates [render]
   (fn [state]
-    (invert-coordinates (render state) elem)))
-
-(defn coord-inversion-export [canvas]
-  {:type   :atx
-   :atx-fn (constantly (get-coord-inversion canvas))})
+    (invert-coordinates (render state)
+                        (-> state :lemonade.window/window :height))))

@@ -93,6 +93,4 @@
     :app-db  state}))
 
 (defn ^:export init []
-  (on-js-reload)
-  ;; Init app state just once.
-  (events/init-event-handlers!))
+  (on-js-reload))

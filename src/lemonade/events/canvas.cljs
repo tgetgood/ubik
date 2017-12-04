@@ -1,5 +1,6 @@
 (ns lemonade.events.canvas
   (:require [clojure.string :as string]
+            [goog.object :as obj]
             [lemonade.events :as events]))
 
 (defn- kw->js [kw]
@@ -8,7 +9,8 @@
 (defn pixel-point
   "Returns pixel clicked on relative to canvas element."
   [elem e]
-  [(- (.-clientX e) (.-offsetLeft elem)) (- (.-clientY e) (.-offsetTop elem))])
+  [(- (obj/get e "clientX") (obj/get elem "offsetLeft"))
+   (- (obj/get e "clientY") (obj/get elem "offsetTop"))])
 
 (defn ^:private event-map
   [elem]

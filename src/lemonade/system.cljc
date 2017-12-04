@@ -1,4 +1,6 @@
-(ns lemonade.system)
+(ns lemonade.system
+  (:require [lemonade.coordinates :as coords]
+            [lemonade.window :as window]))
 
 (defonce ^:private idem (atom nil))
 
@@ -59,7 +61,15 @@
 
 (defn initialise!
   "Initialises the system, whatever that means right now."
-  [{{:keys [event-system interceptor render-fn]} :host :keys [app-db handler]}]
+  [{{:keys [event-system height width render-fn]} :host
+    :keys [app-db handler]}]
+
+  (when-not (::window/window @app-db)
+    (swap! app-db assoc ::window/window window/initial-window))
+
+  (swap! app-db update ::window/window assoc
+         :height (height)
+         :width  (width))
 
   (set! *app-db* app-db)
 
@@ -69,4 +79,5 @@
   (when-let [f (:setup event-system)]
     (f))
 
-  (draw-loop app-db (interceptor handler) render-fn))
+  (let [wrapped-handler (coords/wrap-invert-coordinates handler)]
+    (draw-loop app-db wrapped-handler render-fn)))

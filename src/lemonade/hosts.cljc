@@ -2,8 +2,7 @@
   #?(:cljs
      (:require [goog.object :as obj]
                [lemonade.events.canvas :as events]
-               [lemonade.renderers.canvas :as canvas-renderer]
-               [lemonade.coordinates :as coords])))
+               [lemonade.renderers.canvas :as canvas-renderer])))
 
 #?(:cljs
    (defn html-canvas [element]
@@ -11,5 +10,4 @@
      {:event-system (events/event-system element)
       :width        (fn [] (obj/get element "width"))
       :height       (fn [] (obj/get element "height"))
-      :interceptor  #(coords/wrap-invert-coordinates % element)
       :render-fn    (partial canvas-renderer/draw! element)}))

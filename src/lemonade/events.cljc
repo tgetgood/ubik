@@ -55,6 +55,12 @@
   [ev]
   (event-traversal (system/world) ev))
 
+;; We're no longer using this for window, since window needs to be built into
+;; the system to work properly.
+;;
+;; REVIEW: Is there a valid use case for this at all?
+;; After all, user defined handlers can be initialised in the app state which is
+;; user controlled. What about library handlers?
 (defn init-event-handlers! []
   #?(:clj (throw (Exception. "Not Implemented"))
      ;; Invoke on the first animation frame after something has rendered.
