@@ -59,7 +59,7 @@
 
 (defn initialise!
   "Initialises the system, whatever that means right now."
-  [{:keys [render app-db handler event-system]}]
+  [{{:keys [event-system render-fn]} :host :keys [app-db handler]}]
 
   (set! *app-db* app-db)
 
@@ -69,4 +69,4 @@
   (when-let [f (:setup event-system)]
     (f))
 
-  (draw-loop app-db handler render))
+  (draw-loop app-db handler render-fn))

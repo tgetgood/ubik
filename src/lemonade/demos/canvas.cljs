@@ -96,12 +96,10 @@
 (defn on-js-reload []
   (fullscreen-canvas!)
 
-  (let [elem (canvas-elem)]
-    (system/initialise!
-     {:event-system (dom-events/event-system elem)
-      :render       (partial rc/draw! elem)
-      :handler      handler
-      :app-db       state})))
+  (system/initialise!
+   {:host    (hosts/html-canvas (canvas-elem))
+    :handler handler
+    :app-db  state}))
 
 (defn ^:export init []
   (on-js-reload)
