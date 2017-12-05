@@ -1,4 +1,4 @@
-(defproject lemonade "0.1.0-SNAPSHOT"
+(defproject macroexpanse/lemonade "0.1.0-SNAPSHOT"
   :description "High level language for graphical and UI programming. No markup."
   :url "https://github.com/tgetgood/lemonade"
   :license {:name "Eclipse Public License"
