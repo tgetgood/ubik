@@ -64,7 +64,7 @@ Experiment in higher order visual programming.
 	 directions.
 
 	 What am I building?
-** Actions needed
+** Actions Needed
 *** DONE Text
 		 CLOSED: [2017-11-28 Tue 11:58]
 *** DONE Finish Elections Demo
@@ -125,8 +125,8 @@ Experiment in higher order visual programming.
 	 - [[https://www.html5rocks.com/en/tutorials/canvas/performance/][Canvas performance techniques]]
 		 If optimisation becomes necessary
 	 - http://thi.ng/
-* Notable flaws
-** Zoom misbehaviour
+* Notable Flaws
+** Zoom Misbehaviour
 	 Zoom only works in the range of about [-9000 9000]. That's ~[1e-40 1e38].
 
 	 I don't know why that is. It's nowhere near the precision limit of floats,
@@ -178,7 +178,7 @@ Experiment in higher order visual programming.
 	 Things are getting less and less declarative as we go. This is going to make
 	 my life more difficult. Especially in regards to automatic code
 	 simplification.
-* Ultimate direction
+* Ultimate Direction
 	What is this library supposed to be? What is it supposed to become? To be
 	honest I don't know. I should include more of the history of thought behind it
 	as a partial answer, but that requires editing thousands of lines of planning
@@ -186,7 +186,7 @@ Experiment in higher order visual programming.
 
 	Here are some things that I want. Not comprehensive.
 
-** A new way to program for the end user
+** A New Way to Program for the End User
 	 That's what this is becoming. A new internet platform — with the JVM
 	 version we're not actually dependent on the web, it's just a convenience
 	 delivery mechanism — intended for creating content that can be inspected
