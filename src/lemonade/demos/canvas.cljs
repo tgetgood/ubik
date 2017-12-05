@@ -88,7 +88,7 @@
   (fullscreen-canvas!)
 
   (system/initialise!
-   {:host    (hosts/html-canvas (canvas-elem))
+   {:host    (hosts/html-canvas)
     :handler handler
     :app-db  state}))
 

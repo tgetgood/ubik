@@ -1,13 +1,16 @@
 (ns lemonade.hosts
-  #?(:cljs
-     (:require [goog.object :as obj]
-               [lemonade.events.canvas :as events]
-               [lemonade.renderers.canvas :as canvas-renderer])))
+  #?(:cljs (:require [lemonade.hosts.browser-canvas :as browser-canvas])
+     :clj (:require [lemonade.hosts.jvm-quil :as jvm-quil])))
 
 #?(:cljs
-   (defn html-canvas [element]
+   (defn html-canvas []
      "Runs lemonade in a the given <canvas> element in the browser."
-     {:event-system (events/event-system element)
-      :width        (fn [] (obj/get element "width"))
-      :height       (fn [] (obj/get element "height"))
-      :render-fn    (partial canvas-renderer/draw! element)}))
+     (browser-canvas/host (browser-canvas/canvas-elem))))
+
+#?(:clj
+   (defn jvm-quil []
+     (jvm-quil/host)))
+
+(def default-host
+  #?(:cljs (html-canvas)
+     :clj (jvm-quil)))

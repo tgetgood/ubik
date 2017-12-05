@@ -2,6 +2,14 @@
   (:require [lemonade.coordinates :as coords]
             [lemonade.window :as window]))
 
+(defprotocol Host
+  (event-system [this])
+  (render-fn [this])
+  (width [this] "Current frame width")
+  (height [this] "Current frame height")
+  (resize-frame [this [width height]])
+  (fullscreen [this]))
+
 (defonce ^:private idem (atom nil))
 
 (defonce ^:dynamic *profile* false)
@@ -61,23 +69,23 @@
 
 (defn initialise!
   "Initialises the system, whatever that means right now."
-  [{{:keys [event-system height width render-fn]} :host
-    :keys [app-db handler]}]
+  [{:keys [app-db handler host]}]
 
   (when-not (:lemonade.core/window @app-db)
     (swap! app-db assoc :lemonade.core/window window/initial-window))
 
   (swap! app-db update :lemonade.core/window assoc
-         :height (height)
-         :width  (width))
+         :height (height host)
+         :width  (width host))
 
   (set! *app-db* app-db)
 
-  (when-let [f (:teardown event-system)]
-    (f))
+  (let [{:keys [teardown setup]} (event-system host)]
+    (when teardown
+      (teardown))
 
-  (when-let [f (:setup event-system)]
-    (f))
+    (when setup
+      (setup)))
 
   (let [wrapped-handler (coords/wrap-invert-coordinates handler)]
-    (draw-loop app-db wrapped-handler render-fn)))
+    (draw-loop app-db wrapped-handler (render-fn host))))
