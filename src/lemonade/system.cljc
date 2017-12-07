@@ -67,7 +67,12 @@
   []
   (:lemonade.core/world @*app-db*))
 
-(defn initialise!
+;; REVIEW: I've made this dynamic so that it can be swapped out by code
+;; introspection programs which need to evaluate code and grab their handlers,
+;; state atoms, etc.
+;;
+;; There's got to be a better way to get the desired dynamism
+(defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [{:keys [app-db handler host]}]
 
