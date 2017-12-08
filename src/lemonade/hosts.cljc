@@ -22,6 +22,6 @@
     (event-system [_] nil)
     (render-fn [_] nil)
     (width [_] nil)
-    (height [_] nilj)
+    (height [_] nil)
     (resize-frame [_ _] nil)
     (fullscreen [_] nil)))
