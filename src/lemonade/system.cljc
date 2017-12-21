@@ -94,3 +94,8 @@
 
   (let [wrapped-handler (coords/wrap-invert-coordinates handler)]
     (draw-loop app-db wrapped-handler (render-fn host))))
+
+
+(defn stop! []
+  (when-let [sfn @idem]
+    (sfn)))

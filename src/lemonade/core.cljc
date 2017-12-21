@@ -1,7 +1,6 @@
 (ns lemonade.core
   #?(:cljs (:require-macros [lemonade.core :refer [deftemplate]]))
-  (:require [clojure.pprint :refer [pprint pp]]
-            [lemonade.math :as math :refer [atx cos idm pi sin]]))
+  (:require [lemonade.math :as math :refer [atx cos idm pi sin]]))
 
 (defmulti template-expand :type)
 
