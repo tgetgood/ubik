@@ -32,13 +32,13 @@
                  :cljs
                  (js/window.requestAnimationFrame
                   (fn [now]
-                    (let [state @state-ref]
-                      (when-not (= state @last-state)
-                        (let [world (app-fn state)]
-                          (swap! state-ref assoc :lemonade.core/world world)
-                          (draw-fn world))
-                        (reset! last-state @state-ref)))
                     (when @continue?
+                      (let [state @state-ref]
+                        (when-not (= state @last-state)
+                          (let [world (app-fn state)]
+                            (swap! state-ref assoc :lemonade.core/world world)
+                            (draw-fn world))
+                          (reset! last-state @state-ref)))
                       (if (and *profile* (< 1000 (- now last-run)))
                         (do
                           (println (* 1000 (/ counter (- now last-run))))
