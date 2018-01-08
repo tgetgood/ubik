@@ -15,7 +15,7 @@
   (let [drag-state (atom nil)
         down       (atom nil)
         drag-start (atom nil)]
-    #::events
+    #:lemonade.events
     {:wheel           (fn [ev]
                         {:dispatch (assoc ev :type ::events/scroll)
                          :stop      true})
