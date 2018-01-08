@@ -53,19 +53,19 @@
 ;; Intentionally not defonce so that I can catch attempts to access it before
 ;; initalisation. The app-db passed into initialise! should be defonced, so hot
 ;; loading should be okay.
-(def ^{:dynamic true :private true} *app-db* nil)
+(def ^:private internal-db (atom nil))
 
 (defn handle-mutation
   "Like swap!, but signals global state change."
   [[f & args]]
-  (apply swap! *app-db* f args))
+  (apply swap! @internal-db f args))
 
 (defn world
   "Returns the 'world', the root of the render tree. Note, that updates to the
   world tree are batched on animation frames, so this value is only up to date
   as of the last render."
   []
-  (:lemonade.core/world @*app-db*))
+  (:lemonade.core/world @@internal-db))
 
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
@@ -76,14 +76,14 @@
   "Initialises the system, whatever that means right now."
   [{:keys [app-db handler host]}]
 
-  (when-not (:lemonade.core/window @app-db)
-    (swap! app-db assoc :lemonade.core/window window/initial-window))
+  (reset! internal-db app-db)
 
-  (swap! app-db update :lemonade.core/window assoc
+  (when-not (:lemonade.core/window @@internal-db)
+    (swap! @internal-db assoc :lemonade.core/window window/initial-window))
+
+  (swap! @internal-db update :lemonade.core/window assoc
          :height (height host)
          :width  (width host))
-
-  (set! *app-db* app-db)
 
   (let [{:keys [teardown setup]} (event-system host)]
     (when teardown
@@ -93,7 +93,7 @@
       (setup)))
 
   (let [wrapped-handler (coords/wrap-invert-coordinates handler)]
-    (draw-loop app-db wrapped-handler (render-fn host))))
+    (draw-loop @internal-db wrapped-handler (render-fn host))))
 
 
 (defn stop! []
