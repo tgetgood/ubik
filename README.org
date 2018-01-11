@@ -125,6 +125,21 @@ Experiment in higher order visual programming.
 	 - [[https://www.html5rocks.com/en/tutorials/canvas/performance/][Canvas performance techniques]]
 		 If optimisation becomes necessary
 	 - http://thi.ng/
+** Lessons from Expanse
+	 Trying to build expanse has brought up a number of interesting points:
+*** Windowing
+		Having multiple independent windows in a page didn't seem like a valid use
+		case. Now it does. Beyond that, the need for multiple windows is bringing to
+		light the inadequacy of the event system.
+
+		Keeping separate windows under separate keys doesn't work unless the event
+		system knows which substree is being clicked on. As it is, the same events
+		are fired no matter where on the screen the user scrolls. This means that
+		everything zooms in sync and it's as if there were only one window
+		again. That's no good.
+
+		Remember that the ideal is trivial composability. Take anything and embed it
+		anywhere.
 * Notable Flaws
 ** Zoom Misbehaviour
 	 Zoom only works in the range of about [-9000 9000]. That's ~[1e-40 1e38].
