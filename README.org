@@ -140,6 +140,19 @@ Experiment in higher order visual programming.
 
 		Remember that the ideal is trivial composability. Take anything and embed it
 		anywhere.
+** Errors and Messages
+	 Currently they're useless. The two errors that come up 90% of the time are
+	 "can't render nil" and "can't render function([native code])". The latter
+	 means that you passed in a function as a value — which should trigger a
+	 special error because it's getting me over and over and would be useful —
+	 while the former could mean anything. It generally means something in the
+	 pipeline failed and by nil punning we get a nil at the very end. Even more
+	 useless.
+
+	 We should be able to trace the path through the render tree so that (in
+	 combination with named shapes) we can give useful traces of errors. Possibly
+	 even source mapped errors once the code is being compiled on the fly. Let's
+	 not get too far ahead of ourselves.
 * Notable Flaws
 ** Zoom Misbehaviour
 	 Zoom only works in the range of about [-9000 9000]. That's ~[1e-40 1e38].
