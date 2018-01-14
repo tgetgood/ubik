@@ -3,7 +3,6 @@
              :refer [annulus line polyline rotate scale translate]]))
 
 (def ex
-
   [(-> polyline
        (assoc :points [[0 0] [100 100] [300 100] [100 300] [0 0]]
               :style {:stroke {:corners :square

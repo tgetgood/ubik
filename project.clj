@@ -1,8 +1,14 @@
-(defproject macroexpanse/lemonade "0.1.0-SNAPSHOT"
+(defproject macroexpanse/lemonade "0.1.0"
   :description "High level language for graphical and UI programming. No markup."
   :url "https://github.com/tgetgood/lemonade"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
+
+  :scm {:name "git"
+        :url "https://github.com/tgetgood/lemonade"}
+
+  :pom-addition [:developers [:developer {:id "tgetgood"}
+                              [:name "Thomas Getgood"]]]
 
   :min-lein-version "2.7.1"
 
