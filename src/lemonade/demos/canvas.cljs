@@ -3,7 +3,6 @@
             [lemonade.core :as core]
             [lemonade.events :as events]
             [lemonade.events.hlei :as hlei]
-            [lemonade.examples.elections :as elections]
             [lemonade.hosts :as hosts]
             [lemonade.system :as system]
             [lemonade.window :as window]))
@@ -12,42 +11,17 @@
 
 (enable-console-print!)
 
-;;;;; Canvas Element handling
-
-(defn canvas-elem []
-  (js/document.getElementById "canvas"))
-
-(defn canvas-container []
-  (js/document.getElementById "canvas-container"))
-
-(defn canvas-container-dimensions []
-  (let [cc (canvas-container)]
-    [(obj/get cc "clientWidth") (obj/get cc "clientHeight")]))
-
-(defn set-canvas-size! [canvas [width height]]
-  (obj/set canvas "width" width)
-  (obj/set canvas "height" height))
-
-(defn canvas-container-offset []
-  (let [c (canvas-container)]
-    [(obj/get c "offsetLeft") (obj/get c "offsetTop")]))
-
-(defn fullscreen-canvas! []
-  (let [[w h :as dim] (canvas-container-dimensions)]
-    (set-canvas-size! (canvas-elem) dim)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Export
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defonce state
-  (atom {:election-data elections/election-data}))
+  (atom {}))
 
 (defn base
   "Main render fn."
-  [{:keys [election-data] :as state}]
-  elections/ring-example
-  #_(elections/election election-data))
+  [state]
+  (assoc core/rectangle :width 100 :height 200))
 
 (defn interactive-hud [render]
   (fn [state]
@@ -81,14 +55,16 @@
   (-> base
       event-test-wrapper
       window/wrap-windowing
-      ;; interactive-hud
+      interactive-hud
       hlei/wrap))
 
+(def host (hosts/html-canvas))
+
 (defn on-js-reload []
-  (fullscreen-canvas!)
+  (system/fullscreen host)
 
   (system/initialise!
-   {:host    (hosts/html-canvas)
+   {:host    host
     :handler handler
     :app-db  state}))
 
