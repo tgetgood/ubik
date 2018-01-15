@@ -26,7 +26,7 @@
     (keyword? c) (name c)
     (string? c)  c
     (map? c)     (process-gradient c)
-    :else        nil))
+    :else        "rgba(0,0,0,0)"))
 
 (defmethod style-ctx :stroke
   [ctx {:keys [zoom]} [_ v]]
