@@ -127,15 +127,14 @@
 
 (defmethod render-fn ::core/frame
   [ctx state {:keys [contents extent]}]
-  (let [{:keys [corner width height]} extent
-        canvas (js/document.createElement "canvas")
-        ctx2 (.getContext canvas "2d")]
-    (obj/set canvas "height" height)
-    (obj/set canvas "width" width)
-
-    (render-fn ctx2 state contents)
-
-    (.drawImage ctx canvas 0 0 width height)))
+  (let [{:keys [width height] [x y] :corner} extent
+        path (new js/Path2D)]
+    (.save ctx)
+    (.beginPath ctx)
+    (.rect ctx x y width height)
+    (.clip ctx )
+    (render-fn ctx state contents)
+    (.restore ctx)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Leaf renderers
