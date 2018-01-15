@@ -125,6 +125,17 @@
     (render-fn ctx sub-state contents)
     (.restore ctx)))
 
+(defmethod render-fn ::core/frame
+  [ctx state {:keys [contents extent]}]
+  (let [{:keys [corner width height]} extent]
+    ;; Create dummy canvas of [width height]
+    ;; render image to dummy (gets cut off)
+    ;; copy dummy canvas onto main canvas
+    ;; TODO: How to deal with style state? Should be in state param...
+
+    ;; FIXME: bypass.
+    (render-fn ctx state cotents)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Leaf renderers
 ;;
