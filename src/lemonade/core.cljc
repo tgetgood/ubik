@@ -207,7 +207,7 @@
 (defn reflection
   "Returns a reflection about vector v (linear)"
   [[x y]]
-  (if (zero? 0 x)
+  (if (zero? x)
     (atx [-1 0 0 1])
     (let [m    (/ y x)
           m2   (* m m)
