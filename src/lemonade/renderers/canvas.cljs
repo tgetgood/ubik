@@ -127,14 +127,15 @@
 
 (defmethod render-fn ::core/frame
   [ctx state {:keys [contents extent]}]
-  (let [{:keys [corner width height]} extent]
-    ;; Create dummy canvas of [width height]
-    ;; render image to dummy (gets cut off)
-    ;; copy dummy canvas onto main canvas
-    ;; TODO: How to deal with style state? Should be in state param...
+  (let [{:keys [corner width height]} extent
+        canvas (js/document.createElement "canvas")
+        ctx2 (.getContext canvas "2d")]
+    (obj/set canvas "height" height)
+    (obj/set canvas "width" width)
 
-    ;; FIXME: bypass.
-    (render-fn ctx state cotents)))
+    (render-fn ctx2 state contents)
+
+    (.drawImage ctx canvas 0 0 width height)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Leaf renderers
