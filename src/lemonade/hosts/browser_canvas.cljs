@@ -24,6 +24,17 @@
   (let [[w h :as dim] (canvas-container-dimensions)]
     (set-canvas-size! elem dim)))
 
+(defn watch-resize [cb]
+  (let [running (atom false)]
+    (set! (.-onresize js/window)
+          (fn []
+            (when (compare-and-set! running false true)
+              (.requestAnimationFrame
+               js/window
+               (fn []
+                 (when (compare-and-set! running true false)
+                   (cb)))))))))
+
 (defn host [element]
   (reify
     system/Host
@@ -33,4 +44,5 @@
     (width [_] (obj/get element "width"))
     (height [_] (obj/get element "height"))
     (resize-frame [_ [width height]] (set-canvas-size! element [width height]))
+    (on-resize [_ cb] (watch-resize cb) )
     (fullscreen [_] (fullscreen! element))))

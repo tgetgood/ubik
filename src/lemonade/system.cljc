@@ -7,6 +7,7 @@
   (render-fn [this])
   (width [this] "Current frame width")
   (height [this] "Current frame height")
+  (on-resize [this cb] "Invoke cb when host is resized")
   (resize-frame [this [width height]])
   (fullscreen [this]))
 
@@ -74,9 +75,20 @@
 ;; There's got to be a better way to get the desired dynamism
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
-  [{:keys [app-db handler host]}]
+  [{:keys [app-db handler host behaviour size]}]
 
-  (reset! internal-db app-db)
+  (reset! internal-db (or app-db (atom {})))
+
+  (when (= size :fullscreen)
+    (fullscreen host)
+    (on-resize host (fn []
+                      (fullscreen host)
+                      (swap! @internal-db update :lemonade.core/window assoc
+                             :height (height host)
+                             :width (width host)))))
+
+  (when (and (vector? size) (= 2 (count size)))
+    (apply resize-frame host size))
 
   (when-not (:lemonade.core/window @@internal-db)
     (swap! @internal-db assoc :lemonade.core/window window/initial-window))
@@ -94,7 +106,6 @@
 
   (let [wrapped-handler (coords/wrap-invert-coordinates handler)]
     (draw-loop @internal-db wrapped-handler (render-fn host))))
-
 
 (defn stop! []
   (when-let [sfn @idem]
