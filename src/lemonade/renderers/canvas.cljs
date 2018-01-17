@@ -126,15 +126,13 @@
     (.restore ctx)))
 
 (defmethod render-fn ::core/frame
-  [ctx state {:keys [contents extent]}]
-  (let [{:keys [width height] [x y] :corner} extent
-        path (new js/Path2D)]
-    (.save ctx)
-    (.beginPath ctx)
-    (.rect ctx x y width height)
-    (.clip ctx )
-    (render-fn ctx state contents)
-    (.restore ctx)))
+  [ctx state {:keys [contents width height] [x y] :corner}]
+  (.save ctx)
+  (.beginPath ctx)
+  (.rect ctx x y width height)
+  (.clip ctx )
+  (render-fn ctx state contents)
+  (.restore ctx))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Leaf renderers

@@ -102,14 +102,15 @@
     :style style
     :contents shapes}))
 
-(defn frame
+(def frame
   "A frame is a visual which restricts image to fall within extent. Extent is a
   map with keys as per :lemonade.core/rectangle"
-  [extent image]
   {:type ::frame
-   :extent extent
+   :corner [0 0]
+   :width 1
+   :height 1
    :style {}
-   :contents image})
+   :contents []})
 
 ;; TODO: Create a group helper and stop allowing vectors of shapes.
 ;;
