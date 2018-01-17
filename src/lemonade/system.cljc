@@ -75,9 +75,11 @@
 ;; There's got to be a better way to get the desired dynamism
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
-  [{:keys [app-db handler host behaviour size]}]
+  [{:keys [app-db handler host behaviour size]
+    :or {app-db (atom {})
+         behaviour identity}}]
 
-  (reset! internal-db (or app-db (atom {})))
+  (reset! internal-db app-db)
 
   (when (= size :fullscreen)
     (fullscreen host)
@@ -104,7 +106,7 @@
     (when setup
       (setup)))
 
-  (let [wrapped-handler (coords/wrap-invert-coordinates handler)]
+  (let [wrapped-handler (coords/wrap-invert-coordinates (behaviour handler))]
     (draw-loop @internal-db wrapped-handler (render-fn host))))
 
 (defn stop! []
