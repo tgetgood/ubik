@@ -1,4 +1,4 @@
-(defproject macroexpanse/lemonade "0.1.0"
+(defproject macroexpanse/lemonade "0.2.0"
   :description "High level language for graphical and UI programming. No markup."
   :url "https://github.com/tgetgood/lemonade"
   :license {:name "Eclipse Public License"
@@ -45,7 +45,7 @@
   :figwheel {:css-dirs ["resources/public/css"]}
 
   :profiles
-  {:dev {:dependencies  [[binaryage/devtools "0.9.4"]
+  {:dev {:dependencies  [[binaryage/devtools "0.9.9"]
                          [org.clojure/spec.alpha "0.1.134"]
                          [org.clojure/tools.namespace "0.2.11"]
                          [org.clojure/core.async "0.3.465"]
