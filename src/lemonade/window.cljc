@@ -4,7 +4,7 @@
             [lemonade.math :as math]))
 
 (defn normalise-zoom [dz]
-  (let [scale 100]
+  (let [scale 25]
     (math/exp (/ (- dz) scale))))
 
 (defn zoom-c [dz ox zx]
@@ -13,7 +13,7 @@
 
 (defn update-zoom [{z :zoom o :offset :as w} zc dz]
   (assoc w
-         :zoom (max -8000 (min 8000 (+ z dz)))
+         :zoom (max -2000 (min 2000 (+ z dz)))
          :offset (mapv (partial zoom-c dz) o zc)))
 
 (defn update-offset [w delta]
