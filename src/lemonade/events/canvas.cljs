@@ -53,10 +53,13 @@
 
    :wheel        (fn [e]
                    (.preventDefault e)
-                   (events/dispatch! {:type     ::events/wheel
-                                      :location (pixel-point elem e)
-                                      :dx       (js/parseInt (.-deltaX e))
-                                      :dy       (js/parseInt (.-deltaY e))}))
+                   (let [mag (if (= 1 (obj/get e "deltaMode")) 15 1)
+                         dx (* mag (js/parseInt (obj/get e "deltaX")))
+                         dy (* mag (js/parseInt (obj/get e "deltaY")))]
+                     (events/dispatch! {:type     ::events/wheel
+                                        :location (pixel-point elem e)
+                                        :dx       dx
+                                        :dy       dy})))
 
    :key-down     (fn [e]
                    (.preventDefault e)
