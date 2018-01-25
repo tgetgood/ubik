@@ -10,7 +10,4 @@
 
 (defn wrap-invert-coordinates [render]
   (fn [state]
-    (let [w (render state)]
-      (with-meta
-        (invert-coordinates w (-> state ::core/window :height))
-        (meta w)))))
+    (invert-coordinates (render state) (-> state ::core/window :height))))

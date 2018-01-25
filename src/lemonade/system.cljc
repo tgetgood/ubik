@@ -33,7 +33,6 @@
                         (when-not (= state @last-state)
                           (let [world (app-fn state)]
                             (swap! state-ref assoc :lemonade.core/world world)
-                            (println now)
                             (if (:animation (meta world))
                               (draw-fn (nth world 0))
                               (draw-fn world)))
@@ -56,7 +55,7 @@
     :size      :fullscreen
     :behaviour (comp hlei/wrap window/wrap-windowing)}
    ;; Allow static images as well as state driven
-   (update opts :render #(if (fn? %) % (with-meta (constantly %) (meta %))))))
+   (update opts :render #(if (fn? %) % (constantly %)))))
 
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
