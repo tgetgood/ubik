@@ -44,22 +44,13 @@
      :base (handler state)
      ::events/handlers event-test-handlers}))
 
-;; ideal scenario
-(def handler
-  (-> base
-      event-test-wrapper
-      window/wrap-windowing
-      interactive-hud
-      hlei/wrap))
-
-(def host (hosts/html-canvas))
-
 (defn on-js-reload []
-  (system/fullscreen host)
-
   (system/initialise!
-   {:host   host
-    :render handler
+   {:render base
+    :behaviour (comp hlei/wrap
+                     interactive-hud
+                     window/wrap-windowing
+                     event-test-wrapper)
     :app-db state}))
 
 (defn ^:export init []

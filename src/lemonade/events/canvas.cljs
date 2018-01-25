@@ -32,6 +32,9 @@
                                             :location p})
                        nil)))
 
+   :touch-move   (fn [e]
+                   (.preventDefault e))
+
    :mouse-move   (fn [e]
                    (.preventDefault e)
                    (events/dispatch! {:type     ::events/mouse-move
