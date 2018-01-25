@@ -49,6 +49,9 @@
 
 (defn wrap [render]
   (fn [state]
-    (assoc
-     (core/composite {} [(render state)])
-     ::events/handlers handlers)))
+    (let [w (render state)]
+      (with-meta
+        (assoc
+         (core/composite {} [w])
+         ::events/handlers handlers)
+        (meta w)))))

@@ -33,7 +33,10 @@
                         (when-not (= state @last-state)
                           (let [world (app-fn state)]
                             (swap! state-ref assoc :lemonade.core/world world)
-                            (draw-fn world))
+                            (println now)
+                            (if (:animation (meta world))
+                              (draw-fn (nth world 0))
+                              (draw-fn world)))
                           (reset! last-state @state-ref)))
                       (if (and *profile* (< 1000 (- now last-run)))
                         (do
@@ -46,6 +49,15 @@
               (fn []
                 (reset! continue? false))))))
 
+(defn with-defaults [opts]
+  (merge
+   {:app-db    (atom {})
+    :host      hosts/default-host
+    :size      :fullscreen
+    :behaviour (comp hlei/wrap window/wrap-windowing)}
+   ;; Allow static images as well as state driven
+   (update opts :render #(if (fn? %) % (with-meta (constantly %) (meta %))))))
+
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
 ;; state atoms, etc.
@@ -53,42 +65,40 @@
 ;; There's got to be a better way to get the desired dynamism
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
-  [{:keys [app-db render host behaviour size]
-    :or {app-db (atom {})
-         host hosts/default-host
-         size :fullscreen
-         behaviour (comp hlei/wrap window/wrap-windowing)}}]
+  [opts]
+  (let [{:keys [app-db render host behaviour size]} (with-defaults opts)]
 
-  (reset! state/internal-db app-db)
+    (reset! state/internal-db app-db)
 
-  (when (= size :fullscreen)
-    (hp/fullscreen host)
-    (hp/on-resize host (fn []
-                      (hp/fullscreen host)
-                      (swap! @state/internal-db update :lemonade.core/window assoc
-                             :height (hp/height host)
-                             :width (hp/width host)))))
+    (when (= size :fullscreen)
+      (hp/fullscreen host)
+      (hp/on-resize host (fn []
+                           (hp/fullscreen host)
+                           (swap! @state/internal-db update :lemonade.core/window
+                                  assoc
+                                  :height (hp/height host)
+                                  :width (hp/width host)))))
 
-  (when (and (vector? size) (= 2 (count size)))
-    (apply hp/resize-frame host size))
+    (when (and (vector? size) (= 2 (count size)))
+      (apply hp/resize-frame host size))
 
-  (when-not (:lemonade.core/window @@state/internal-db)
-    (swap! @state/internal-db assoc :lemonade.core/window window/initial-window))
+    (when-not (:lemonade.core/window @@state/internal-db)
+      (swap! @state/internal-db assoc :lemonade.core/window window/initial-window))
 
-  (swap! @state/internal-db update :lemonade.core/window assoc
-         :height (hp/height host)
-         :width  (hp/width host))
+    (swap! @state/internal-db update :lemonade.core/window assoc
+           :height (hp/height host)
+           :width  (hp/width host))
 
-  (let [{:keys [teardown setup]} (hp/event-system host)]
-    (when teardown
-      (teardown))
+    (let [{:keys [teardown setup]} (hp/event-system host)]
+      (when teardown
+        (teardown))
 
-    (when setup
-      (setup)))
+      (when setup
+        (setup)))
 
-  (let [handler (if (fn? render) render (constantly render))
-        wrapped-handler (coords/wrap-invert-coordinates (behaviour handler))]
-    (draw-loop @state/internal-db wrapped-handler (hp/render-fn host))))
+    (draw-loop @state/internal-db
+               (coords/wrap-invert-coordinates (behaviour render))
+               (hp/render-fn host))))
 
 (defn stop! []
   (when-let [sfn @idem]
