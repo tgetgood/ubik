@@ -1,6 +1,5 @@
 (ns lemonade.demos.quil
   (:require [clojure.pprint :refer [pprint pp]]
-            [lemonade.examples.basic :as basic]
             [lemonade.renderers.quil :refer [renderer]]
             [quil.core :as q]))
 

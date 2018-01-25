@@ -1,7 +1,7 @@
 (ns lemonade.events
   (:require [lemonade.core :as core]
             [lemonade.math :as math]
-            [lemonade.system :as system]))
+            [lemonade.state :as state]))
 
 (defn- handle
   "Check if event applies to shape, and if so deal with it."
@@ -20,7 +20,7 @@
     (when-let [ev (:dispatch res)]
       (event-traversal shape ev))
     (when-let [mutation (:mutation res)]
-      (system/handle-mutation mutation))
+      (state/handle-mutation mutation))
     (when-not (:stop res)
       (event-traversal-walk shape event))))
 
@@ -53,7 +53,7 @@
   "Dispatch an event from the very top. Meant for integration with low level
   event systems like processing graphics or the dom."
   [ev]
-  (event-traversal (system/world) ev))
+  (event-traversal (state/world) ev))
 
 ;; We're no longer using this for window, since window needs to be built into
 ;; the system to work properly.

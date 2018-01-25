@@ -2,7 +2,7 @@
   (:require [goog.object :as obj]
             [lemonade.events.canvas :as events]
             [lemonade.renderers.canvas :as canvas-renderer]
-            [lemonade.system :as system]))
+            [lemonade.hosts.protocol :as protocol]))
 
 (defn canvas-elem []
   (js/document.getElementById "canvas"))
@@ -37,7 +37,7 @@
 
 (defn host [element]
   (reify
-    system/Host
+    protocol/Host
 
     (event-system [_] (events/event-system element))
     (render-fn [_] (partial canvas-renderer/draw! element))

@@ -1,12 +1,12 @@
 (ns lemonade.hosts.jvm-quil
-  (:require [lemonade.system :as system]))
+  (:require [lemonade.hosts.protocol :as protocol]))
 
 (defn ne! []
   (throw (Exception. "Not Implemented!")))
 
 (defn host []
   (reify
-    system/Host
+    protocol/Host
 
     (event-system [_] (ne!))
     (render-fn [_] (ne!))

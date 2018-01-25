@@ -58,9 +58,9 @@
   (system/fullscreen host)
 
   (system/initialise!
-   {:host    host
-    :handler handler
-    :app-db  state}))
+   {:host   host
+    :render handler
+    :app-db state}))
 
 (defn ^:export init []
   (on-js-reload))
