@@ -65,7 +65,7 @@
   #?(:clj (throw (Exception. "Not Implemented"))
      ;; Invoke on the first animation frame after something has rendered.
      :cljs (letfn [(recurrent []
-                     (if (system/world)
+                     (if (state/world)
                        (dispatch! {:type ::init})
                        (js/window.requestAnimationFrame recurrent)))]
              (recurrent))))
