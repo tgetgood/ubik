@@ -6,7 +6,7 @@
 (defn template-expand [tree]
   ;; REVIEW: Do I need to memoise this?
   ;; This is probably a much more efficient way to expand templates than I'm
-  ;; currently doing.
+  ;; currently doing. But it lacks in dynamism.
   (walk/postwalk (memoize (fn [node]
                             (if (map? node)
                               (core/template-expand-all node)
