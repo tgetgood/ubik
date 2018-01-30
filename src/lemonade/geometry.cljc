@@ -18,7 +18,12 @@
   "Returns the smallest bounding box around the convex hull of points"
   [points]
   [[(apply min (map first points)) (apply min (map second points))]
-   (apply max (map first points)) (apply max (map second points))])
+   [(apply max (map first points)) (apply max (map second points))]])
+
+(defn pi-mults
+  "Returns multiples of π/2 in interval [r s]"
+  [r s]
+  (filter #(<= r % s) (map #(* (/ math/pi 2) %) (range 0 8))))
 
 (defmulti extent
   "Returns a bounding box for shape. Doesn't have to be optimal, but the
@@ -50,8 +55,22 @@
   [[x y] [(+ x w) (+ y h)]])
 
 (defmethod extent :elections-demo.core/annular-wedge
-  [{[x y] :centre  }]
-  [[0 0] [0 0]])
+  [{[x y] :centre from :from to :to r :outer-radius ir :inner-radius}]
+  (let [cf (math/cos from)
+        ct (math/cos to)
+        sf (math/sin from)
+        st (math/sin to)]
+    (min-box (conj (map (fn [x]
+                          [(* r (math/cos x)) (* r (math/sin x))])
+                        (pi-mults from to))
+                   [(* r cf) (* r sf)]
+                   [(* r ct) (* r st)]
+                   [(* ir cf) (* ir sf)]
+                   [(* ir ct) (* ir st)]))))
+
+(defmethod extent ::core/polyline
+  [{:keys [points]}]
+  (min-box points))
 
 ;; There are two problems to keep in mind.
 ;;
