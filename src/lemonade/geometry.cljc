@@ -72,25 +72,6 @@
   [{:keys [points]}]
   (min-box points))
 
-;; There are two problems to keep in mind.
-;;
-;; The Needle in a Haystack:
-;;
-;; If there's only one thing we're interested in, then knowing whether it was
-;; clicked on or not should take constant time.
-;;
-;; The General Problem:
-;;
-;; If there are a great number of objects of interest on the screen, then
-;; determining which one(s) of them contain a given point should be at most
-;; logarithmic in the number of objects.
-;;
-;;
-;; I'm convinced that the tetrafurcation algorithm with a fixed cutoff (to be
-;; tuned) will do the trick.
-;; A difficulty here is going to be precision. That is winding number and
-;; interior/exterior distintion for complex shapes.
-
 (defn branch-seq
   "Given a render tree, return a seq of all paths from the root to a leaf."
   [tree]
@@ -141,7 +122,7 @@
 
 (defn retree
   "Given a collection of branches that share the same root, reconstruct a
-  subtree of the original."
+  subtree (potentially a subforest) of the original."
   [branches]
   (let [sets  (group-by first branches)
         trees (map (fn [[root branches]]
@@ -162,3 +143,20 @@
                          root)))
                    sets)]
     trees))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; TODO: Index objects (not until speed becomes an issue)
+;;
+;; Tetrafurcation algo:
+;; Divide screen into quadrants, bucket images into quadrants, recur if any
+;; quadrant has more than N objects (N to be tuned).
+;;
+;; To retrieve, pick the quadrant the point is in until we come to a bucket (no
+;; more quadrants. Iterate through each VO in bucket and collect those that the
+;; point is inside.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Winding number algo for second pass
+;; http://geomalgorithms.com/a03-_inclusion.html
+;; https://www.ams.org/journals/mcom/1973-27-122/S0025-5718-1973-0329216-1/S0025-5718-1973-0329216-1.pdf
+;; Need to generalise these to beziers
