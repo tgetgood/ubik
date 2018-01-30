@@ -12,3 +12,64 @@
                               (core/template-expand-all node)
                               node)))
                  tree))
+
+(defn name-atx [atx]
+  (let [{t :atx-type :as mm} (meta atx)]
+    (cond
+      (= t :translation)
+      (str "Translation by " (:point mm))
+
+      (= t :rotation)
+      (str "Rotation by " (:angle mm) " around " (:point mm))
+
+      (= t :scale)
+      (str "Scale by " (:extent mm) " around " (:point mm))
+
+      (= t :reflection)
+      (str "Reflect in line " (:dir mm) "x + " (:point mm))
+
+      (= t ::core/window)
+      ["Adjustable Window Frame" {:zoom (first (:matrix (:atx atx)))
+                                  :pan (:translation (:atx atx))}]
+
+      :else
+      {:transformation (:atx atx)})))
+
+;; REVIEW: This should be a straight up cond, no?
+;; The only switches here are on core builtins.
+
+(defmulti clean-node core/classify)
+
+(defmethod clean-node ::core/atx
+  [atx]
+  [(name-atx atx) (clean-node (:base-shape atx))])
+
+(defmethod clean-node ::core/composite
+  [shape]
+  (let [style (:style shape)
+        contents (:contents shape)]
+    (cond
+      (and (empty? style) (= 1 (count contents)))
+      (clean-node (first contents))
+
+      (and (seq style) (= 1 (count contents)))
+      [:with-style style (clean-node (first contents))]
+
+      (seq style)
+      [:with-style style (mapv clean-node contents)]
+
+      :else
+      (mapv clean-node (:contents shape)))))
+
+(defmethod clean-node ::core/sequential
+  [shapes]
+  (if (= 1 (count shapes))
+    (clean-node (first shapes))
+    (mapv clean-node shapes)))
+
+(defmethod clean-node :default
+  [shape]
+  [(:type shape) (dissoc shape :type)])
+
+(defn friendlify-code [tree]
+  (clean-node tree))

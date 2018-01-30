@@ -244,14 +244,18 @@
 (defn translate
   "Returns a copy of shape translated by [x y],"
   [shape b]
-  (transform shape (translation b)))
+  (with-meta
+    (transform shape (translation b))
+    {:atx-type :translation :point b}))
 
 (defn rotate
   "Returns a copy of shape rotated by angle around the given centre of
   rotation."
   ([shape angle] (rotate shape [0 0] angle))
   ([shape centre angle]
-   (transform shape (recentre centre (rotation angle)))))
+   (with-meta
+     (transform shape (recentre centre (rotation angle)))
+     {:atx-type :rotation :point centre :angle angle})))
 
 (defn scale
   "Returns a copy of shape scaled horizontally by a and verticaly by b. Centre
@@ -260,14 +264,18 @@
    (scale shape [0 0] a))
   ([shape centre a]
    (let [extent (if (vector? a) a [a a])]
-     (transform shape (recentre centre (scaling extent))))))
+     (with-meta
+       (transform shape (recentre centre (scaling extent)))
+       {:atx-type :scale :point centre :extent extent}))))
 
 (defn reflect
   "Returns a copy of shaped reflected around the line with direction dir through
   centre."
   ([shape dir] (reflect shape [0 0] dir))
   ([shape centre dir]
-   (transform shape (recentre centre (reflection dir)))))
+   (with-meta
+     (transform shape (recentre centre (reflection dir)))
+     {:atx-type :reflection :point centre :line dir})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Text
