@@ -27,12 +27,17 @@
                         {:stop true})
 
      :mouse-move      (fn [{:keys [location]}]
-                        (when @drag-state
+                        (if @drag-state
                           (let [delta (mapv - @drag-state location)]
                             (reset! drag-state location)
                             {:dispatch {:type  ::events/left-drag
                                         :delta delta}
-                             :stop      true})))
+                             :stop      true})
+                          {:dispatch {:type ::events/hover
+                                      :location location}
+                           ;; REVIEW: Is it a good idea to stop events here? It
+                           ;; rather limits the flexibility of nested VOs.
+                           :stop true}))
 
      :left-mouse-up   (fn [{:keys [location] :as ev}]
                         (let [d     @down
