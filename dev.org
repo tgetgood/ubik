@@ -1,0 +1,272 @@
+#+TITLE: Development Notes
+
+* Development Log
+** Demo
+	 I think the best demo would show what the system can do, explain how it's
+	 different that makes it possible, and shows interactively how it works.
+
+	 I have this vague notion of multilevel documents that have content,
+	 metacontent, etc. where you can go from tldr to intensely detailed through a
+	 series of "show me more" type requests.
+
+	 The problem is that I have too many ideas and they all reach in different
+	 directions.
+
+	 What am I building?
+** Actions Needed
+*** DONE Text
+		 CLOSED: [2017-11-28 Tue 11:58]
+*** DONE Finish Elections Demo
+		 CLOSED: [2017-11-28 Tue 11:57]
+		This has lots of little bits that are needed for polish
+*** TODO Pacman
+		Not the full game, just enough to force test lazy animations and
+		interactivity.
+*** TODO Second Implementation
+		The Quil based JVM renderer is just a stub really. I need a second
+		implementation to call me out anywhere I might be thinking in terms of
+		canvas.
+*** TODO Animations in event loop
+		If the app state doesn't change then render won't be called. So interactive
+		animations need to return a lazy seq of frames which will be poped off by
+		the event loop event if the app state hasn't changed. Of course whatever
+		makes this lazy-seq will need to be aware of game time.
+
+		I don't know how to do this. Yet another experiment.
+*** TODO Lazy rendering
+*** TODO Direct bitmaps
+		Some operations are too expensive for a vector representation. Some things
+		(like the Mandlebrot set) are defined pixelwise, and I don't know that
+		trying to redefine them would be productive.
+
+		So, play around and try to find idioms that are productive and fit.
+
+*** TODO Physics
+*** TODO Text boxes
+		Given a long string and a bounding shape, we should be able to do things
+		like wrapping and justifying.
+*** TODO Demo animation / game
+		The line between the two can be very blurry if we think of physics as
+		strictly Newtonian. Without input from the user, the "game" is an animation
+		since the physics are all deterministic.
+
+		This might be a terrible way to make games, but it might also work. Fun test.
+
+*** TODO Render caching
+		The renderer is reasonably fast, but will choke on complicated things.
+*** TODO Draw a map from GIS data
+		Elections Canada released an enourmous KML file containing the boundaries of
+		every polling station of every riding in the country. That could make a very
+		detailed map. Can I render that on the fly? Think of it as a stress test.
+*** TODO Proceedural Drawing
+		This is a big one, but too hard to insist that it be required.
+
+		I'd like to come up with a way to create a declarative spec of a proceedural
+		drawing that the runtime can compile with perlin noise into a lemonade
+		shape.
+
+		That can be done offline and the shapes can be hotloaded in the client if
+		need be.
+
+		How does one declaratively specify a proceedural drawing?!?
+
+** References
+	 - [[https://www.html5rocks.com/en/tutorials/canvas/performance/][Canvas performance techniques]]
+		 If optimisation becomes necessary
+	 - http://thi.ng/
+** Lessons from Expanse
+	 Trying to build expanse has brought up a number of interesting points:
+*** Windowing
+		Having multiple independent windows in a page didn't seem like a valid use
+		case. Now it does. Beyond that, the need for multiple windows is bringing to
+		light the inadequacy of the event system.
+
+		Keeping separate windows under separate keys doesn't work unless the event
+		system knows which substree is being clicked on. As it is, the same events
+		are fired no matter where on the screen the user scrolls. This means that
+		everything zooms in sync and it's as if there were only one window
+		again. That's no good.
+
+		Remember that the ideal is trivial composability. Take anything and embed it
+		anywhere.
+** Errors and Messages
+	 Currently they're useless. The two errors that come up 90% of the time are
+	 "can't render nil" and "can't render function([native code])". The latter
+	 means that you passed in a function as a value — which should trigger a
+	 special error because it's getting me over and over and would be useful —
+	 while the former could mean anything. It generally means something in the
+	 pipeline failed and by nil punning we get a nil at the very end. Even more
+	 useless.
+
+	 We should be able to trace the path through the render tree so that (in
+	 combination with named shapes) we can give useful traces of errors. Possibly
+	 even source mapped errors once the code is being compiled on the fly. Let's
+	 not get too far ahead of ourselves.
+* Notable Flaws
+** Zoom Misbehaviour
+	 Zoom only works in the range of about [-9000 9000]. That's ~[1e-40 1e38].
+
+	 I don't know why that is. It's nowhere near the precision limit of floats,
+	 let alone doubles. What's most fascinating is that when you multiply the zoom
+	 matrix by the scale matrix at the limit you get values on the order of 0.3!
+	 perfectly precise for our application.
+
+	 Maybe this is a limit in the significant part, not the exponential part. That
+	 would align roughly with the failure conditions.
+
+	 So I need to look for some mathematical trick to not recover small numbers by
+	 multiplying really big ones and really small ones. That sounds hard. I also
+	 don't know that it will solve my problem. Better diagnosis tools would be in
+	 order.
+
+	 A zoom scale of ~100 doublings isn't that bad. For the time being I can make
+	 progress by just bounding the zoom.
+** Windowing [2017-12-02 Sat 12:15]
+	 At present we can render effectively infinite drawings by having the base
+	 image handler refer to the window data and decide what to show based on the
+	 current window position.
+
+	 This works, but it needlessly couples the window handling with the
+	 image. Furthermore, it means that we can't use the image in a static
+	 windowless context without stubbing out a window. Of course that's kind of
+	 obvious that you need to choose a window to determine what you see, but at
+	 the same time the coupling in code between the so called framework piece and
+	 the business logic is ugly.
+
+	 In principle we should be able to compute the extent of a vo and decide in
+	 the runtime whether to render it or not. This is the kind of global
+	 optimisation that can pay huge returns potentially, but how can we do it?
+
+	 The only way that I can figure is to make a new kind of composite which knows
+	 its extent. Its children can in turn be of the same sort. In this way an
+	 image with infinite content can be represented by a lazy tree and rendering
+	 will get cut off at the point where an element and all its children are
+	 invisible.
+
+	 This doesn't solve the problem of images that are infinite in extent, like
+	 grid lines, or images that are unreasonably large in extent like a highly
+	 zoomed in mandlebrot set.
+
+	 Maybe the concept of window needs to be fundamental to the framework. You may
+	 not need the dynamic window interaction, but you do need to specify the
+	 mapping from real space into coordinate space. Everything depends on that, so
+	 that dependency should be explicit.
+
+	 Things are getting less and less declarative as we go. This is going to make
+	 my life more difficult. Especially in regards to automatic code
+	 simplification.
+* Ultimate Direction
+	What is this library supposed to be? What is it supposed to become? To be
+	honest I don't know. I should include more of the history of thought behind it
+	as a partial answer, but that requires editing thousands of lines of planning
+	docs, so not happening anytime soon.
+
+	Here are some things that I want. Not comprehensive.
+
+** A New Way to Program for the End User
+	 That's what this is becoming. A new internet platform — with the JVM
+	 version we're not actually dependent on the web, it's just a convenience
+	 delivery mechanism — intended for creating content that can be inspected
+	 and taken apart in place by anyone. The editor I'm thinking of is really
+	 more a form of dev tooling running in the runtime environment of the apps
+	 themselves.
+
+	 Metacircular, very lispy, possibly slow, but potentially more powerful than
+	 anything since smalltalk.
+** Ecosystem
+	 We need something like https://bl.ocks.org/. A simple repository to browse
+	 demos with code.
+
+	 It should be trivial for anyone to create a little demo and put it
+	 up. We'll need to be able to lazily fetch the code samples, because there
+	 are going to be a lot of them (hopefully). This page has to be written in
+	 the system itself. We're not just making a D3 clone.
+
+	 The interesting part of this would be if I can get code tracing
+	 working. That means that when you select some group of visual objects on
+	 the screen, the underlying system can pull the code that generates that set
+	 out of the code for the whole. This way you don't actually need to include
+	 code examples with examples. The code is there running the examples after
+	 all.
+
+	 Code comments are a problem. One which I don't think I can solve since
+	 comments have implicit semantic ties to static aspects of the code and I
+	 don't want to treat code as a static thing. Quite the opposite.
+
+	 I think we can find a different kind of commentary to replace code
+	 comments. Something that ties directly into the UI.
+** Editor
+	 [[aprt.us][Apparatus]] has huge potential for creating very complex interactions.
+	 This is the kind of editor I want to make, but I think the potential for
+	 tooling using lemonade — Just building on figwheel and maybe adding
+	 something like Elm's time travelling debugger — is huge.
+** Remixable UIs
+	 The ultimate goal is to have an editor that can open another page, grab a
+	 piece of its content and drop it into whatever you're creating. Anything
+	 you can see has been rendered to a data structure, so the graphics should
+	 be trivial to get. The trees can be rearranged quite easily.
+
+	 The trouble arises when you want to grab something with foreign event
+	 handlers, or if the vo being copied is generated by complex logic from a
+	 state object. You need to grab the relevant bits of state, and the relevant
+	 code paths that generate what you're looking at from it. That sounds
+	 hard. Handlers aren't so bad since we can give them fully qualified names
+	 and look them up in a registry.
+
+	 I don't know how we're going to get the code paths. I can imagine a tracing
+	 renderer that annotates objects as they are created with the code that
+	 created them. Then going back through sequence operations becomes possible
+	 (select some subrange of what was mapped over and preserve the mapping
+	 function). I don't know what to do about more complex code though. This is
+	 a compiler problem and I don't know how to write compilers.
+
+	 Copying an entire thing into your code is pretty trivial though since you
+	 can just replace your base renderer with =(juxt old-thing new-thing)= and get
+	 a new renderer. The event handling and transformation chains shouldn't be a
+	 problem. It won't be too hard to enforce idempotency as long as the same
+	 event/tx layers are used. But what happens when event and tx layers don't
+	 play nice with each other?
+
+	 There's still a lot of work to be done figuring out what happens when you
+	 decompose and rearrange these affine hierarchies...
+** Multi User Experiences
+	 What does it mean for a web app to be multi user? That's a fun topic to
+	 explore.
+
+	 More immediately I'm interested in collaborative creation of demos. Shared
+	 demo space, different editing spaces, editing spaces should be publicly
+	 readable so that you can watch someone work. But shared editing is more
+	 difficult.
+
+	 This is mostly a thought experiment at present. What would happen if you
+	 wrote emacs today with an etherpad style crdt document model?
+
+** Breaking the Curse of Lisp?
+	 Part of the origin story of Lemonade was an AI experiment in learning
+	 analysis and synthesis. If you write code that draws something that looks
+	 virtually the same as something someone else has done (and published), then
+	 the tooling should be able to tell you so.
+
+	 In the small, you should be able to hand draw quickly with a stylus and have
+	 the program pick up on what you're trying to draw. There's a continuum
+	 between exactly what you drew and some simplified platonic ideal. The ideal
+	 drawing tool would give you a slider to control this tradeoff. It likely has
+	 multiple dimensions, but that's a UI problem.
+
+	 I think these two problems are essentially the same thing: to recognise when
+	 a given piece of code is a (partial or almost) special case of some known
+	 code, to flag such this fact to the user, and to offer up a ready to go
+	 integration that uses the existing library instead of rewriting your partial
+	 solution.
+
+	 See how this might break the curse of lisp? If the tool automatically tells
+	 you how to use some other library to do what you want and you extend it, and
+	 then someone else is told they can use your extention, ... you no longer have
+	 a single library, but you do have a body of code that satisfies the use cases
+	 of everyone who's used it and keeps growing.
+
+	 Curation and style are unsolved problems here. It's quite possible the
+	 software could make subpar suggestions and get the ecosystem as a whole into
+	 a rut. Some sort of community curation side channel to the code simplifier is
+	 essential, but I haven't thought enough to have anything close to a solution
+	 to this.
