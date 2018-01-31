@@ -23,7 +23,8 @@
 (defn pi-mults
   "Returns multiples of π/2 in interval [r s]"
   [r s]
-  (filter #(<= r % s) (map #(* (/ math/pi 2) %) (range 0 8))))
+  (let [[r s] (map #(mod % (* 2 math/pi)) [r s])]
+    (filter #(<= r % s) (map #(* (/ math/pi 2) %) (range 0 8)))))
 
 (defmulti extent
   "Returns a bounding box for shape. Doesn't have to be optimal, but the
