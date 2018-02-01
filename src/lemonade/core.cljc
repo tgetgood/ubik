@@ -41,16 +41,19 @@
     (recur (template-expand shape))
     shape))
 
+(defn template? [shape]
+  (if-let [type (:type shape)]
+    (contains? (methods template-expand) type)
+    false))
+
 (defn classify
   "Shape classifier. Returns a keyword type for any valid shape. Returns nil for
   invalid shapes. Intended for use in multimethods."
   [shape]
-  (if-let [type (:type shape)]
-    (if (contains? (methods template-expand) type)
-      ::template
-      type)
-    (when (sequential? shape)
-      ::sequential)))
+  (cond
+    (template? shape)   ::template
+    (sequential? shape) ::sequential
+    :else               (:type shape)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Core Geometry

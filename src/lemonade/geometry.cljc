@@ -33,7 +33,9 @@
 
 (defmethod extent :default
   [s]
-  [[0 0] [0 0]])
+  (if (core/template? s)
+    (extent (core/template-expand s))
+    [[0 0] [0 0]]))
 
 (defmethod extent ::core/text
   [{:keys [corner text style]}]
@@ -61,10 +63,6 @@
 (defmethod extent ::core/annulus
   [{r :outer-radius c :centre}]
   (extent (assoc core/circle :radius r :centre c)))
-
-(defmethod extent ::core/rectangle
-  [{[x y] :corner w :width h :height}]
-  [[x y] [(+ x w) (+ y h)]])
 
 (defmethod extent :elections-demo.core/annular-wedge
   [{[x y] :centre from :from to :to r :outer-radius ir :inner-radius}]
