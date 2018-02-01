@@ -35,6 +35,12 @@
   [s]
   [[0 0] [0 0]])
 
+(defmethod extent ::core/text
+  [{:keys [corner text style]}]
+  ;; TODO: Get the line height from the style
+  ;; We need better text render modelling in any case.
+  [corner [(* 12 (count text)) 16]])
+
 (defmethod extent :pixel.core/pixel
   [{[x y] :location}]
   [[x y] [(inc x) (inc y)]])
@@ -44,8 +50,13 @@
   [[(- x r) (- y r)] [(+ x r) (+ y r)]])
 
 (defmethod extent ::core/line
-  [{:keys [from to]}]
-  [from to])
+  [{[x1 y1] :from [x2 y2] :to}]
+  (let [[x1 x2] (sort [x1 x2])
+        [y1 y2] (sort [y1 y2])]
+    (cond
+      (< (- x2 x1) 5) [[(- x1 2) y1] [(+ x2 2) y2]]
+      (< (- y2 y1) 5) [[x1 (- y1 2)] [x2 (+ y2 2)]]
+      :else           [[x1 y1] [x2 y2]])))
 
 (defmethod extent ::core/annulus
   [{r :outer-radius c :centre}]
@@ -161,3 +172,13 @@
 ;; http://geomalgorithms.com/a03-_inclusion.html
 ;; https://www.ams.org/journals/mcom/1973-27-122/S0025-5718-1973-0329216-1/S0025-5718-1973-0329216-1.pdf
 ;; Need to generalise these to beziers
+
+(defmulti winding-angle (fn [point shape] (:type shape)))
+
+(defmethod winding-angle :default
+  [_ _]
+  0)
+
+(defmethod winding-angle ::core/path
+  [point {:keys [contents]}]
+  (reduce + (map winding-angle contents)))
