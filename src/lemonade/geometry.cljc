@@ -11,8 +11,10 @@
 
 (defn within?
   "Returns true is point is with the given bounding box."
-  [[x y] [[x1 y1] [x2 y2]]]
-  (and (<= x1 x x2) (<= y1 y y2)))
+  [[x y] extent]
+  (when extent
+    (let [[[x1 y1] [x2 y2]] (normalise extent)]
+      (and (<= x1 x x2) (<= y1 y y2)))))
 
 (defn min-box
   "Returns the smallest bounding box around the convex hull of points"
@@ -92,7 +94,9 @@
                     (assoc :tag (gensym))))]
     (cond
       (= type ::core/sequential)
-      (let [node (dissoc (clean (core/composite [])) :contents)]
+      (let [node (with-meta
+                   (dissoc (clean (core/composite [])) :contents)
+                   (meta tree))]
         (->> tree
              (mapcat branch-seq)
              (map (partial cons node))))
@@ -102,6 +106,13 @@
         (->> tree
              :contents
              (mapcat branch-seq)
+             (map (partial cons node))))
+
+      (= type ::core/frame)
+      (let [node (dissoc (clean tree) :contents)]
+        (->> tree
+             :contents
+             branch-seq
              (map (partial cons node))))
 
       (= type ::core/atx)
@@ -117,11 +128,24 @@
 (defn bound-branch
   "Given a branch, calculate a (not necessarily optimal) bounding box."
   [[head & tail]]
-  (if-not (seq tail)
-    (normalise (extent head))
-    (if (= ::core/atx (:type head))
-      (mapv (partial math/apply-atx (:atx head)) (bound-branch tail))
-      (recur tail))))
+  (cond
+    (empty? tail)
+    (extent head)
+
+    (= ::core/atx (:type head))
+    (mapv (partial math/apply-atx (:atx head)) (bound-branch tail))
+
+    (= ::core/frame (:type head))
+    (let [{[x y] :corner w :width h :height} head
+          [[x1 y1] [x2 y2]]                  (normalise (bound-branch tail))]
+      ;; FIXME: This assertion belongs somewhere else. Like where frames are
+      ;; made. Except we can't do that. Specs are a good start.
+      (assert (and (> h 0) (> w 0)))
+      (when-not (or (> x1 (+ x w)) (> y1 (+ y h)) (> x x2) (> y y2))
+        [[(max x x1) (max y y1)] [(min x2 (+ x w)) (min y2 (+ y h))]]))
+
+    :else
+    (recur tail)))
 
 (defn effected-branches
   "Returns all branches of tree which contain point in their bounding boxes."
@@ -139,7 +163,7 @@
                      (let [root (dissoc root :tag)
                            type (core/classify root)]
                        (cond
-                         (= type ::core/composite)
+                         (contains? #{::core/composite ::core/frame} type)
                          (assoc root :contents (retree (map rest branches)))
 
                          (= type ::core/atx)

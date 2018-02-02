@@ -6,7 +6,9 @@
   (math/atx [1 0 0 -1] [0 height]))
 
 (defn invert-coordinates [shape height]
-  (core/transform shape (get-coord-inversion height)))
+  (with-meta
+    (core/transform shape (get-coord-inversion height))
+    {:atx-type ::flip}))
 
 (defn wrap-invert-coordinates [render]
   (fn [state]

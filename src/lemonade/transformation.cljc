@@ -32,6 +32,9 @@
       ["Adjustable Window Frame" {:zoom (first (:matrix (:atx atx)))
                                   :pan (:translation (:atx atx))}]
 
+      (= t :lemonade.coordinates/flip)
+      "Coordinate Inversion"
+
       :else
       {:transformation (:atx atx)})))
 
@@ -60,6 +63,10 @@
 
       :else
       (mapv clean-node (:contents shape)))))
+
+(defmethod clean-node ::core/frame
+  [shape]
+  [(:type shape) (dissoc shape :type :contents) (clean-node (:contents shape))])
 
 (defmethod clean-node ::core/sequential
   [shapes]
