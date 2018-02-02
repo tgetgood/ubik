@@ -13,7 +13,7 @@
    (- (obj/get e "clientY") (obj/get elem "offsetTop"))])
 
 (defn ^:private event-map
-  [elem]
+  [elem dispatch-fn]
   {:context-menu (fn [e]
                    (.preventDefault e)
                    (.stopPropagation e))
@@ -28,8 +28,8 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 (events/dispatch! {:type     ::events/left-mouse-down
-                                            :location p})
+                       0 (dispatch-fn {:type     ::events/left-mouse-down
+                                       :location p})
                        nil)))
 
    :touch-move   (fn [e]
@@ -37,8 +37,8 @@
 
    :mouse-move   (fn [e]
                    (.preventDefault e)
-                   (events/dispatch! {:type     ::events/mouse-move
-                                      :location (pixel-point elem e)}))
+                   (dispatch-fn {:type     ::events/mouse-move
+                                 :location (pixel-point elem e)}))
 
    :mouse-up     (fn [e]
                    (.preventDefault e)
@@ -50,40 +50,46 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 (events/dispatch! {:type     ::events/left-mouse-up
-                                            :location p})
+                       0 (dispatch-fn {:type     ::events/left-mouse-up
+                                       :location p})
                        nil)))
 
    :wheel        (fn [e]
                    (.preventDefault e)
                    (let [mag (if (= 1 (obj/get e "deltaMode")) 15 1)
-                         dx (* mag (js/parseInt (obj/get e "deltaX")))
-                         dy (* mag (js/parseInt (obj/get e "deltaY")))]
-                     (events/dispatch! {:type     ::events/wheel
-                                        :location (pixel-point elem e)
-                                        :dx       dx
-                                        :dy       dy})))
+                         dx  (* mag (js/parseInt (obj/get e "deltaX")))
+                         dy  (* mag (js/parseInt (obj/get e "deltaY")))]
+                     (dispatch-fn {:type     ::events/wheel
+                                   :location (pixel-point elem e)
+                                   :dx       dx
+                                   :dy       dy})))
 
    :key-down     (fn [e]
                    (.preventDefault e)
                    ;; FIXME: stub
-                   (events/dispatch! {:type ::events/key-down
-                                      :raw  e}))
+                   (dispatch-fn {:type ::events/key-down
+                                 :raw  e}))
 
    :key-up       (fn [e]
+                   ;; FIXME: There are certain things that I don't want to
+                   ;; override. Like back, (alt-left), devtools, &c..
+                   ;; TODO: But if I want it consistent with the non-browser
+                   ;; version, I need to implement them in my own logic.
                    (.preventDefault e)
-                   (events/dispatch! {:type ::events/key-up
-                                      :raw  e}))})
+                   (dispatch-fn {:type ::events/key-up
+                                 :raw  e}))})
 
 (defonce ^:private registered-listeners (atom {}))
 
 (defn event-system [elem]
-  {:teardown (fn []
-               (doseq [[event cb] @registered-listeners]
-                 (.removeEventListener elem (kw->js event) cb)))
+  (reify
+    events/IEventSystem
+    (teardown [this]
+      (doseq [[event cb] @registered-listeners]
+        (.removeEventListener elem (kw->js event) cb)))
 
-   :setup    (fn []
-               (let [handlers (event-map elem)]
-                 (reset! registered-listeners handlers)
-                 (doseq [[event cb] handlers]
-                   (.addEventListener elem (kw->js event) cb))))})
+    (setup [this dispatch-fn]
+      (let [handlers (event-map elem dispatch-fn)]
+        (reset! registered-listeners handlers)
+        (doseq [[event cb] handlers]
+          (.addEventListener elem (kw->js event) cb))))))

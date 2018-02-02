@@ -1,71 +1,40 @@
 (ns lemonade.events
-  (:require [lemonade.core :as core]
-            [lemonade.math :as math]
-            [lemonade.state :as state]))
+  (:require [lemonade.geometry :as geo]))
 
-(defn- handle
-  "Check if event applies to shape, and if so deal with it."
-  [shape event]
-  (when-let [event-map (::handlers shape)]
-    (when (contains? event-map (:type event))
-      ((get event-map (:type event)) event))))
+(defprotocol IEventSystem
+  (setup [this dispatch-fn]
+    "Initialise the event system. System should call dispatch-fn with events
+    received.")
+  (teardown [this]
+    "Clean up and shut down this event system."))
 
-(defmulti ^:private event-traversal-walk
-  (fn [shape event] (core/classify shape)))
+(defn- find-keyed-in-branch [branch]
+  (when (seq branch)
+    (when-let [hit (drop-while #(not (contains? (meta %) :events)) branch)]
+      (conj (find-keyed-in-branch (rest hit)) (geo/retree [hit])))))
 
-(defn- event-traversal [shape event]
-  (let [res (handle shape event)]
-    (doseq [ev (:dispatches res)]
-      (event-traversal-walk shape ev))
-    (when-let [ev (:dispatch res)]
-      (event-traversal shape ev))
-    (when-let [mutation (:mutation res)]
-      (state/handle-mutation mutation))
-    (when-not (:stop res)
-      (event-traversal-walk shape event))))
+(defn find-all-keyed [branches]
+  (->> branches
+       (mapcat find-keyed-in-branch)
+       (map first)
+       (remove nil?)))
 
-(defmethod event-traversal-walk :default
-  [_ _ _]
-  nil)
-
-(defmethod event-traversal-walk ::core/sequential
-  [shape event]
-  (mapv #(event-traversal % event) shape))
-
-(defmethod event-traversal-walk ::core/composite
-  [shape event]
-  (event-traversal (:contents shape) event))
-
-(defmethod event-traversal-walk ::core/path
-  [shape event]
-  (event-traversal (:contents shape) event))
-
-(defmethod event-traversal-walk ::core/atx
-  [shape event]
-  (if (contains? event :location)
-    (let [inv (math/invert-atx (:atx shape))]
-      (event-traversal (:base-shape shape)
-                       (update event :location #(math/apply-atx inv %))))
-    (event-traversal (:base-shape shape) event)))
-
-;; Just ignore events issued before the system initialises.
-(defn dispatch!
-  "Dispatch an event from the very top. Meant for integration with low level
-  event systems like processing graphics or the dom."
-  [ev]
-  (event-traversal (state/world) ev))
-
-;; We're no longer using this for window, since window needs to be built into
-;; the system to work properly.
-;;
-;; REVIEW: Is there a valid use case for this at all?
-;; After all, user defined handlers can be initialised in the app state which is
-;; user controlled. What about library handlers?
-(defn init-event-handlers! []
-  #?(:clj (throw (Exception. "Not Implemented"))
-     ;; Invoke on the first animation frame after something has rendered.
-     :cljs (letfn [(recurrent []
-                     (if (state/world)
-                       (dispatch! {:type ::init})
-                       (js/window.requestAnimationFrame recurrent)))]
-             (recurrent))))
+(defn dispatcher
+  "Returns an event dispatch fn."
+  ;; TODO: Will eventually need to use a queue and not block the main thread too
+  ;; long. I can probably just lift the queue out of reframe
+  [state-ref world-key message-map event-middleware]
+  (fn dispatch! [event]
+    (when event-middleware
+      (event-middleware event dispatch!))
+    (when-let [handlers (get message-map (:type event))]
+      (let [hits (geo/effected-branches (:location event) (get @state-ref world-key))]
+        (->> hits
+             find-all-keyed
+             #_(#(do (println (map meta %)) %))
+             (filter #(contains? handlers (-> % meta :events :key)))
+             (map #((->> % meta :events :key (get handlers)) event @state-ref %))
+             (map (fn [res]
+                    (when-let [mutation (:mutation res)]
+                      (apply swap! state-ref mutation))))
+             doall)))))

@@ -30,16 +30,15 @@
 
 (def window-events
   #:lemonade.events
-  {:scroll    (fn [{:keys [dy location]}]
+  {:scroll    (fn [{:keys [dy location]} _ _]
                 {:mutation [update ::core/window update-zoom location dy]})
 
-   :left-drag (fn [{:keys [delta]}]
+   :left-drag (fn [{:keys [delta]} _ _]
                 {:mutation [update ::core/window update-offset delta]})})
 
 (defn wrap-windowing [render]
   (fn [state]
     (with-meta
       (assoc
-       (core/transform (render state) (windowing-atx state))
-       :lemonade.events/handlers window-events)
+       (core/transform (render state) (windowing-atx state)))
       {:atx-type ::core/window})))

@@ -4,7 +4,8 @@
             [lemonade.hosts :as hosts]
             [lemonade.hosts.protocol :as hp]
             [lemonade.state :as state]
-            [lemonade.window :as window]))
+            [lemonade.window :as window]
+            [lemonade.events :as events]))
 
 (defonce ^:private idem (atom nil))
 
@@ -50,10 +51,10 @@
 
 (defn with-defaults [opts]
   (merge
-   {:app-db    (atom {})
-    :host      hosts/default-host
-    :size      :fullscreen
-    :behaviour (comp hlei/wrap window/wrap-windowing)}
+   {:app-db           (atom {})
+    :host             hosts/default-host
+    :size             :fullscreen
+    :event-middleware {}}
    ;; Allow static images as well as state driven
    (update opts :render #(if (fn? %) % (constantly %)))))
 
@@ -65,7 +66,8 @@
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [opts]
-  (let [{:keys [app-db render host behaviour size]} (with-defaults opts)]
+  (let [{:keys [app-db render host event-handlers event-middleware size]}
+        (with-defaults opts)]
 
     (reset! state/internal-db app-db)
 
@@ -88,15 +90,16 @@
            :height (hp/height host)
            :width  (hp/width host))
 
-    (let [{:keys [teardown setup]} (hp/event-system host)]
-      (when teardown
-        (teardown))
-
-      (when setup
-        (setup)))
+    (let [event-system (hp/event-system host)
+          event-dispatcher (events/dispatcher @state/internal-db
+                                              :lemonade.core/world
+                                              event-handlers
+                                              event-middleware)]
+      (events/teardown event-system)
+      (events/setup event-system event-dispatcher))
 
     (draw-loop @state/internal-db
-               (coords/wrap-invert-coordinates (behaviour render))
+               (coords/wrap-invert-coordinates render)
                (hp/render-fn host))))
 
 (defn stop! []
