@@ -51,10 +51,10 @@
 
 (defn with-defaults [opts]
   (merge
-   {:app-db           (atom {})
-    :host             hosts/default-host
-    :size             :fullscreen
-    :event-middleware {}}
+   {:app-db         (atom {})
+    :host           hosts/default-host
+    :size           :fullscreen
+    :event-handlers {}}
    ;; Allow static images as well as state driven
    (update opts :render #(if (fn? %) % (constantly %)))))
 
@@ -66,7 +66,7 @@
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [opts]
-  (let [{:keys [app-db render host event-handlers event-middleware size]}
+  (let [{:keys [app-db render host event-handlers size]}
         (with-defaults opts)]
 
     (reset! state/internal-db app-db)
@@ -91,12 +91,12 @@
            :width  (hp/width host))
 
     (let [event-system (hp/event-system host)
-          event-dispatcher (events/dispatcher @state/internal-db
-                                              :lemonade.core/world
-                                              event-handlers
-                                              event-middleware)]
+          event-dispatcher (events/dispatcher event-handlers)]
       (events/teardown event-system)
-      (events/setup event-system event-dispatcher))
+      (events/setup event-system (fn [ev]
+                                   (event-dispatcher @@state/internal-db
+                                                     (state/world)
+                                                     ev))))
 
     (draw-loop @state/internal-db
                (coords/wrap-invert-coordinates render)

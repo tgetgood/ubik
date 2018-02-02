@@ -1,5 +1,6 @@
 (ns lemonade.events
-  (:require [lemonade.geometry :as geo]))
+  (:require [lemonade.geometry :as geo]
+            [lemonade.state :as state]))
 
 (defprotocol IEventSystem
   (setup [this dispatch-fn]
@@ -19,22 +20,34 @@
        (map first)
        (remove nil?)))
 
+(defn invert-index
+  "Takes an indexed tree of maps from A->B->C and returns a nested index from
+  B->A->C"
+  [m]
+  (reduce (fn [acc [vo-type sub-map]]
+            (reduce (fn [acc [ev-type handler]]
+                      (if (contains? acc ev-type)
+                        (update-in acc [ev-type vo-type] conj handler)
+                        (assoc acc ev-type {vo-type (list handler)})))
+                    acc sub-map))
+          {} m))
+
 (defn dispatcher
   "Returns an event dispatch fn."
   ;; TODO: Will eventually need to use a queue and not block the main thread too
   ;; long. I can probably just lift the queue out of reframe
-  [state-ref world-key message-map event-middleware]
-  (fn dispatch! [event]
-    (when event-middleware
-      (event-middleware event dispatch!))
-    (when-let [handlers (get message-map (:type event))]
-      (let [hits (geo/effected-branches (:location event) (get @state-ref world-key))]
-        (->> hits
-             find-all-keyed
-             #_(#(do (println (map meta %)) %))
-             (filter #(contains? handlers (-> % meta :events :key)))
-             (map #((->> % meta :events :key (get handlers)) event @state-ref %))
-             (map (fn [res]
-                    (when-let [mutation (:mutation res)]
-                      (apply swap! state-ref mutation))))
-             doall)))))
+  [message-map]
+  (let [message-map (invert-index message-map)]
+    (fn dispatch! [state world event]
+      (when-let [handlers (get message-map (:type event))]
+        (let [vos (->> (geo/effected-branches (:location event) world)
+                       find-all-keyed
+                       (filter #(contains? handlers (-> % meta :events :key))))]
+          (doseq [vo vos]
+            (let [handlers (->> vo meta :events :key (get handlers))]
+              (doseq [handler handlers]
+                (let [outcome (handler event state vo)]
+                  (when-let [next-event (:dispatch outcome)]
+                    (dispatch! state vo next-event))
+                  (when-let [mutation (:mutation outcome)]
+                    (state/handle-mutation mutation)))))))))))

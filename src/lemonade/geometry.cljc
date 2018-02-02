@@ -181,12 +181,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; TODO: Index objects (not until speed becomes an issue)
 ;;
-;; Tetrafurcation algo:
+;; Tetrafurcation algo (2D B Tree):
 ;; Divide screen into quadrants, bucket images into quadrants, recur if any
 ;; quadrant has more than N objects (N to be tuned).
 ;;
 ;; To retrieve, pick the quadrant the point is in until we come to a bucket (no
-;; more quadrants. Iterate through each VO in bucket and collect those that the
+;; more quadrants). Iterate through each VO in bucket and collect those that the
 ;; point is inside.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
