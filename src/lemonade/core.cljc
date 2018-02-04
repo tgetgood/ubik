@@ -56,8 +56,45 @@
     :else               (:type shape)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Core Geometry
+;;;;; 1D Geometry
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defprotocol ISegment
+  (endpoints [this]
+    "Returns the endpoints of this segment in order (segments are directed
+    paths.")
+  (contiguous [this] "Returns true iff this segment is connected."))
+
+;;;;;; Path topology
+
+(defn connected?
+  "Returns true if the sequential of paths passed in are pairwise connected."
+  [paths]
+  (loop [[path & more] paths]
+    (if (seq more)
+      (when (= (:to path) (:from (first more)))
+        (recur more))
+      true)))
+
+(defn closed-segment?
+  [path]
+  (and (contiguous path)
+       (let [[start end] (endpoints path)]
+         (= start end))))
+
+(defn closed-path?
+  "Returns true if paths form the boundary of a connected surface.
+  Technically I'm requiring a connecting bridge of non-zero measure. Not sure if
+  that's a good call...
+  Simply connected not necessary, just no point connections."
+  [paths]
+  (if (= 1 (count paths))
+    (closed-segment? (first paths))
+    (let [points (map (fn [[f t]] {:from f :to t}) (map endpoints paths))]
+      (when (connected? paths)
+        (= (:from (first paths)) (:to (last paths)))))))
+
+;;;;; Path Segments
 
 (def line
   {:type ::line

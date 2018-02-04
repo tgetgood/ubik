@@ -60,35 +60,6 @@
 (defn norm [[x y]]
   (+ (* x x) (* y y)))
 
-;;;;;; Path topology
-
-(defn connected?
-  "Returns true if the sequential of paths passed in are pairwise connected."
-  [[x & more]]
-  (if (empty? more)
-    true
-    (let [y (first more)]
-      (and (= (:to x) (:from y)) (recur more)))))
-
-(defn closed-segment?
-  [path]
-  (and (= :lemonade.core/arc (:type path))
-       (< (* 2 π) (abs (- (:to path) (:from path))))))
-
-(defn closed-path?
-  "Returns true if paths form the boundary of a connected surface.
-  Technically I'm requiring a connecting bridge of non-zero measure. Not sure if
-  that's a good call...
-  Simply connected not necessary, just no point connections."
-  [paths]
-  (and (connected? paths) (= (:from (first paths)) (:to (last paths)))))
-
-(defn closed?
-  ;; FIXME: This is ugly. I need to move topology to a higher level. I'm going
-  ;; to bury myself in special cases this way.
-  [paths]
-  (or (closed-path? paths)
-      (every? closed-segment? paths)))
 
 ;;;;; Linear and Affine
 
