@@ -38,7 +38,9 @@
 
 (defn wrap-windowing [render]
   (fn [state]
-    (with-meta
-      (assoc
-       (core/transform (render state) (windowing-atx state)))
-      {:atx-type ::core/window})))
+    (let [{:keys [height width]} (:lemonade.core/window state)]
+      [(with-meta (assoc core/frame :height height :width width)
+         {:events {:key ::window}})
+       (with-meta
+         (core/transform (render state) (windowing-atx state))
+         {:atx-type ::core/window})])))
