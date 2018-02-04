@@ -14,10 +14,6 @@
 
 ;;; Scalars
 
-(defn nan? [x]
-  #?(:clj (Double/isNaN x)
-     :cljs (js/isNaN x)))
-
 (defn finite? [x]
   (and
    (not= x ##Inf)
@@ -27,7 +23,7 @@
 (s/def ::real
   (s/and number?
          finite?
-         (comp not nan?)))
+         (comp not math/nan?)))
 
 (s/def ::scalar ::real)
 (s/def ::non-negative (s/and ::scalar (comp not neg?)))
@@ -91,6 +87,9 @@
 ;; a bad word, this only comes up with huge translations. Well, 2000+ for 1e-12,
 ;; 32k for 1e-11. We're bleeding accuracy, so I suspect things will fail as you
 ;; zoom in.
+;; REVIEW: And they totally do, but the real reason is that we're reaching float
+;; over/underflow conditions. The fact that webgl can't use doubles makes life a
+;; little difficult.
 (s/fdef lemonade.math/invert-atx
         :args (s/cat :atx ::atx)
         :ret ::atx

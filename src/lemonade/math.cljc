@@ -16,9 +16,14 @@
      :cljs js/Math.E))
 
 (defn deg->rad
-  "Converts degrees to radians"
+  "Converts degrees to radians."
   [d]
   (* π (/ d 180)))
+
+(defn rad->deg
+  "Convert radians into degrees."
+  [r]
+  (/ (* r 180) pi))
 
 (defn sin [x]
   (#?(:cljs js/Math.sin :clj Math/sin) x))

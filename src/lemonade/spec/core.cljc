@@ -1,11 +1,9 @@
 (ns lemonade.spec.core
   (:require [clojure.spec.alpha :as s]
-            [lemonade.math :as geo]
+            [lemonade.core :as core]
             [lemonade.spec.gen :as gen]
             [lemonade.spec.math :as math]
             [lemonade.spec.style :as style]))
-
-;;; Paths
 
 (s/def ::line
   (s/keys :req-un [::math/from ::math/to]  :opt-un [::style/style]))
@@ -20,47 +18,59 @@
           :opt-un [::style/style]))
 
 (defmulti path-segment :type)
-(defmethod path-segment ::line [_] ::line)
-(defmethod path-segment ::bezier [_] ::bezier)
-(defmethod path-segment ::arc [_] ::arc)
-(s/def ::path-segment (s/multi-spec path-segment :type))
+(defmethod path-segment ::core/line [_] ::line)
+(defmethod path-segment ::core/bezier [_] ::bezier)
+(defmethod path-segment ::core/arc [_] ::arc)
+
+(s/def ::segment (s/multi-spec path-segment :type))
 
 (s/def ::segments
-  (s/with-gen
-    (s/and (s/coll-of ::path-segment :kind sequential?)
-           geo/connected?)
-    gen/segment-gen))
+  (s/coll-of ::segment :kind sequential?))
+
+;; REVIEW: A boundary is a list of segments with extra semantics. That's
+;; captured in ::region, but is that a good place?
+(s/def ::boundary ::segments)
 
 (s/def ::path
-  (s/or :single-segment  ::path-segment
-        :joined-segments (s/keys :req-un [::segments] :opt-un [::style/style])))
+  (s/and
+   (s/keys :req-un [::segments] :opt-un [::style/style])
+   #(core/connected? (:contents %))))
 
-;;; Shapes in General
-;;
-;; Templates? Macros? What the hell are these going to be exactly?
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(s/def ::shape-template any? #_(s/multi-spec shape-template :type))
-
-(s/def ::primitive-shape
-  (s/or :path     ::path
-        :template ::shape-template))
-
-(s/def ::shape
-  (s/or :primitive   ::primitive-shape
-        :composite   ::composite
-        :transformed ::affine-transform))
-
-(s/def ::shapes
-  (s/coll-of ::shape :kind sequential?))
-
-(s/def ::composite
-  (s/keys :req-un [::shapes] :opt-un [::style/style]))
-
-;;;;; Affine Transforms
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(s/def ::region
+  (s/and (s/keys :req-un [::boundary] :opt-un [::style/style])
+         #(core/closed-path? (:contents %))))
 
 (s/def ::base-shape ::shape)
 
 (s/def ::affine-transform
   (s/keys :req-un [::math/atx ::base-shape]))
+
+(s/def ::frame
+  (s/keys :req-un [::math/corner ::math/width ::math/height
+                   ::contents]
+          :opt-un [::style/style]))
+
+(defmulti template-spec :type)
+
+(s/def ::template
+  (s/or :speced (s/multi-spec template-spec :type)
+        :recursive (s/and
+                    #(contains? (methods core/template-expand) (:type %))
+                    #(s/valid? ::shape (core/template-expand %)))))
+
+(s/def ::contents
+  (s/coll-of ::shape :kind sequential?))
+
+(s/def ::composite
+  (s/or
+   :explicit (s/keys :req-un [::contents] :opt-un [::style/style])
+   :implicit (s/coll-of ::shape :kind sequential?)))
+
+(s/def ::shape
+  (s/or :template  ::template
+        :segment   ::segment
+        :path      ::path
+        :region    ::region
+        :frame     ::frame
+        :composite ::composite
+        :atx       ::affine-transform))
