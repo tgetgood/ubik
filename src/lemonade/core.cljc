@@ -1,6 +1,6 @@
 (ns lemonade.core
   #?(:cljs (:require-macros [lemonade.core :refer [deftemplate]]))
-  (:require [lemonade.math :as math :refer [atx cos idm pi sin]]))
+  (:require [lemonade.math :as math]))
 
 (defmulti template-expand :type)
 
@@ -136,7 +136,7 @@
    :centre [0 0]
    :radius 1
    :from   0
-   :to     (* 2 pi)
+   :to     (* 2 math/pi)
    :clockwise? false})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -209,7 +209,7 @@
          :centre c
          :radius r
          :from   0
-         :to     (* 2 pi)
+         :to     (* 2 math/pi)
          :clockwise? cw?))
 
 (deftemplate ::circle
@@ -259,36 +259,38 @@
 ;;;;; Affine Transforms
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;; Affine Maps
+
 (defn translation
   "Returns an affine transformation corresponding to translation by b"
   [b]
-  (atx idm b))
+  (math/atx math/idm b))
 
 (defn rotation
   "Returns a counterclockwise rotation about the origin by angle (linear).
   Note: angle in degrees."
   [angle]
   (let [r (math/deg->rad angle)
-        c (cos r)
-        s (sin r)]
-    (atx [c (- s) s c])))
+        c (math/cos r)
+        s (math/sin r)]
+    (math/atx [c (- s) s c])))
 
 (defn scaling
   "Returns a linear map which scales by [x y] in the x and y directions"
   [[x y]]
-  (atx [x 0 0 y]))
+  (math/atx [x 0 0 y]))
 
 (defn reflection
   "Returns a reflection about vector v (linear)"
   [[x y]]
   (if (zero? x)
-    (atx [-1 0 0 1])
+    (math/atx [-1 0 0 1])
     (let [m    (/ y x)
           m2   (* m m)
           m2+1 (inc m2)
           diag (/ (- 1 m2) m2+1)
           off  (/ (* 2 m) m2+1)]
-       (atx [diag off off (- diag)]))))
+       (math/atx [diag off off (- diag)]))))
 
 (defn recentre
   "Given a linear transformation and a point, return an affine transformation
