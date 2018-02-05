@@ -11,6 +11,7 @@
 
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.9.946"]
+                 [org.clojure/spec.alpha "0.1.143"]
                  [quil "2.6.0" :exclusions [[org.clojure/clojure]]]]
 
   :plugins [[lein-figwheel "0.5.14"]
@@ -46,7 +47,6 @@
 
   :profiles
   {:dev {:dependencies  [[binaryage/devtools "0.9.9"]
-                         [org.clojure/spec.alpha "0.1.134"]
                          [org.clojure/tools.namespace "0.2.11"]
                          [org.clojure/core.async "0.3.465"]
                          [figwheel-sidecar "0.5.14"
