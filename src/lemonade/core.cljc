@@ -3,6 +3,10 @@
   (:require [clojure.string :as string]
             [lemonade.math :as math]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Templates
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defprotocol ITemplate
   (expand-template [this] "Returns the expansion of this template"))
 
@@ -137,12 +141,13 @@
   (contiguous [_] true))
 
 (def arc
-  {:type   ::arc
-   :centre [0 0]
-   :radius 1
-   :from   0
-   :to     (* 2 math/pi)
-   :clockwise? false})
+  (map->Arc
+   {:type   ::arc
+    :centre [0 0]
+    :radius 1
+    :from   0
+    :to     (* 2 math/pi)
+    :clockwise? false}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Higher Order Shapes
