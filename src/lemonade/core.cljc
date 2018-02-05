@@ -301,7 +301,9 @@
    atx
    (translation (map - origin))))
 
-;;;;; Applied affine txs
+;;;;; Applied Affine Transformations
+
+(defrecord AffineTransformation [atx base-shape])
 
 (defn transform
   "Returns a new shape which is the given affine map applies to the base shape.
@@ -312,9 +314,10 @@
   [shape atx]
   (if (zero? (apply math/det (:matrix atx)))
     []
-    {:type ::atx
-     :base-shape shape
-     :atx atx}))
+    (map->AffineTransformation
+     {:type ::atx
+      :base-shape shape
+      :atx atx})))
 
 (defn translate
   "Returns a copy of shape translated by [x y],"
