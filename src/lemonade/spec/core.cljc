@@ -12,9 +12,10 @@
    (s/keys :req-un [::math/from ::math/to ::math/c1 ::math/c2]
            :opt-un [::style/style]))
 
+
 (s/def ::arc
   (s/keys :req-un [::math/centre ::math/radius :lemonade.math.angle/to
-                   :lemonade.math.angle/from]
+                   :lemonade.math.angle/from ::clockwise?]
           :opt-un [::style/style]))
 
 (defmulti path-segment :type)

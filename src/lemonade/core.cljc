@@ -96,18 +96,40 @@
 
 ;;;;; Path Segments
 
+(defrecord Line [style from to]
+  ISegment
+  (endpoints [_] [from to])
+  (contiguous [_] true))
+
 (def line
-  {:type ::line
-   :from [0 0]
-   :to [1 1]})
+  (map->Line
+   {:type ::line
+    :from [0 0]
+    :to [1 1]}))
+
+(defrecord Bezier [style from to c1 c2]
+  ISegment
+  (endpoints [_] [from to])
+  (contiguous [_] true))
 
 (def bezier
   "Bezier cubic to be precise."
-  {:type ::bezier
-   :from [0 0]
-   :c1 [0 0]
-   :c2 [1 1]
-   :to [1 1]})
+  (map->Bezier
+   {:type ::bezier
+    :from [0 0]
+    :c1 [0 0]
+    :c2 [1 1]
+    :to [1 1]}))
+
+(defrecord Arc [style centre radius from to clockwise?]
+  ISegment
+  (endpoints [_]
+    ;; FIXME: assumes |from - to| <= 2π
+    (->> [from to]
+         (map (juxt math/cos math/sin))
+         (map (partial map (partial * radius)))
+         (mapv (partial mapv + centre))))
+  (contiguous [_] true))
 
 (def arc
   {:type   ::arc
@@ -121,53 +143,65 @@
 ;;;;; Higher Order Shapes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defrecord Path [style segments])
+
 (defn path
   ([segments] (path {} segments))
   ([style segments]
-   (let [closed? (or (:closed (meta segments))
-                     (math/closed? segments))]
-     {:type ::path
-      :closed? closed?
-      :style style
-      :contents segments})))
+   (map->Path {:type ::path
+               :closed? false
+               :style style
+               ;; FIXME: Duplicate keys for compatibility while refactoring
+               :contents segments
+               :segments segments})))
 
-(defn conj-path [{:keys [style contents]} segment]
-  ;; TODO: Assert that the composition is a path.
-  (path style (conj contents segment)))
+(defrecord Region [style boundary])
+
+(defn region
+  ([boundary] (region {} boundary))
+  ([style boundary]
+   (map->Region
+    {:type ::path
+     :style style
+     :boundary boundary
+     :closed? true
+     :contents boundary})))
+
+(defrecord Composite [style contents])
 
 (defn composite
-  ([shapes] (composite {} shapes))
-  ([style shapes]
-   {:type ::composite
-    :style style
-    :contents shapes}))
+  ([contents] (composite {} contents))
+  ([style contents]
+   ;; TODO: I'm leaving the :type keys in for now so that I don't break
+   ;; multimethods that depend on them while refactoring.
+   (map->Composite {:type ::composite
+                    :style style
+                    :contents contents})))
+
+(defrecord Frame [corner width height style base-shape])
 
 (def frame
   "A frame is a visual which restricts image to fall within extent. Extent is a
   map with keys as per :lemonade.core/rectangle"
-  {:type ::frame
-   :corner [0 0]
-   :width 1
-   :height 1
-   :style {}
-   :contents []})
-
-;; TODO: Create a group helper and stop allowing vectors of shapes.
-;;
-;; TODO: Make sure nothing assumes :contents is a vector. It's important that it
-;; be allowed to be any sequential.
+  (map->Frame
+   {:type ::frame
+    :corner [0 0]
+    :width 1
+    :height 1
+    :style {}
+    ;; FIXME: Duplicate
+    :contents []
+    :base-shape []}))
 
 (defn with-style [style & shapes]
   (composite style shapes))
 
+;; REVIEW: Are both of these used?
 (defn style [shape style]
   (with-style style shape))
 
-(defn radians [r]
-  (/ (* r 180) math/pi))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Shape Templates
+;;;;; Core Template Shapes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn full-arc [c r & [cw?]]
@@ -180,24 +214,24 @@
 
 (deftemplate ::circle
   {:style {} :radius 1 :centre [0 0]}
-  (path style ^:closed [(full-arc centre radius)]))
+  (region style [(full-arc centre radius)]))
 
 (deftemplate ::annulus
   {:style {} :inner-radius 1 :outer-radius 2 :centre [0 0]}
-  (path style
-        ^:closed [(full-arc centre inner-radius)
-                  (with-meta (full-arc centre outer-radius true)
-                    ;; REVIEW: Abstraction leakage.
-                    ;;
-                    ;; We need this annotation to tell the path system to call
-                    ;; moveTo in this one instance.
-                    ;;
-                    ;; TODO: This can probably be handled by keeping track of
-                    ;; the point and jumping when in a path and from(n) !=
-                    ;; to(n-1)
-                    ;; Maybe keep a shared atom in the path state passed to
-                    ;; segments? Uck, but could work.
-                    {:jump true})]))
+  (region style
+          [(full-arc centre inner-radius)
+           (with-meta (full-arc centre outer-radius true)
+             ;; REVIEW: Abstraction leakage.
+             ;;
+             ;; We need this annotation to tell the path system to call
+             ;; moveTo in this one instance.
+             ;;
+             ;; TODO: This can probably be handled by keeping track of
+             ;; the point and jumping when in a path and from(n) !=
+             ;; to(n-1)
+             ;; Maybe keep a shared atom in the path state passed to
+             ;; segments? Uck, but could work.
+             {:jump true})]))
 
 (deftemplate ::polyline
   {:style {} :points []}
@@ -205,10 +239,9 @@
                       {:type ::line
                        :from x
                        :to   y})
-                   (partition 2 (interleave points (rest points))))]
-    (path style (with-meta segs (if (= (first points) (last points))
-                                  {:closed true}
-                                  {})))))
+                   (partition 2 (interleave points (rest points))))
+        closed? (= (first points) (last points))]
+    ((if closed? region path) style segs)))
 
 (deftemplate ::rectangle
   {:style  {}
@@ -321,12 +354,15 @@
 ;;;;; Text
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defrecord RawText [style corner text])
+
 (def raw-text
   "Single line of text. No wrapping or truncation."
-  {:type   ::raw-text
-   :style  {:font "sans serif 10px"}
-   :corner [0 0]
-   :text   ""})
+  (map->RawText
+   {:type   ::raw-text
+    :style  {:font "sans serif 10px"}
+    :corner [0 0]
+    :text   ""}))
 
 ;; Renders text fit for the global coord transform (origin in the bottom left)
 (deftemplate ::text
