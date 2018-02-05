@@ -83,7 +83,7 @@
 
 (defmethod render-fn ::core/template
   [ctx state shape]
-  (render-fn ctx state (core/template-expand shape)))
+  (render-fn ctx state (core/expand-template shape)))
 
 (defmethod render-fn ::core/atx
   [ctx state {:keys [base-shape] {[a b c d] :matrix [e f] :translation} :atx}]

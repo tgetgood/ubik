@@ -14,7 +14,7 @@
 
 (defmethod render-fn ::core/template
   [state shape]
-  (render-fn state (core/template-expand shape)))
+  (render-fn state (core/expand-template shape)))
 
 (defmethod render-fn :default
   [state shape]

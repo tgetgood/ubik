@@ -56,8 +56,8 @@
 (s/def ::template
   (s/or :speced (s/multi-spec template-spec :type)
         :recursive (s/and
-                    #(contains? (methods core/template-expand) (:type %))
-                    #(s/valid? ::shape (core/template-expand %)))))
+                    core/template?
+                    #(s/valid? ::shape (core/expand-template %)))))
 
 (s/def ::contents
   (s/coll-of ::shape :kind sequential?))

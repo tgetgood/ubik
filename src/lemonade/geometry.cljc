@@ -36,7 +36,7 @@
 (defmethod extent :default
   [s]
   (if (core/template? s)
-    (extent (core/template-expand s))
+    (extent (core/expand-template s))
     [[0 0] [0 0]]))
 
 (defmethod extent ::core/text

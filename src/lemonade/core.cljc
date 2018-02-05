@@ -1,50 +1,55 @@
 (ns lemonade.core
   #?(:cljs (:require-macros [lemonade.core :refer [deftemplate]]))
-  (:require [lemonade.math :as math]))
+  (:require [clojure.string :as string]
+            [lemonade.math :as math]))
 
-(defmulti template-expand :type)
+(defprotocol ITemplate
+  (expand-template [this] "Returns the expansion of this template"))
 
-#?(:clj
-(defn namespace-qualified-kw [sym]
-  (if (namespace sym)
-    (keyword sym)
-    (let [current-ns (namespace `x)]
-      (keyword current-ns (name sym))))))
-
-#?(:clj
-   (defn resolve-name [n]
-     (cond
-       (keyword? n) n
-
-       (and (sequential? n)
-            (= 'quote (first n))) (second n)
-
-       :else (throw (Exception. "inapprorpriate template name")))))
+(defn type-case
+  "Returns a symbol in idiomatic TypeCase given one in clojure standard
+  symbol-case."
+  [sym]
+  (symbol (apply str (map string/capitalize (string/split (name sym) #"-")))))
 
 #?(:clj
    (defmacro deftemplate
-     "Defines a new shape template. Something like a macro"
-     [template-name template expansion]
-     (let [template-name (resolve-name template-name)]
-       (if-not (namespace template-name)
-         (throw (Exception. "Template names must be namespace qualified"))
-         `(do
-            (def ~(symbol (name template-name))
-              ~(assoc template :type (keyword template-name)))
+     "Defines a new shape template. Creates a new record whose name is
+  instance-name converted to UpperCamelCase as per record naming conventions.
 
-            (defmethod lemonade.core/template-expand ~(keyword template-name)
-              [{:keys [~@(map (comp symbol name) (keys (dissoc template :type)))]}]
-              ~expansion))))))
+  The canonical instance of the new template will be bound to instance-name.
 
-(defn template-expand-all [shape]
-  (if (contains? (methods template-expand) (:type shape))
-    (recur (template-expand shape))
-    shape))
+  expansion will be executed in an environment when all keys of the template
+  name have been bound to symbols. Expansions must return a valid shape
+  (template or otherwise).
+
+  Optionally impls are protocol implementations as per defrecord."
+     [instance-name template expansion & impls]
+     (let [template-name (type-case instance-name)
+           fields (map (comp symbol name) (keys template))]
+       `(do
+          ;; TODO: I can generate a spec from the field list and then check it's
+          ;; valid at expansion time. I think that would be a good place to find
+          ;; errors.
+          ;;
+          ;; The problem is that adding a spec/def into this macro expansion
+          ;; causes the whole thing to go haywire even though the relevant parts
+          ;; of the expansion don't change at all...
+          (defrecord ~template-name [~@fields]
+            lemonade.core/ITemplate
+            (lemonade.core/expand-template [this#]
+              ~expansion)
+            ~@impls)
+          (def ~instance-name
+            (~(symbol (str "map->" template-name)) ~template))))))
 
 (defn template? [shape]
-  (if-let [type (:type shape)]
-    (contains? (methods template-expand) type)
-    false))
+  (satisfies? ITemplate shape))
+
+(defn template-expand-all [shape]
+  (if (template? shape)
+    (recur (expand-template shape))
+    shape))
 
 (defn classify
   "Shape classifier. Returns a keyword type for any valid shape. Returns nil for
@@ -212,11 +217,11 @@
          :to     (* 2 math/pi)
          :clockwise? cw?))
 
-(deftemplate ::circle
+(deftemplate circle
   {:style {} :radius 1 :centre [0 0]}
   (region style [(full-arc centre radius)]))
 
-(deftemplate ::annulus
+(deftemplate annulus
   {:style {} :inner-radius 1 :outer-radius 2 :centre [0 0]}
   (region style
           [(full-arc centre inner-radius)
@@ -233,7 +238,7 @@
              ;; segments? Uck, but could work.
              {:jump true})]))
 
-(deftemplate ::polyline
+(deftemplate polyline
   {:style {} :points []}
   (let [segs (map (fn [[x y]]
                       {:type ::line
@@ -243,7 +248,7 @@
         closed? (= (first points) (last points))]
     ((if closed? region path) style segs)))
 
-(deftemplate ::rectangle
+(deftemplate rectangle
   {:style  {}
    :corner [0 0]
    :height 1
@@ -251,9 +256,9 @@
   (let [[x1 y1] corner
         x2      (+ x1 width)
         y2      (+ y1 height)]
-    {:type ::polyline
-     :style style
-     :points [[x1 y1] [x2 y1] [x2 y2] [x1 y2] [x1 y1]]}))
+    (assoc polyline
+           :style style
+           :points [[x1 y1] [x2 y1] [x2 y2] [x1 y2] [x1 y1]])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Affine Transforms
@@ -370,7 +375,7 @@
     :text   ""}))
 
 ;; Renders text fit for the global coord transform (origin in the bottom left)
-(deftemplate ::text
+(deftemplate text
   {:style {:font "sans serif 10px"}
    :corner [0 0]
    :text ""}
