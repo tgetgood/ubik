@@ -2,21 +2,37 @@
   "HTML Canvas renderer."
   (:require [goog.object :as obj]
             [lemonade.core :as core]
-            [lemonade.renderers.util :as util])
-  (:require-macros [lemonade.renderers.canvas :refer [with-path-style]]))
+            [lemonade.renderers.util :as util]))
+
+(defprotocol Canvas2DRenderable
+  (compile-renderer [this state]
+    "Returns instructions for rendering this a ctx."))
+
+(def default-render-state {:style {} :zoom 1 :in-path? false})
+
+(defn join [lists]
+  (apply concat (remove empty? lists)))
+
+(defn safely [& lists]
+  (concat [["save"]]
+          (join lists)
+          [["restore"]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmulti style-ctx (fn [ctx state [k v]] k))
+(defmulti style-prop (fn [state [k v]] k))
 
-(defn safe-style [ctx state style]
+(defn style-wrapper [state style]
   (let [parent-style (:style state)
         child-style (merge {:stroke :black} style)]
-    (doseq [[k v] child-style]
-      (when (or (not (contains? parent-style k)) (= (get parent-style k) v))
-        (style-ctx ctx state [k v])))))
+    (->> child-style
+         (filter (fn [[k v]] (or (not (contains? parent-style k))
+                                (= (get parent-style k) v))))
+         (mapcat #(style-prop state %)))))
+
+(def prop-meta {:setter true})
 
 (defn process-gradient [m])
 
@@ -28,141 +44,134 @@
     (map? c)     (process-gradient c)
     :else        "rgba(0,0,0,0)"))
 
-(defmethod style-ctx :stroke
-  [ctx {:keys [zoom]} [_ v]]
+(defmethod style-prop :stroke
+  [{:keys [zoom]} [_ v]]
   (let [c (process-colour v)]
     (when c
-      (obj/set ctx "lineWidth" (/ 1 zoom))
-      (obj/set ctx "strokeStyle" (if (fn? c) (c ctx) c)))))
+      (mapv #(with-meta % prop-meta)
+            [["lineWidth" (/ 1 zoom)]
+             ["strokeStyle" c]]))))
 
-(defmethod style-ctx :fill
-  [ctx _ [_ v]]
+(defmethod style-prop :fill
+  [_ [_ v]]
   (let [c (process-colour v)]
     (when c
-      (obj/set ctx "fillStyle" (if (fn? c) (c ctx) c)))))
+      [(with-meta ["fillStyle" c] prop-meta)])))
 
-(defmethod style-ctx :opacity
-  [ctx _ [_ v]]
-  (obj/set ctx "globalAlpha" v))
+(defmethod style-prop :opacity
+  [_ [_ v]]
+  [(with-meta ["globalAlpha" v] prop-meta)])
 
-(defmethod style-ctx :font
-  [ctx _ [_ v]]
-  (obj/set ctx "font" v))
+(defmethod style-prop :font
+  [_ [_ v]]
+  [(with-meta ["font" v] prop-meta)])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Main
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defmulti render-fn (fn [ctx state shape] (core/classify shape)))
-
-(defn- render-all [ctx states shapes]
-  (doseq [[state shape] (partition 2 (interleave states shapes))]
-    (render-fn ctx state shape)))
-
-(defn render
-  "Returns a render function which when passed a context, renders the given
-  shape."
-  [ctx shape]
-  (.save ctx)
-  (.setTransform ctx 1 0 0 1 0 0)
-  (render-fn ctx {:style {} :zoom 1 :in-path? false} shape)
-  (.restore ctx)
-  (.beginPath ctx))
+(defn with-style [state style & cmds]
+  (let [styles (style-wrapper state style)]
+    (if (empty? styles)
+      (join cmds)
+      (apply safely styles cmds))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Internal render logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmethod render-fn :default
-  [ctx state shape]
-  (util/render-catchall shape))
+(defn path-wrapper [state style [x y] & lists]
+  (let [in? (:in-path? state)]
+    (with-style state style
+      (when-not in?
+        [["beginPath"]])
+      (when (or (:override state) (not in?))
+        [["moveTo" x y]])
+      (join lists)
+      (when-not in?
+        [["stroke"]]))))
 
-(defmethod render-fn ::core/sequential
-  [ctx state shape]
-  (render-all ctx (repeat state) shape))
+(extend-protocol Canvas2DRenderable
+  default
+  (compile-renderer [this state]
+    (if (core/template? this)
+      (compile-renderer (core/expand-template this) state)
+      (println (str "I don't know how to render a " this ". Aborting."))))
 
-(defmethod render-fn ::core/template
-  [ctx state shape]
-  (render-fn ctx state (core/expand-template shape)))
+  nil
+  (compile-renderer [_ _]
+    (println "Cannot render nil. Aborting.'"))
 
-(defmethod render-fn ::core/atx
-  [ctx state {:keys [base-shape] {[a b c d] :matrix [e f] :translation} :atx}]
-  (let [mag (util/magnitude a b c d)]
-    (.save ctx)
-    (.transform ctx a c b d e f)
-    (render-fn ctx (update state :zoom * mag) base-shape)
-    (.restore ctx)))
+  core/AffineTransformation
+  (compile-renderer [{{[a b c d] :matrix [e f] :translation} :atx
+                      base                                   :base-shape}
+                     state]
+    (safely [["transform" a b c d e f]]
+            (compile-renderer base (update state :zoom *
+                                           (util/magnitude a b c d)))))
 
-(defmethod render-fn ::core/path
-  [ctx state {:keys [closed? contents style]}]
-  (let [sub-state (-> state
-                      (assoc :in-path? true)
-                      (update :style #(merge style %)))
-        ;; We need to make the first move explicitely despite the canvas docs
-        ;; saying the first move is implicit...
-        states (cons (assoc sub-state :override true)
-                                 (repeat sub-state))]
-    (.save ctx)
-    (.beginPath ctx)
+  PersistentVector
+  (compile-renderer [shapes state]
+    (mapcat compile-renderer shapes (repeat state)))
 
-    (safe-style ctx state style)
-    (render-all ctx states contents)
+  List
+  (compile-renderer [shapes state]
+    (mapcat compile-renderer shapes (repeat state)))
 
-    (when closed?
-      (.closePath ctx)
-      (let [fill (-> sub-state :style :fill)]
-        (when-not (or (nil? fill) (= :none fill))
-          (.fill ctx))))
+  LazySeq
+  (compile-renderer [shapes state]
+    (mapcat compile-renderer shapes (repeat state)))
 
-    (.stroke ctx)
-    (.restore ctx)))
+  core/Composite
+  (compile-renderer [{:keys [style contents]} state]
+    (with-style state style
+      (mapcat compile-renderer
+              contents
+              (repeat (update state :style #(merge style %))))))
 
-(defmethod render-fn ::core/composite
-  [ctx state {:keys [style contents]}]
-  (let [sub-state (update state :style #(merge style %))]
-    (.save ctx)
-    (safe-style ctx state style)
-    (render-fn ctx sub-state contents)
-    (.restore ctx)))
+  core/Frame
+  (compile-renderer [{base :base-shape w :width h :height [x y] :corner} state]
+    (safely [["beginPath"]
+             ["rect" x y w h]
+             ["clip"]]
+            (compile-renderer base state)))
 
-(defmethod render-fn ::core/frame
-  [ctx state {:keys [contents width height] [x y] :corner}]
-  (.save ctx)
-  (.beginPath ctx)
-  (.rect ctx x y width height)
-  (.clip ctx )
-  (render-fn ctx state contents)
-  (.restore ctx))
+  core/Region
+  (compile-renderer [{:keys [style boundary]} state]
+    (let [substate  (-> state
+                        (assoc :in-path? true)
+                        (update :style #(merge style %)))
+          substates (cons (assoc substate :override true)
+                          (repeat substate))]
+      (with-style state style
+        [["beginPath"]]
+        (mapcat compile-renderer boundary substates)
+        [["closePath"]]
+        (when-let [fill (-> substate :style :fill)]
+          (when (not= fill :none)
+            [["fill"]]))
+        [["stroke"]])))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Leaf renderers
-;;
-;; At some point we have to render something, Less and less though, it would
-;; appear.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  core/Line
+  (compile-renderer [{[x y] :to :keys [from style]} state]
+    (path-wrapper state style from
+      [["lineTo" x y]]))
 
-(defmethod render-fn ::core/arc
-  [ctx state {[x y] :centre r :radius :keys [from to style clockwise?] :as arc}]
-  (with-path-style ctx
-    (assoc state :override (:jump (meta arc))) style [(+ x r) y]
-    (.arc ctx x y r from to (boolean clockwise?))))
+  core/Arc
+  (compile-renderer [arc state]
+    (let [{r :radius [x y] :centre :keys [from to style clockwise?]} arc]
+      (path-wrapper
+        (assoc state :override (:jump (meta arc)))
+        style
+        [(+ x r) y]
+        [["arc" x y r from to (boolean clockwise?)]])))
 
-(defmethod render-fn ::core/line
-  [ctx state {:keys [from to style] :as o}]
-  (with-path-style ctx state style from
-    (.lineTo ctx (first to) (second to))))
+  core/Bezier
+  (compile-renderer [{[x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 :keys [style from]}
+                     state]
+    (path-wrapper state style from
+                  [["bezierCurveTo" cx1 cy1 cx2 cy2 x2 y2]]))
 
-(defmethod render-fn ::core/bezier
-  [ctx state {[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 style :style}]
-  (with-path-style ctx state style [x1 y1]
-    (.bezierCurveTo ctx cx1 cy1 cx2 cy2 x2 y2)))
-
-(defmethod render-fn ::core/raw-text
-  [ctx state {:keys [style corner text]}]
-  (.save ctx)
-  (safe-style ctx state style)
-  (.fillText ctx text (first corner) (second corner))
-  (.restore ctx))
+  core/RawText
+  (compile-renderer [{[x y] :corner :keys [style text]} state]
+    (with-style state style
+      [["fillText" text x y]])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; API
@@ -170,13 +179,26 @@
 ;; This should be the only outside reference
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn execute!
+  "Given a sequence of rendering operations and a context, carry them out"
+  [ctx cmds]
+  (loop [[cmd & rest] cmds]
+    (when cmd
+      (if (-> cmd meta :setter)
+        (apply obj/set ctx cmd)
+        (apply js-invoke ctx cmd))
+      (recur rest))))
+
+(defn clear-screen!
+  "Destructively wipes the screen."
+  [ctx w h]
+  (.clearRect ctx 0 0 w h))
+
 (defn- context [elem]
   (.getContext elem "2d"))
 
-(defn clear-screen! [ctx w h]
-  (.clearRect ctx 0 0 w h))
-
 (defn draw! [canvas-element world]
-  (doto (context canvas-element)
-    (clear-screen! (.-width canvas-element) (.-height canvas-element))
-    (render world)))
+  (let [cmds (compile-renderer world default-render-state)]
+    (doto (context canvas-element)
+      (clear-screen! (.-width canvas-element) (.-height canvas-element))
+      (execute! cmds))))
