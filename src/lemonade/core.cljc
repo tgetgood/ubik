@@ -199,8 +199,6 @@
     :width 1
     :height 1
     :style {}
-    ;; FIXME: Duplicate
-    :contents []
     :base-shape []}))
 
 (defn with-style [style & shapes]
@@ -246,9 +244,9 @@
 (deftemplate polyline
   {:style {} :points []}
   (let [segs (map (fn [[x y]]
-                      {:type ::line
-                       :from x
-                       :to   y})
+                    (assoc line
+                           :from x
+                           :to   y))
                    (partition 2 (interleave points (rest points))))
         closed? (= (first points) (last points))]
     ((if closed? region path) style segs)))
@@ -334,6 +332,16 @@
   [shape b]
   (with-meta
     (transform shape (translation b))
+    ;; REVIEW: These annotations both provide for human readable code and a non
+    ;; trivial optimisation on any linear algebra involved (especially
+    ;; rendering). So I think it would be wise to make record types for the
+    ;; different atxes, but the questions arises: Should there be several types
+    ;; of affine transformation applied to a shape, or different types of affine
+    ;; map (in the math ns) any of which could be bound to the :atx key of an
+    ;; AffineTransformation?
+    ;;
+    ;; It feels like a trivial difference, and maybe it is, but let's just leave
+    ;; it be for a bit and maybe it'll become clear.
     {:atx-type :translation :point b}))
 
 (defn rotate

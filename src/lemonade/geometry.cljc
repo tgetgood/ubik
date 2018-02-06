@@ -111,7 +111,7 @@
       (= type ::core/frame)
       (let [node (dissoc (clean tree) :contents)]
         (->> tree
-             :contents
+             :base-shape
              branch-seq
              (map (partial cons node))))
 
