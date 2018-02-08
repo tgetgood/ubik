@@ -1,12 +1,8 @@
 (ns lemonade.renderers.canvas
-  "HTML Canvas renderer."
+  "HTML Canvas renderer. Technically an ad hoc compiler."
   (:require [goog.object :as obj]
             [lemonade.core :as core]
             [lemonade.renderers.util :as util]))
-
-(defprotocol Canvas2DRenderable
-  (compile-renderer [this state]
-    "Returns instructions for rendering this a ctx."))
 
 (def default-render-state {:style {} :zoom 1 :in-path? false})
 
@@ -22,9 +18,14 @@
 ;;;;; Styling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmulti style-prop (fn [state [k v]] k))
+(defmulti style-prop
+  "Returns code for setting a single style property."
+  (fn [state [k v]] k))
 
-(defn style-wrapper [state style]
+(defn style-wrapper
+  "Returns a minimal sequence of instructions for transitioning from the current
+  global style (stored in state) to the desired style."
+  [state style]
   (let [parent-style (:style state)
         child-style (merge {:stroke :black} style)]
     (->> child-style
@@ -86,6 +87,10 @@
       (join lists)
       (when-not in?
         [["stroke"]]))))
+
+(defprotocol Canvas2DRenderable
+  (compile-renderer [this state]
+    "Returns instructions for rendering this a ctx."))
 
 (extend-protocol Canvas2DRenderable
   default
@@ -175,11 +180,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; API
-;;
-;; This should be the only outside reference
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn execute!
+(defn- execute!
   "Given a sequence of rendering operations and a context, carry them out"
   [ctx cmds]
   (loop [[cmd & rest] cmds]
@@ -189,7 +192,7 @@
         (apply js-invoke ctx cmd))
       (recur rest))))
 
-(defn clear-screen!
+(defn- clear-screen!
   "Destructively wipes the screen."
   [ctx w h]
   (.clearRect ctx 0 0 w h))
@@ -197,7 +200,9 @@
 (defn- context [elem]
   (.getContext elem "2d"))
 
-(defn draw! [canvas-element world]
+(defn draw!
+  "Draw world to HTML Canvas element."
+  [canvas-element world]
   (let [cmds (compile-renderer world default-render-state)]
     (doto (context canvas-element)
       (clear-screen! (.-width canvas-element) (.-height canvas-element))
