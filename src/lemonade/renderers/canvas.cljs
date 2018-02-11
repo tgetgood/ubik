@@ -1,8 +1,28 @@
 (ns lemonade.renderers.canvas
   "HTML Canvas renderer. Technically an ad hoc compiler."
-  (:require [goog.object :as obj]
-            [lemonade.core :as core]
+  (:require-macros [lemonade.renderers.canvas :refer [unsafe-invoke]])
+  (:require [lemonade.core :as core]
             [lemonade.renderers.util :as util]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Code Building
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ctx-sym (str "ctx_G1" ))
+
+(defn encode [x]
+  (if (string? x)
+    (str "'" x "'")
+    (str x)))
+
+(defn setter [prop value]
+  (array "set" prop value))
+
+(defn ^boolean setter? [o]
+  (identical? "set" (unchecked-get o 0)))
+
+(defn call [f & args]
+  (apply array f args))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
@@ -23,8 +43,6 @@
                                 (= (get parent-style k) v))))
          (mapcat #(style-prop state %)))))
 
-(def prop-meta {:setter true})
-
 (defn process-gradient [m])
 
 (defn process-colour [c]
@@ -39,27 +57,34 @@
   [{:keys [zoom]} [_ v]]
   (let [c (process-colour v)]
     (when c
-      (mapv #(with-meta % prop-meta)
-            [["lineWidth" (/ 1 zoom)]
-             ["strokeStyle" c]]))))
+      [(setter "lineWidth" (/ 1 zoom))
+       (setter "strokeStyle" c)])))
 
 (defmethod style-prop :fill
   [_ [_ v]]
   (let [c (process-colour v)]
     (when c
-      [(with-meta ["fillStyle" c] prop-meta)])))
+      [(setter "fillStyle" c)])))
 
 (defmethod style-prop :opacity
   [_ [_ v]]
-  [(with-meta ["globalAlpha" v] prop-meta)])
+  [(setter "globalAlpha" v)])
 
 (defmethod style-prop :font
   [_ [_ v]]
-  [(with-meta ["font" v] prop-meta)])
+  [(setter "font" v)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Constructors
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn join [lists]
+  (apply concat (remove empty? lists)))
+
+(defn safely [& lists]
+  (concat [(call "save")]
+          (join lists)
+          [(call "restore")]))
 
 (defn with-style [state style & cmds]
   (let [styles (style-wrapper state style)]
@@ -67,24 +92,16 @@
       (join cmds)
       (apply safely styles cmds))))
 
-(defn join [lists]
-  (apply concat (remove empty? lists)))
-
-(defn safely [& lists]
-  (concat [["save"]]
-          (join lists)
-          [["restore"]]))
-
 (defn path-wrapper [state style [x y] & lists]
   (let [in? (:in-path? state)]
     (with-style state style
       (when-not in?
-        [["beginPath"]])
+        [(call "beginPath")])
       (when (or (:override state) (not in?))
-        [["moveTo" x y]])
+        [(call "moveTo" x y)])
       (join lists)
       (when-not in?
-        [["stroke"]]))))
+        [(call "stroke")]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Canvas Compiler
@@ -109,7 +126,7 @@
   (compile-renderer [{{[a b c d] :matrix [e f] :translation} :atx
                       base                                   :base-shape}
                      state]
-    (safely [["transform" a b c d e f]]
+    (safely [(call "transform" a b c d e f)]
             (compile-renderer base (update state :zoom *
                                            (util/magnitude a b c d)))))
 
@@ -134,9 +151,9 @@
 
   core/Frame
   (compile-renderer [{base :base-shape w :width h :height [x y] :corner} state]
-    (safely [["beginPath"]
-             ["rect" x y w h]
-             ["clip"]]
+    (safely [(call "beginPath")
+             (call "rect" x y w h)
+             (call "clip")]
             (compile-renderer base state)))
 
   core/Region
@@ -147,18 +164,18 @@
           substates (cons (assoc substate :override true)
                           (repeat substate))]
       (with-style state style
-        [["beginPath"]]
+        [(call "beginPath")]
         (mapcat compile-renderer boundary substates)
-        [["closePath"]]
+        [(call "closePath")]
         (when-let [fill (-> substate :style :fill)]
           (when (not= fill :none)
-            [["fill"]]))
-        [["stroke"]])))
+            [(call "fill")]))
+        [(call "stroke")])))
 
   core/Line
   (compile-renderer [{[x y] :to :keys [from style]} state]
     (path-wrapper state style from
-      [["lineTo" x y]]))
+      [(call "lineTo" x y)]))
 
   core/Arc
   (compile-renderer [arc state]
@@ -167,18 +184,18 @@
         (assoc state :override (:jump (meta arc)))
         style
         [(+ x r) y]
-        [["arc" x y r from to (boolean clockwise?)]])))
+        [(call "arc" x y r from to (boolean clockwise?))])))
 
   core/Bezier
   (compile-renderer [{[x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 :keys [style from]}
                      state]
     (path-wrapper state style from
-                  [["bezierCurveTo" cx1 cy1 cx2 cy2 x2 y2]]))
+                  [(call "bezierCurveTo" cx1 cy1 cx2 cy2 x2 y2)]))
 
   core/RawText
   (compile-renderer [{[x y] :corner :keys [style text]} state]
     (with-style state style
-      [["fillText" text x y]])))
+      [(call "fillText" text x y)])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; API
@@ -186,28 +203,43 @@
 
 (def default-render-state {:style {} :zoom 1 :in-path? false})
 
+(defn- clear-screen!
+  "Clear the rendering context's canvas."
+  [ctx]
+  (.clearRect ctx 0 0 (-> ctx .-canvas .-width) (-> ctx .-canvas .-height)))
+
+(defn- context
+  "Returns the 2d rendering context for the given HTML canvas DOM element."
+  [elem]
+  (.getContext elem "2d"))
+
 (defn- execute!
   "Given a sequence of rendering operations and a context, carry them out"
-  [ctx cmds]
-  (loop [[cmd & rest] cmds]
-    (when cmd
-      (if (-> cmd meta :setter)
-        (apply obj/set ctx cmd)
-        (apply js-invoke ctx cmd))
-      (recur rest))))
+  [ctx cmd]
+  (if (setter? cmd)
+    (unchecked-set ctx (unchecked-get cmd 1) (unchecked-get cmd 2))
+    (unsafe-invoke ctx cmd
+      "save" 0
+      "restore" 0
+      "transform" 6
+      "lineTo" 2
+      "arc" 6
+      "stroke" 0
+      "fill" 0
+      "fillText" 3
+      "beginPath" 0
+      "closePath" 0
+      "moveTo" 2
+      "rect" 4
+      "clip" 0
+      "bezierCurveTo" 6)))
 
-(defn- clear-screen!
-  "Destructively wipes the screen."
-  [ctx w h]
-  (.clearRect ctx 0 0 w h))
-
-(defn- context [elem]
-  (.getContext elem "2d"))
+(defn executor [ctx cmds]
+  (clear-screen! ctx)
+  (areduce cmds i _ nil (execute! ctx (unchecked-get cmds i))))
 
 (defn draw!
   "Draw world to HTML Canvas element."
   [canvas-element world]
-  (let [cmds (compile-renderer world default-render-state)]
-    (doto (context canvas-element)
-      (clear-screen! (.-width canvas-element) (.-height canvas-element))
-      (execute! cmds))))
+  (let [cmds (clj->js (compile-renderer world default-render-state))]
+    (executor (context canvas-element) cmds)))
