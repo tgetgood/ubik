@@ -4,16 +4,6 @@
             [lemonade.core :as core]
             [lemonade.renderers.util :as util]))
 
-(def default-render-state {:style {} :zoom 1 :in-path? false})
-
-(defn join [lists]
-  (apply concat (remove empty? lists)))
-
-(defn safely [& lists]
-  (concat [["save"]]
-          (join lists)
-          [["restore"]]))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -67,15 +57,23 @@
   [_ [_ v]]
   [(with-meta ["font" v] prop-meta)])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Constructors
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn with-style [state style & cmds]
   (let [styles (style-wrapper state style)]
     (if (empty? styles)
       (join cmds)
       (apply safely styles cmds))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Internal render logic
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn join [lists]
+  (apply concat (remove empty? lists)))
+
+(defn safely [& lists]
+  (concat [["save"]]
+          (join lists)
+          [["restore"]]))
 
 (defn path-wrapper [state style [x y] & lists]
   (let [in? (:in-path? state)]
@@ -87,6 +85,10 @@
       (join lists)
       (when-not in?
         [["stroke"]]))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Canvas Compiler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol Canvas2DRenderable
   (compile-renderer [this state]
@@ -181,6 +183,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def default-render-state {:style {} :zoom 1 :in-path? false})
 
 (defn- execute!
   "Given a sequence of rendering operations and a context, carry them out"
