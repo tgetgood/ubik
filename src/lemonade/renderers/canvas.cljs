@@ -8,13 +8,6 @@
 ;;;; Code Building
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def ctx-sym (str "ctx_G1" ))
-
-(defn encode [x]
-  (if (string? x)
-    (str "'" x "'")
-    (str x)))
-
 (defn setter [prop value]
   (array "set" prop value))
 
@@ -41,7 +34,8 @@
     (->> child-style
          (filter (fn [[k v]] (or (not (contains? parent-style k))
                                 (= (get parent-style k) v))))
-         (mapcat #(style-prop state %)))))
+         (transduce (comp (map (partial style-prop state)) cat) conj)
+         #_(mapcat #(style-prop state %)))))
 
 (defn process-gradient [m])
 
@@ -82,9 +76,10 @@
   (apply concat (remove empty? lists)))
 
 (defn safely [& lists]
-  (concat [(call "save")]
-          (join lists)
-          [(call "restore")]))
+  (conj
+   (into [(call "save")]
+         (join lists))
+   (call "restore")))
 
 (defn with-style [state style & cmds]
   (let [styles (style-wrapper state style)]
@@ -132,22 +127,28 @@
 
   PersistentVector
   (compile-renderer [shapes state]
-    (mapcat compile-renderer shapes (repeat state)))
+    (transduce (comp (map #(compile-renderer % state)) cat) conj shapes)
+    #_(mapcat compile-renderer shapes (repeat state)))
 
   List
   (compile-renderer [shapes state]
-    (mapcat compile-renderer shapes (repeat state)))
+    (transduce (comp (map #(compile-renderer % state)) cat) conj shapes)
+    #_(mapcat compile-renderer shapes (repeat state)))
 
   LazySeq
   (compile-renderer [shapes state]
-    (mapcat compile-renderer shapes (repeat state)))
+    (transduce (comp (map #(compile-renderer % state)) cat) conj shapes)
+    #_(mapcat compile-renderer shapes (repeat state)))
 
   core/Composite
   (compile-renderer [{:keys [style contents]} state]
-    (with-style state style
-      (mapcat compile-renderer
-              contents
-              (repeat (update state :style #(merge style %))))))
+    (let [next-state (update state :style #(merge style %))]
+      (with-style state style
+        (transduce (comp (map #(compile-renderer % next-state)) cat) conj
+                   contents)
+        #_(mapcat compile-renderer
+                contents
+                (repeat (update state :style #(merge style %)))))))
 
   core/Frame
   (compile-renderer [{base :base-shape w :width h :height [x y] :corner} state]
@@ -165,7 +166,9 @@
                           (repeat substate))]
       (with-style state style
         [(call "beginPath")]
-        (mapcat compile-renderer boundary substates)
+        (transduce (comp (map #(compile-renderer (first %) (second %))) cat)
+                   conj (partition 2 (interleave boundary substates)))
+        #_(mapcat compile-renderer boundary substates)
         [(call "closePath")]
         (when-let [fill (-> substate :style :fill)]
           (when (not= fill :none)
@@ -243,3 +246,14 @@
   [canvas-element world]
   (let [cmds (compile-renderer world default-render-state)]
     (executor (context canvas-element) cmds)))
+
+
+(def world (:lemonade.core/world @expanse.core/app-state))
+
+(defn prep-cmds []
+  (compile-renderer world
+                    default-render-state))
+
+(def cmds (prep-cmds))
+(def elem (.getElementById js/document "canvas"))
+(def ctx (context elem))
