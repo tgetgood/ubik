@@ -1,7 +1,7 @@
 (ns lemonade.renderers.canvas
   "HTML Canvas renderer. Technically an ad hoc compiler."
   (:require-macros [lemonade.renderers.canvas
-                    :refer [unsafe-invoke setters]])
+                    :refer [unsafe-invoke setters call]])
   (:require [lemonade.core :as core]
             [lemonade.renderers.util :as util]))
 
@@ -9,14 +9,12 @@
 ;;;; Code Building
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(deftype Setter [prop value])
+
 (defn setter [prop value]
-  (array "set" prop value))
+  (Setter. prop value))
 
-(defn ^boolean setter? [o]
-  (identical? "set" (unchecked-get o 0)))
-
-(defn call [f & args]
-  (apply array f args))
+(defrecord Call [f a1 a2 a3 a4 a5 a6])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
@@ -223,8 +221,8 @@
 (defn- execute!
   "Given a sequence of rendering operations and a context, carry them out"
   [ctx cmd]
-  (if (setter? cmd)
-    (unchecked-set ctx (unchecked-get cmd 1) (unchecked-get cmd 2))
+  (if (instance? Setter cmd)
+    (unchecked-set ctx (.-prop cmd) (.-value cmd))
     (unsafe-invoke ctx cmd
       "save" 0
       "restore" 0
