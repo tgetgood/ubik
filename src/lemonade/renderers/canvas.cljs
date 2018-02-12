@@ -1,6 +1,7 @@
 (ns lemonade.renderers.canvas
   "HTML Canvas renderer. Technically an ad hoc compiler."
-  (:require-macros [lemonade.renderers.canvas :refer [unsafe-invoke]])
+  (:require-macros [lemonade.renderers.canvas
+                    :refer [unsafe-invoke setters]])
   (:require [lemonade.core :as core]
             [lemonade.renderers.util :as util]))
 
@@ -25,17 +26,20 @@
   "Returns code for setting a single style property."
   (fn [state [k v]] k))
 
+(defn new-prop? [p [k v]]
+  (when (or (not (contains? p k)) (= v (get p k)))
+    [k v]))
+
 (defn style-wrapper
   "Returns a minimal sequence of instructions for transitioning from the current
   global style (stored in state) to the desired style."
   [state style]
   (let [parent-style (:style state)
         child-style (merge {:stroke :black} style)]
-    (->> child-style
-         (filter (fn [[k v]] (or (not (contains? parent-style k))
-                                (= (get parent-style k) v))))
-         (transduce (comp (map (partial style-prop state)) cat) conj)
-         #_(mapcat #(style-prop state %)))))
+    (transduce (comp (keep (partial new-prop? parent-style))
+                     (map (partial style-prop state))
+                     cat)
+               conj child-style)))
 
 (defn process-gradient [m])
 
@@ -51,34 +55,34 @@
   [{:keys [zoom]} [_ v]]
   (let [c (process-colour v)]
     (when c
-      [(setter "lineWidth" (/ 1 zoom))
-       (setter "strokeStyle" c)])))
+      (setters "lineWidth" (/ 1 zoom)
+               "strokeStyle" c))))
 
 (defmethod style-prop :fill
   [_ [_ v]]
   (let [c (process-colour v)]
     (when c
-      [(setter "fillStyle" c)])))
+      (setters "fillStyle" c))))
 
 (defmethod style-prop :opacity
+
   [_ [_ v]]
-  [(setter "globalAlpha" v)])
+  (setters "globalAlpha" v))
 
 (defmethod style-prop :font
   [_ [_ v]]
-  [(setter "font" v)])
+  (setters "font" v))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Constructors
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn join [lists]
-  (apply concat (remove empty? lists)))
+  (transduce cat conj lists))
 
 (defn safely [& lists]
   (conj
-   (into [(call "save")]
-         (join lists))
+   (into [(call "save")] (join lists))
    (call "restore")))
 
 (defn with-style [state style & cmds]

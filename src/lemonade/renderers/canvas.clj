@@ -1,5 +1,13 @@
 (ns lemonade.renderers.canvas)
 
+(defmacro setters
+  "Simplifies syntax of style setting. Only a macro for speed."
+  [& pairs]
+  {:pre [(even? (count pairs))]}
+  (if (= 2 (count pairs))
+    [(list 'setter (first pairs) (second pairs))]
+    `[~@(map (fn [[k v]] (list 'setter k v)) (partition 2 pairs))]))
+
 (defn switch [c ctx cmd [cname nargs]]
   [(list 'identical? c cname)
    (apply list (symbol (str "." cname)) ctx
