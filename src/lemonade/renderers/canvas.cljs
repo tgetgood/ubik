@@ -236,10 +236,10 @@
 
 (defn executor [ctx cmds]
   (clear-screen! ctx)
-  (areduce cmds i _ nil (execute! ctx (unchecked-get cmds i))))
+  (run! (partial execute! ctx) cmds))
 
 (defn draw!
   "Draw world to HTML Canvas element."
   [canvas-element world]
-  (let [cmds (clj->js (compile-renderer world default-render-state))]
+  (let [cmds (compile-renderer world default-render-state)]
     (executor (context canvas-element) cmds)))
