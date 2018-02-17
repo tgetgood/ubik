@@ -1,20 +1,43 @@
 (ns lemonade.renderers.canvas
+  ;; TODO: Names in this space are shit. Product of experiments with
+  ;; optimisation and lots of throwaway code.
   "HTML Canvas renderer. Technically an ad hoc compiler."
   (:require-macros [lemonade.renderers.canvas
-                    :refer [unsafe-invoke setters call]])
-  (:require [lemonade.core :as core]
+                    :refer [unsafe-invoke call compile-node compile-leaf
+                            add-seq-compilers]])
+  (:require [clojure.walk :as walk]
+            [lemonade.core :as core]
+            [lemonade.math :as math]
             [lemonade.renderers.util :as util]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Code Building
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(deftype Setter [prop value])
+(defrecord StrokeStyle [value sym])
+(defrecord FillStyle [value sym])
+(defrecord GlobalAlpha [value sym])
+(defrecord Font [value sym])
 
-(defn setter [prop value]
-  (Setter. prop value))
+(defrecord UnSetter [sym])
 
-(defrecord Call [f a1 a2 a3 a4 a5 a6])
+(defrecord LineWidthHack [mag])
+
+(defrecord MaybeFill [])
+
+(defrecord Call [f arg1 arg2 arg3 arg4 arg5 arg6])
+
+;; Use the same instance when we can to avoid allocating
+(def *save (call "save"))
+(def *restore (call "restore"))
+(def *begin-path (call "beginPath"))
+(def *stroke (call "stroke"))
+(def *fill (call "fill"))
+(def *clip (call "clip"))
+
+;; TODO: Compilation as a notion needs to be first class. Geometry needs it
+;; too. So move it to core?
+(defrecord CompiledShape [shape instructions])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
@@ -22,22 +45,7 @@
 
 (defmulti style-prop
   "Returns code for setting a single style property."
-  (fn [state [k v]] k))
-
-(defn new-prop? [p [k v]]
-  (when (or (not (contains? p k)) (= v (get p k)))
-    [k v]))
-
-(defn style-wrapper
-  "Returns a minimal sequence of instructions for transitioning from the current
-  global style (stored in state) to the desired style."
-  [state style]
-  (let [parent-style (:style state)
-        child-style (merge {:stroke :black} style)]
-    (transduce (comp (keep (partial new-prop? parent-style))
-                     (map (partial style-prop state))
-                     cat)
-               conj child-style)))
+  (fn [[k v] s] k))
 
 (defn process-gradient [m])
 
@@ -50,179 +58,178 @@
     :else        "rgba(0,0,0,0)"))
 
 (defmethod style-prop :stroke
-  [{:keys [zoom]} [_ v]]
+  [[_ v] s]
   (let [c (process-colour v)]
     (when c
-      (setters "lineWidth" (/ 1 zoom)
-               "strokeStyle" c))))
+      (StrokeStyle. c s))))
 
 (defmethod style-prop :fill
-  [_ [_ v]]
+  [[_ v] s]
   (let [c (process-colour v)]
     (when c
-      (setters "fillStyle" c))))
+      (FillStyle. c s))))
 
 (defmethod style-prop :opacity
-
-  [_ [_ v]]
-  (setters "globalAlpha" v))
+  [[_ v] s]
+  (GlobalAlpha. v s))
 
 (defmethod style-prop :font
-  [_ [_ v]]
-  (setters "font" v))
+  [[_ v] s]
+  (Font. v s))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Constructors
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn join [lists]
-  (transduce cat conj lists))
-
-(defn safely [& lists]
-  (conj
-   (into [(call "save")] (join lists))
-   (call "restore")))
-
-(defn with-style [state style & cmds]
-  (let [styles (style-wrapper state style)]
-    (if (empty? styles)
-      (join cmds)
-      (apply safely styles cmds))))
-
-(defn path-wrapper [state style [x y] & lists]
-  (let [in? (:in-path? state)]
-    (with-style state style
-      (when-not in?
-        [(call "beginPath")])
-      (when (or (:override state) (not in?))
-        [(call "moveTo" x y)])
-      (join lists)
-      (when-not in?
-        [(call "stroke")]))))
+(defn simple-style [style sym]
+  (when (seq style)
+    (map #(style-prop % sym) style)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Canvas Compiler
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol Canvas2DRenderable
-  (compile-renderer [this state]
-    "Returns instructions for rendering this a ctx."))
+  (region-compile* [this])
+  (compile [this])
+  (compile* [this]))
+
+(defn compile-tx [xf]
+  (fn
+    ([] (xf))
+    ([acc] (xf acc))
+    ([acc shape] ((compile* shape) xf acc))))
+
+(defn compile-shape [shape]
+  (if (instance? CompiledShape shape)
+    shape
+    (CompiledShape. shape ((compile* shape) conj []))))
+
+(add-seq-compilers Canvas2DRenderable
+  PersistentVector
+  ArrayList
+  List
+  LazySeq
+  IndexedSeq
+  IndexedSeqIterator)
 
 (extend-protocol Canvas2DRenderable
   default
-  (compile-renderer [this state]
+  (compile [this]
+    (compile-shape this))
+  (compile* [this]
     (if (core/template? this)
-      (compile-renderer (core/expand-template this) state)
-      (println (str "I don't know how to render a " this ". Aborting."))))
+      (fn [xf acc]
+        ((compile* (core/expand-template this)) xf acc))
+      (println (str "I don't know how to render a " (type this) ". Aborting."))))
 
   nil
-  (compile-renderer [_ _]
+  (compile* [_]
     (println "Cannot render nil. Aborting.'"))
 
+  CompiledShape
+  ;; Compiled shapes have the AST implicit in the code
+  (compile [this] this)
+  (compile* [this]
+    (fn [xf acc]
+      (reduce xf acc (.-instructions this))))
+
   core/AffineTransformation
-  (compile-renderer [{{[a b c d] :matrix [e f] :translation} :atx
-                      base                                   :base-shape}
-                     state]
-    (safely [(call "transform" a b c d e f)]
-            (compile-renderer base (update state :zoom *
-                                           (util/magnitude a b c d)))))
-
-  PersistentVector
-  (compile-renderer [shapes state]
-    (transduce (comp (map #(compile-renderer % state)) cat) conj shapes)
-    #_(mapcat compile-renderer shapes (repeat state)))
-
-  List
-  (compile-renderer [shapes state]
-    (transduce (comp (map #(compile-renderer % state)) cat) conj shapes)
-    #_(mapcat compile-renderer shapes (repeat state)))
-
-  LazySeq
-  (compile-renderer [shapes state]
-    (transduce (comp (map #(compile-renderer % state)) cat) conj shapes)
-    #_(mapcat compile-renderer shapes (repeat state)))
+  (compile [this]
+    (compile-shape (update this :base-shape compile)))
+  (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
+    (compile-node {:pre      [*save
+                              (call "transform" a b c d e f)
+                              (LineWidthHack. (util/magnitude a b c d))]
+                   :recur-on base
+                   :post     [*restore]}))
 
   core/Composite
-  (compile-renderer [{:keys [style contents]} state]
-    (let [next-state (update state :style #(merge style %))]
-      (with-style state style
-        (transduce (comp (map #(compile-renderer % next-state)) cat) conj
-                   contents)
-        #_(mapcat compile-renderer
-                contents
-                (repeat (update state :style #(merge style %)))))))
+  (compile [this]
+    (compile-shape (update this :contents compile)))
+  (compile* [{:keys [style contents]}]
+    (compile-node {:style style :recur-on contents}))
 
   core/Frame
-  (compile-renderer [{base :base-shape w :width h :height [x y] :corner} state]
-    (safely [(call "beginPath")
-             (call "rect" x y w h)
-             (call "clip")]
-            (compile-renderer base state)))
+  (compile [this]
+    (compile-shape (update this :base-shape compile)))
+  (compile* [{w :width h :height [x y] :corner base :base-shape}]
+    (compile-node {:pre      [*save
+                              *begin-path
+                              (call "rect" x y w h)
+                              *clip]
+                   :recur-on base
+                   :post     [*restore]}))
 
   core/Region
-  (compile-renderer [{:keys [style boundary]} state]
-    (let [substate  (-> state
-                        (assoc :in-path? true)
-                        (update :style #(merge style %)))
-          substates (cons (assoc substate :override true)
-                          (repeat substate))]
-      (with-style state style
-        [(call "beginPath")]
-        (transduce (comp (map #(compile-renderer (first %) (second %))) cat)
-                   conj (partition 2 (interleave boundary substates)))
-        #_(mapcat compile-renderer boundary substates)
-        [(call "closePath")]
-        (when-let [fill (-> substate :style :fill)]
-          (when (not= fill :none)
-            [(call "fill")]))
-        [(call "stroke")])))
+  (compile [this]
+    (compile-shape (update this :boundary compile)))
+  ;; Using canvas means that we can't style the boundary segments of a region
+  ;; independently of the region itself. We can work around that with abstract
+  ;; regions composed of a fill without boundary and a series of segments that
+  ;; are styled but do not form a path.
+  ;;
+  ;; TODO: I should add that as a template.
+  ;; FIXME: It doesn't need a template. This guy should render and fill an
+  ;; invisible boundary and then render the boundary elements as is. That would
+  ;; satisfy the contract.
+  (compile* [{:keys [boundary style]}]
+    (let [endpoints (map core/endpoints boundary)]
+      (compile-leaf {:style style
 
-  core/Line
-  (compile-renderer [{[x y] :to :keys [from style]} state]
-    (path-wrapper state style from
-      [(call "lineTo" x y)]))
-
-  core/Arc
-  (compile-renderer [arc state]
-    (let [{r :radius [x y] :centre :keys [from to style clockwise?]} arc]
-      (path-wrapper
-        (assoc state :override (:jump (meta arc)))
-        style
-        [(+ x r) y]
-        [(call "arc" x y r from to (boolean clockwise?))])))
-
-  core/Bezier
-  (compile-renderer [{[x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 :keys [style from]}
-                     state]
-    (path-wrapper state style from
-                  [(call "bezierCurveTo" cx1 cy1 cx2 cy2 x2 y2)]))
+                     :pre   [*begin-path]
+                     :draw (mapcat
+                            (fn [seg [start _] [_ end]]
+                              (if ( = start end)
+                                [seg]
+                                [(call "moveTo" (first start) (second start))
+                                 seg]))
+                                   (map region-compile* boundary)
+                                   endpoints
+                                   (cons [nil nil] endpoints))
+                     :post  [(MaybeFill.)
+                             *stroke]})))
 
   core/RawText
-  (compile-renderer [{[x y] :corner :keys [style text]} state]
-    (with-style state style
-      [(call "fillText" text x y)])))
+  (compile* [{[x y] :corner :keys [style text]}]
+    (compile-leaf {:draw [(call "fillText" text x y)]}))
+
+  core/Line
+  (region-compile* [{[x1 y1] :from [x2 y2] :to style :style}]
+    (call "lineTo" x2 y2))
+  (compile* [{[x1 y1] :from [x2 y2] :to style :style}]
+    (compile-leaf {:style style
+                   :pre   [*begin-path
+                           (call "moveTo" x1 y1)]
+                   :draw  [(call "lineTo" x2 y2)]
+                   :post  [*stroke]}))
+
+  core/Arc
+  (region-compile* [{r :radius [x y] :centre :keys [from to style clockwise?]}]
+    (call "arc" x y r from to (boolean clockwise?)))
+  (compile* [{r :radius [x y] :centre :keys [from to style clockwise?] :as this}]
+    (let [[x1 y1] (first (core/endpoints this))]
+      (compile-leaf {:style style
+                     :pre   [*begin-path
+                             (call "moveTo" x1 y1)]
+                     :draw  [(call "arc" x y r from to (boolean clockwise?))]
+                     :post  [*stroke]})))
+
+  core/Bezier
+  (region-compile* [{[x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2}]
+    (call "bezierCurveTo" cx1 cy1 cx2 cy2 x2 y2))
+  (compile* [{[x1 y1] :from [x2 y2] :to [cx1 cy1] :c1 [cx2 cy2] :c2 :keys [style]}]
+    (compile-leaf {:style style
+                   :pre   [(call "moveTo" x1 y1)]
+                   :draw  [(call "bezierCurveTo" cx1 cy1 cx2 cy2 x2 y2)]})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; API
+;;;;; Execution Logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def default-render-state {:style {} :zoom 1 :in-path? false})
+(defprotocol Executable
+  (exec [this ctx]
+    "Execute this instruction on the context. Return value ignored."))
 
-(defn- clear-screen!
-  "Clear the rendering context's canvas."
-  [ctx]
-  (.clearRect ctx 0 0 (-> ctx .-canvas .-width) (-> ctx .-canvas .-height)))
-
-(defn- context
-  "Returns the 2d rendering context for the given HTML canvas DOM element."
-  [elem]
-  (.getContext elem "2d"))
-
-(defn- execute!
-  "Given a sequence of rendering operations and a context, carry them out"
-  [ctx cmd]
-  (if (instance? Setter cmd)
-    (unchecked-set ctx (.-prop cmd) (.-value cmd))
+(extend-protocol Executable
+  Call
+  (exec [cmd ctx]
     (unsafe-invoke ctx cmd
       "save" 0
       "restore" 0
@@ -237,25 +244,192 @@
       "moveTo" 2
       "rect" 4
       "clip" 0
-      "bezierCurveTo" 6)))
+      "bezierCurveTo" 6))
 
-(defn executor [ctx cmds]
-  (clear-screen! ctx)
-  (run! (partial execute! ctx) cmds))
+  FillStyle
+  (exec [cmd ctx]
+    (unchecked-set ctx "fillStyle" (.-value cmd)))
+
+  StrokeStyle
+  (exec [cmd ctx]
+    (unchecked-set ctx "strokeStyle" (.-value cmd)))
+
+  GlobalAlpha
+  (exec [cmd ctx]
+    (unchecked-set ctx "globalAlpha" (.-value cmd)))
+
+  Font
+  (exec [cmd ctx]
+    (unchecked-set ctx "font" (.-value cmd)))
+
+  LineWidthHack
+  (exec [cmd ctx]
+    (unchecked-set ctx "lineWidth" (/ (.-lineWidth ctx) (.-mag cmd)))))
+
+(defn exec-reduce
+  "Returns a reducing function that runs exec on each element of coll on the
+  given ctx."
+  [ctx]
+  (fn
+    ([] nil)
+    ([acc] nil)
+    ([acc cmd] (exec ^not-native cmd ctx))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Canvas State Management
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defprotocol IState
+  "Internal state store for the execution of canvas instructions."
+  (clear-sym [this s])
+  (set-fill [this s])
+  (set-stroke [this s])
+  (set-alpha [this s])
+  (set-font [this s]))
+
+(deftype CompilerState
+    [^:mutable fill ^:mutable stroke ^:mutable alpha ^:mutable font]
+  IState
+  (clear-sym [this sym]
+    (when (identical? sym fill)
+      (set! fill nil))
+    (when (identical? sym stroke)
+      (set! stroke nil))
+    (when (identical? sym font)
+      (set! font nil))
+    (when (identical? sym alpha)
+      (set! alpha nil)))
+  (set-fill [this s] (set! fill s))
+  (set-stroke [this s] (set! stroke s))
+  (set-alpha [this s] (set! alpha s))
+  (set-font [this s] (set! font s)))
+
+(defprotocol StackEmulator
+  "It's a pretty barebones emulation"
+  (stack-process [this xf acc state]))
+
+(extend-protocol StackEmulator
+  Call
+  (stack-process [this xf acc _]
+    (xf acc this))
+
+  FillStyle
+  (stack-process [this xf acc state]
+    (if (.-fill state)
+      acc
+      (do
+        (set-fill state (.-sym this))
+        (xf acc this))))
+
+  StrokeStyle
+  (stack-process [this xf acc state]
+    (if (.-stroke state)
+      acc
+      (do
+        (set-stroke state (.-sym this))
+        (xf acc this))))
+
+  GlobalAlpha
+  (stack-process [this xf acc state]
+    (if (.-alpha state)
+      acc
+      (do
+        (set-alpha state (.-sym this))
+        (xf acc this))))
+
+  Font
+  (stack-process [this xf acc state]
+    (if (.-font state)
+      acc
+      (do
+        (set-font state (.-sym this))
+        (xf acc this))))
+
+ UnSetter
+ (stack-process [this xf acc state]
+   (clear-sym state (.-sym this))
+   acc)
+
+ LineWidthHack
+ (stack-process [this xf acc _]
+   (if (js* "~{}===1" (.-mag this))
+     acc
+     (xf acc this)))
+
+ MaybeFill
+ (stack-process [this xf acc state]
+   (if (.-fill state)
+     (xf acc *fill)
+     acc)))
+
+(defn stack-tx
+  "Returns a tranducer that emulated the canvas api's state and transforms the
+  raw lemonade instructions into final canvas instructions.
+  Is it an interpreter or an optimising compiler? I don't know, it's a pretty
+  crappy either...'"
+  []
+  (let [state (CompilerState. nil nil nil nil)]
+    (fn [xf]
+      (fn
+        ([] (xf))
+        ([acc] (xf acc))
+        ([acc n]
+         (stack-process ^not-native n xf acc state))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Debugging
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defprotocol Readable
+  "Allows compiler internals to expose themselves as human readable
+  instructions."
+  (inspect [i] "Returns a string representing the instruction."))
+
+(extend-protocol Readable
+  UnSetter
+  (inspect [i] nil)
+
+  Call
+  (inspect [i]
+    (str
+     (apply str "(." (:f i) " ctx"
+            (interleave (repeat " ")
+                        (remove nil? [(:arg1 i) (:arg2 i) (:arg3 i)
+                                      (:arg4 i) (:arg5 i) (:arg6 i)])))
+     ")"))
+
+  LineWidthHack
+  (inspect [i]
+    (str "(set! (.-lineWidth ctx) (/ (.-lineWidth ctx) " (:mag i) ")"))
+
+  default
+  (inspect [i] i))
+
+(defn code
+  "Returns a vector of strings which represents the code that gets executed on
+  the canvas context in attempting to draw the given shape."
+  [shape]
+  (transduce (comp compile-tx (stack-tx) (map inspect) (remove nil?))
+             conj
+             [shape]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Main Draw Logic
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- clear-screen!
+  "Clear the rendering context's canvas."
+  [ctx]
+  (.clearRect ctx 0 0 (-> ctx .-canvas .-width) (-> ctx .-canvas .-height)))
+
+(defn- context
+  "Returns the 2d rendering context for the given HTML canvas DOM element."
+  [elem]
+  (.getContext elem "2d"))
 
 (defn draw!
   "Draw world to HTML Canvas element."
   [canvas-element world]
-  (let [cmds (compile-renderer world default-render-state)]
-    (executor (context canvas-element) cmds)))
-
-
-(def world (:lemonade.core/world @expanse.core/app-state))
-
-(defn prep-cmds []
-  (compile-renderer world
-                    default-render-state))
-
-(def cmds (prep-cmds))
-(def elem (.getElementById js/document "canvas"))
-(def ctx (context elem))
+  (let [ctx (context canvas-element)]
+    (clear-screen! ctx)
+    (transduce (comp compile-tx (stack-tx)) (exec-reduce ctx) [world])))

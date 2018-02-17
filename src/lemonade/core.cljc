@@ -112,8 +112,7 @@
 
 (def line
   (map->Line
-   {:type ::line
-    :from [0 0]
+   {:from [0 0]
     :to [1 1]}))
 
 (defrecord Bezier [style from to c1 c2]
@@ -124,8 +123,7 @@
 (def bezier
   "Bezier cubic to be precise."
   (map->Bezier
-   {:type ::bezier
-    :from [0 0]
+   {:from [0 0]
     :c1 [0 0]
     :c2 [1 1]
     :to [1 1]}))
@@ -142,8 +140,7 @@
 
 (def arc
   (map->Arc
-   {:type   ::arc
-    :centre [0 0]
+   {:centre [0 0]
     :radius 1
     :from   0
     :to     (* 2 math/pi)
@@ -153,39 +150,21 @@
 ;;;;; Higher Order Shapes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defrecord Path [style segments])
-
-(defn path
-  ([segments] (path {} segments))
-  ([style segments]
-   (map->Path {:type ::path
-               :closed? false
-               :style style
-               ;; FIXME: Duplicate keys for compatibility while refactoring
-               :contents segments
-               :segments segments})))
-
 (defrecord Region [style boundary])
 
 (defn region
   ([boundary] (region {} boundary))
   ([style boundary]
    (map->Region
-    {:type ::path
-     :style style
-     :boundary boundary
-     :closed? true
-     :contents boundary})))
+    {:style style
+     :boundary boundary})))
 
 (defrecord Composite [style contents])
 
 (defn composite
   ([contents] (composite {} contents))
   ([style contents]
-   ;; TODO: I'm leaving the :type keys in for now so that I don't break
-   ;; multimethods that depend on them while refactoring.
-   (map->Composite {:type ::composite
-                    :style style
+   (map->Composite {:style style
                     :contents contents})))
 
 (defrecord Frame [corner width height style base-shape])
@@ -194,8 +173,7 @@
   "A frame is a visual which restricts image to fall within extent. Extent is a
   map with keys as per :lemonade.core/rectangle"
   (map->Frame
-   {:type ::frame
-    :corner [0 0]
+   {:corner [0 0]
     :width 1
     :height 1
     :style {}
@@ -228,18 +206,7 @@
   {:style {} :inner-radius 1 :outer-radius 2 :centre [0 0]}
   (region style
           [(full-arc centre inner-radius)
-           (with-meta (full-arc centre outer-radius true)
-             ;; REVIEW: Abstraction leakage.
-             ;;
-             ;; We need this annotation to tell the path system to call
-             ;; moveTo in this one instance.
-             ;;
-             ;; TODO: This can probably be handled by keeping track of
-             ;; the point and jumping when in a path and from(n) !=
-             ;; to(n-1)
-             ;; Maybe keep a shared atom in the path state passed to
-             ;; segments? Uck, but could work.
-             {:jump true})]))
+           (full-arc centre outer-radius true)]))
 
 (deftemplate polyline
   {:style {} :points []}
@@ -249,7 +216,7 @@
                            :to   y))
                    (partition 2 (interleave points (rest points))))
         closed? (= (first points) (last points))]
-    ((if closed? region path) style segs)))
+    (region style segs)))
 
 (deftemplate rectangle
   {:style  {}
@@ -323,8 +290,7 @@
   (if (zero? (apply math/det (:matrix atx)))
     []
     (map->AffineTransformation
-     {:type ::atx
-      :base-shape shape
+     {:base-shape shape
       :atx atx})))
 
 (defn translate
@@ -382,8 +348,7 @@
 (def raw-text
   "Single line of text. No wrapping or truncation."
   (map->RawText
-   {:type   ::raw-text
-    :style  {:font "sans serif 10px"}
+   {:style  {:font "sans serif 10px"}
     :corner [0 0]
     :text   ""}))
 
