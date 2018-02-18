@@ -88,9 +88,7 @@
   (region-compile* [this])
   (compile* [this]))
 
-#_(def compile (memoize compile*))
-
-(def compile (memoize compile*))
+(def compile compile*)
 
 (add-seq-compilers Canvas2DRenderable
   PersistentVector
@@ -295,35 +293,35 @@
 
   FillStyle
   (stack-process [this xf acc state]
-    (if ^boolean (.-fill state)
-      acc
+    (if (nil? (.-fill state))
       (do
         (set-fill state (.-sym this))
-        (xf acc this))))
+        (xf acc this))
+      acc))
 
   StrokeStyle
   (stack-process [this xf acc state]
-    (if ^boolean (.-stroke state)
-      acc
+    (if (nil? (.-stroke state))
       (do
         (set-stroke state (.-sym this))
-        (xf acc this))))
+        (xf acc this))
+      acc))
 
   GlobalAlpha
   (stack-process [this xf acc state]
-    (if ^boolean (.-alpha state)
-      acc
+    (if (nil? (.-alpha state))
       (do
         (set-alpha state (.-sym this))
-        (xf acc this))))
+        (xf acc this))
+      acc))
 
   Font
   (stack-process [this xf acc state]
-    (if ^boolean (.-font state)
-      acc
+    (if (nil? (.-font state))
       (do
         (set-font state (.-sym this))
-        (xf acc this))))
+        (xf acc this))
+      acc))
 
  UnSetter
  (stack-process [this xf acc state]
@@ -338,13 +336,13 @@
 
  MaybeFill
  (stack-process [this xf acc state]
-   (if ^boolean (.-fill state)
-     (xf acc *fill)
-     acc)))
+   (if (nil? (.-fill state))
+     acc
+     (xf acc *fill))))
 
 (defn stack-tx
-  "Returns a tranducer that emulated the canvas api's state and transforms the
-  raw lemonade instructions into final canvas instructions.
+  "Returns a tranducer that emulates the canvas API's statefullness and
+  transforms the raw lemonade instructions into final canvas instructions.
   Is it an interpreter or an optimising compiler? I don't know, it's a pretty
   crappy either...'"
   []
