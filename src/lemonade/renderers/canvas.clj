@@ -61,16 +61,16 @@
        ~inner)))
 
 (defmacro compile-leaf [{:keys [style pre post draw]}]
-  `(~(if style
-       (compile-style style (compile-leaf-inner pre draw post))
-       (compile-leaf-inner pre draw post))
-    conj []))
+  `(persistent! (~(if style
+                    (compile-style style (compile-leaf-inner pre draw post))
+                    (compile-leaf-inner pre draw post))
+                 conj! (transient []))))
 
 (defmacro compile-node [{:keys [style pre recur-on post]}]
-  `(~(if style
-       (compile-style style (compile-node-inner pre recur-on post))
-       (compile-node-inner pre recur-on post))
-    conj []))
+  `(persistent! (~(if style
+                    (compile-style style (compile-node-inner pre recur-on post))
+                    (compile-node-inner pre recur-on post))
+                 conj! (transient []))))
 
 (def compile*-seq-method
   `(~'compile* [seq#]
