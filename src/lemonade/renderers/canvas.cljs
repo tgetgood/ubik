@@ -112,10 +112,6 @@
     (println "Cannot render nil. Aborting.'")
     [])
 
-  core/CompiledShape
-  (compile* [this]
-    (.-instructions this))
-
   core/AffineTransformation
   (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
     (compile-node {:pre      [*save

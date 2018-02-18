@@ -3,14 +3,6 @@
   (:require [clojure.string :as string]
             [lemonade.math :as math]))
 
-(defrecord CompiledShape [shape instructions bounding-box])
-
-(defn compiled-shape [shape instructions bounding-box]
-  (CompiledShape. shape instructions bounding-box))
-
-(defn ^boolean compiled? [shape]
-  (instance? CompiledShape shape))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Templates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -55,7 +47,7 @@
           (def ~instance-name
             (~(symbol (str "map->" template-name)) ~template))))))
 
-(defn template? ^boolean [shape]
+(defn ^boolean template? [shape]
   (satisfies? ITemplate shape))
 
 (defn template-expand-all [shape]
