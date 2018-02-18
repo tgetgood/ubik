@@ -88,7 +88,7 @@
   (region-compile* [this])
   (compile* [this]))
 
-(def compile compile*)
+(def compile (memoize compile*))
 
 (add-seq-compilers Canvas2DRenderable
   PersistentVector
