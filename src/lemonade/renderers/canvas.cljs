@@ -24,6 +24,7 @@
 (defrecord LineWidthHack [mag])
 
 (defrecord MaybeFill [])
+(def *maybe-fill (MaybeFill.))
 
 (defrecord Call [f arg1 arg2 arg3 arg4 arg5 arg6])
 
@@ -157,12 +158,21 @@
                                    (map region-compile* boundary)
                                    endpoints
                                    (cons [nil nil] endpoints))
-                     :post  [(MaybeFill.)
+                     :post  [*maybe-fill
                              *stroke]})))
 
   core/RawText
   (compile* [{[x y] :corner :keys [style text]}]
     (compile-leaf {:draw [(call "fillText" text x y)]}))
+
+  ;; Templates can implement protocols too
+  core/Rectangle
+  (compile* [{:keys [style width height] [x y] :corner}]
+    (compile-leaf {:style style
+                   :pre [*begin-path]
+                   :draw [(call "rect" x y width height)]
+                   :post [*maybe-fill
+                          *stroke]}))
 
   core/Line
   (region-compile* [{[x1 y1] :from [x2 y2] :to style :style}]
