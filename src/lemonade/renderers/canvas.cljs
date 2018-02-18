@@ -37,7 +37,6 @@
 
 ;; TODO: Compilation as a notion needs to be first class. Geometry needs it
 ;; too. So move it to core?
-(defrecord CompiledShape [shape instructions])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
@@ -87,7 +86,6 @@
 
 (defprotocol Canvas2DRenderable
   (region-compile* [this])
-  (compile [this])
   (compile* [this]))
 
 (defn compile-tx [xf]
@@ -95,11 +93,6 @@
     ([] (xf))
     ([acc] (xf acc))
     ([acc shape] ((compile* shape) xf acc))))
-
-(defn compile-shape [shape]
-  (if (instance? CompiledShape shape)
-    shape
-    (CompiledShape. shape ((compile* shape) conj []))))
 
 (add-seq-compilers Canvas2DRenderable
   PersistentVector
@@ -111,8 +104,6 @@
 
 (extend-protocol Canvas2DRenderable
   default
-  (compile [this]
-    (compile-shape this))
   (compile* [this]
     (if (core/template? this)
       (fn [xf acc]
@@ -123,16 +114,12 @@
   (compile* [_]
     (println "Cannot render nil. Aborting.'"))
 
-  CompiledShape
-  ;; Compiled shapes have the AST implicit in the code
-  (compile [this] this)
+  core/CompiledShape
   (compile* [this]
     (fn [xf acc]
       (reduce xf acc (.-instructions this))))
 
   core/AffineTransformation
-  (compile [this]
-    (compile-shape (update this :base-shape compile)))
   (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
     (compile-node {:pre      [*save
                               (call "transform" a b c d e f)
@@ -141,14 +128,10 @@
                    :post     [*restore]}))
 
   core/Composite
-  (compile [this]
-    (compile-shape (update this :contents compile)))
   (compile* [{:keys [style contents]}]
     (compile-node {:style style :recur-on contents}))
 
   core/Frame
-  (compile [this]
-    (compile-shape (update this :base-shape compile)))
   (compile* [{w :width h :height [x y] :corner base :base-shape}]
     (compile-node {:pre      [*save
                               *begin-path
@@ -158,8 +141,6 @@
                    :post     [*restore]}))
 
   core/Region
-  (compile [this]
-    (compile-shape (update this :boundary compile)))
   ;; Using canvas means that we can't style the boundary segments of a region
   ;; independently of the region itself. We can work around that with abstract
   ;; regions composed of a fill without boundary and a series of segments that

@@ -76,16 +76,10 @@
                 ((compile* x#) xf# inner-acc#))
               acc# seq#))))
 
-(def compile-seq-method
-  `(~'compile [seq#]
-    (compile-shape seq#)))
-
 (defmacro add-seq-compilers
   {:style/indent 2
    :doc "Generates boilerplate to implement a method the same way for a bunch of
    seq types."}
   [prot  & types]
   `(extend-protocol ~prot
-     ~@(interleave types
-         (repeat compile-seq-method)
-         (repeat compile*-seq-method) )))
+     ~@(interleave types (repeat compile*-seq-method))))
