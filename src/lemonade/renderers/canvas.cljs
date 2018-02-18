@@ -88,11 +88,9 @@
   (region-compile* [this])
   (compile* [this]))
 
-(defn compile-tx [xf]
-  (fn
-    ([] (xf))
-    ([acc] (xf acc))
-    ([acc shape] ((compile* shape) xf acc))))
+#_(def compile (memoize compile*))
+
+(def compile (memoize compile*))
 
 (add-seq-compilers Canvas2DRenderable
   PersistentVector
@@ -106,18 +104,19 @@
   default
   (compile* [this]
     (if (core/template? this)
-      (fn [xf acc]
-        ((compile* (core/expand-template this)) xf acc))
-      (println (str "I don't know how to render a " (type this) ". Aborting."))))
+      (compile* (core/expand-template this))
+      (do
+        (println (str "I don't know how to render a " (type this) ". Aborting."))
+        [])))
 
   nil
   (compile* [_]
-    (println "Cannot render nil. Aborting.'"))
+    (println "Cannot render nil. Aborting.'")
+    [])
 
   core/CompiledShape
   (compile* [this]
-    (fn [xf acc]
-      (reduce xf acc (.-instructions this))))
+    (.-instructions this))
 
   core/AffineTransformation
   (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
@@ -296,7 +295,7 @@
 
   FillStyle
   (stack-process [this xf acc state]
-    (if (.-fill state)
+    (if ^boolean (.-fill state)
       acc
       (do
         (set-fill state (.-sym this))
@@ -304,7 +303,7 @@
 
   StrokeStyle
   (stack-process [this xf acc state]
-    (if (.-stroke state)
+    (if ^boolean (.-stroke state)
       acc
       (do
         (set-stroke state (.-sym this))
@@ -312,7 +311,7 @@
 
   GlobalAlpha
   (stack-process [this xf acc state]
-    (if (.-alpha state)
+    (if ^boolean (.-alpha state)
       acc
       (do
         (set-alpha state (.-sym this))
@@ -320,7 +319,7 @@
 
   Font
   (stack-process [this xf acc state]
-    (if (.-font state)
+    (if ^boolean (.-font state)
       acc
       (do
         (set-font state (.-sym this))
@@ -333,13 +332,13 @@
 
  LineWidthHack
  (stack-process [this xf acc _]
-   (if (js* "~{}===1" (.-mag this))
+   (if ^boolean (js* "~{}===1" (.-mag this))
      acc
      (xf acc this)))
 
  MaybeFill
  (stack-process [this xf acc state]
-   (if (.-fill state)
+   (if ^boolean (.-fill state)
      (xf acc *fill)
      acc)))
 
@@ -390,9 +389,9 @@
   "Returns a vector of strings which represents the code that gets executed on
   the canvas context in attempting to draw the given shape."
   [shape]
-  (transduce (comp compile-tx (stack-tx) (map inspect) (remove nil?))
+  (transduce (comp (stack-tx) (map inspect) (remove nil?))
              conj
-             [shape]))
+             (compile shape)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Main Draw Logic
@@ -408,9 +407,11 @@
   [elem]
   (.getContext elem "2d"))
 
+(defn execute! [ctx cmds]
+  (clear-screen! ctx)
+  (transduce (stack-tx) (exec-reduce ctx) cmds))
+
 (defn draw!
   "Draw world to HTML Canvas element."
   [canvas-element world]
-  (let [ctx (context canvas-element)]
-    (clear-screen! ctx)
-    (transduce (comp compile-tx (stack-tx)) (exec-reduce ctx) [world])))
+  (execute! (context canvas-element) (compile world)))

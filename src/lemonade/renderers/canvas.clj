@@ -43,7 +43,8 @@
     `(fn [~xf coll#]
        (as-> coll# ~acc
          ~@(concat (maybe-reduce xf acc pre)
-                   (list`((compile* ~recur-on) ~xf ~acc))
+                   [`(reduce ~xf ~acc
+                             (lemonade.renderers.canvas/compile ~recur-on))]
                    (maybe-reduce xf acc post))))))
 
 (defn compile-style [style inner]
@@ -60,21 +61,22 @@
        ~inner)))
 
 (defmacro compile-leaf [{:keys [style pre post draw]}]
-  (if style
-    (compile-style style (compile-leaf-inner pre draw post))
-    (compile-leaf-inner pre draw post)))
+  `(~(if style
+       (compile-style style (compile-leaf-inner pre draw post))
+       (compile-leaf-inner pre draw post))
+    conj []))
 
 (defmacro compile-node [{:keys [style pre recur-on post]}]
-  (if style
-    (compile-style style (compile-node-inner pre recur-on post))
-    (compile-node-inner pre recur-on post)))
+  `(~(if style
+       (compile-style style (compile-node-inner pre recur-on post))
+       (compile-node-inner pre recur-on post))
+    conj []))
 
 (def compile*-seq-method
   `(~'compile* [seq#]
-    (fn [xf# acc#]
-      (reduce (fn [inner-acc# x#]
-                ((compile* x#) xf# inner-acc#))
-              acc# seq#))))
+    (reduce (fn [acc# x#]
+              (into acc# (lemonade.renderers.canvas/compile x#)))
+            []  seq#)))
 
 (defmacro add-seq-compilers
   {:style/indent 2
