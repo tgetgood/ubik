@@ -1,16 +1,18 @@
 (ns lemonade.events.canvas
   (:require [clojure.string :as string]
-            [goog.object :as obj]
             [lemonade.events :as events]))
 
 (defn- kw->js [kw]
   (string/replace (name kw) #"-" ""))
 
+(defn oget [o k]
+  (unchecked-get o k))
+
 (defn pixel-point
   "Returns pixel clicked on relative to canvas element."
   [elem e]
-  [(- (obj/get e "clientX") (obj/get elem "offsetLeft"))
-   (- (obj/get e "clientY") (obj/get elem "offsetTop"))])
+  [(- (oget e "clientX") (oget elem "offsetLeft"))
+   (- (oget e "clientY") (oget elem "offsetTop"))])
 
 (defn ^:private event-map
   [elem dispatch-fn]
@@ -56,9 +58,9 @@
 
    :wheel        (fn [e]
                    (.preventDefault e)
-                   (let [mag (if (= 1 (obj/get e "deltaMode")) 15 1)
-                         dx  (* mag (js/parseInt (obj/get e "deltaX")))
-                         dy  (* mag (js/parseInt (obj/get e "deltaY")))]
+                   (let [mag (if (= 1 (oget e "deltaMode")) 15 1)
+                         dx  (* mag (js/parseInt (oget e "deltaX")))
+                         dy  (* mag (js/parseInt (oget e "deltaY")))]
                      (dispatch-fn {:type     ::events/wheel
                                    :location (pixel-point elem e)
                                    :dx       dx
