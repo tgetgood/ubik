@@ -153,7 +153,7 @@
                             (fn [seg [start _] [_ end]]
                               (if ( = start end)
                                 [seg]
-                                [(call "moveTo" (first start) (second start))
+                                [(call "moveTo" (nth start 0) (nth start 1))
                                  seg]))
                                    (map region-compile* boundary)
                                    endpoints
