@@ -1,6 +1,7 @@
 (ns lemonade.geometry
   (:require [lemonade.core :as core]
-            [lemonade.math :as math]))
+            [lemonade.math :as math]
+            [lemonade.sequentials :as seqs #?@(:cljs [:include-macros true])]))
 
 (defn normalise
   "Converts an extent into normal form [lower-left top-right]"

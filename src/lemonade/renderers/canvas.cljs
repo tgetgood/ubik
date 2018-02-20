@@ -100,7 +100,7 @@
   IndexedSeqIterator)
 
 (extend-protocol Canvas2DRenderable
-  default
+  eefault
   (compile* [this]
     (if (core/template? this)
       (compile* (core/expand-template this))

@@ -1,5 +1,5 @@
 (ns lemonade.core
-  #?(:cljs (:require-macros [lemonade.core :refer [deftemplate]]))
+  #?(:cljs (:require-macros [lemonade.core :refer [deftemplate extend-to-types]]))
   (:require [clojure.string :as string]
             [lemonade.math :as math]))
 
@@ -360,3 +360,42 @@
   (-> raw-text
       (assoc :text text :style style :corner corner)
       (reflect corner [1 0])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Shape Walking
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+#?(:clj
+   (defmacro extend-to-types
+     {:style/indent [2 :form [1]]}
+     [prot types [method [this & args] & body]]
+     `(extend-protocol ~prot
+        ~@(mapcat
+            (fn [t]
+              [t `(~method [~this ~@args]
+                   ~@body)])
+            types))))
+
+(defprotocol WalkableShape
+  (walk [this node-fn leaf-fn]))
+
+(extend-to-types WalkableShape
+    #?(:cljs [List
+              LazySeq
+              PersistentVector
+              IndexedSeq
+              ArrayList]
+       :clj [clojure.lang.PersistentVector
+             clojure.lang.PersistentList
+             clojure.lang.ArraySeq
+             clojure.lang.IndexedSeq
+             clojure.lang.LazySeq
+             clojure.lang.LazilyPersistentVector])
+
+  (walk [this node-fn leaf-fn]
+    (node-fn (map #(walk % node-fn leaf-fn) this))))
+
+(extend-protocol WalkableShape
+  AffineTransformation
+  (walk [this node-fn leaf-fn]
+    ))
