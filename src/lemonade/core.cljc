@@ -62,7 +62,28 @@
   (cond
     (template? shape)   ::template
     (sequential? shape) ::sequential
-    :else               (:type shape)))
+    :else               (type shape)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Shape Universals
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defprotocol IShape
+  (children-key [shape]))
+
+(defn has-children? [shape]
+  (not (nil? (children-key shape))))
+
+(defn children [shape]
+  (get shape (children-key shape)))
+
+(extend-protocol IShape
+  nil
+  (children-key [_] nil)
+
+  #?(:cljs default :clj Object)
+  (children-key [_]
+    nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; 1D Geometry
@@ -150,7 +171,9 @@
 ;;;;; Higher Order Shapes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defrecord Region [style boundary])
+(defrecord Region [style boundary]
+  IShape
+  (children-key [_] :boundary))
 
 (defn region
   ([boundary] (region {} boundary))
@@ -159,19 +182,24 @@
     {:style style
      :boundary boundary})))
 
-(defrecord Composite [style contents])
+(defrecord Composite [style contents]
+  IShape
+  (children-key [_] :contents))
 
 (defn composite
-  ([contents] (composite {} contents))
+  ([] (composite nil nil))
+  ([contents] (composite nil contents))
   ([style contents]
    (map->Composite {:style style
                     :contents contents})))
 
-(defrecord Frame [corner width height style base-shape])
+(defrecord Frame [corner width height style base-shape]
+  IShape
+  (children-key [_] :base-shape))
 
 (def frame
-  "A frame is a visual which restricts image to fall within extent. Extent is a
-  map with keys as per :lemonade.core/rectangle"
+  "A frame is a visual which restricts image to fall within a rectangle.
+  Keys as per lemonade.core/rectangle plus the :base-shape which is framed."
   (map->Frame
    {:corner [0 0]
     :width 1
@@ -278,7 +306,9 @@
 
 ;;;;; Applied Affine Transformations
 
-(defrecord AffineTransformation [atx base-shape])
+(defrecord AffineTransformation [atx base-shape]
+  IShape
+  (children-key [_] :base-shape))
 
 (defn transform
   "Returns a new shape which is the given affine map applies to the base shape.
@@ -365,37 +395,18 @@
 ;;;;; Shape Walking
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#?(:clj
-   (defmacro extend-to-types
-     {:style/indent [2 :form [1]]}
-     [prot types [method [this & args] & body]]
-     `(extend-protocol ~prot
-        ~@(mapcat
-            (fn [t]
-              [t `(~method [~this ~@args]
-                   ~@body)])
-            types))))
-
-(defprotocol WalkableShape
-  (walk [this node-fn leaf-fn]))
-
-(extend-to-types WalkableShape
-    #?(:cljs [List
-              LazySeq
-              PersistentVector
-              IndexedSeq
-              ArrayList]
-       :clj [clojure.lang.PersistentVector
-             clojure.lang.PersistentList
-             clojure.lang.ArraySeq
-             clojure.lang.IndexedSeq
-             clojure.lang.LazySeq
-             clojure.lang.LazilyPersistentVector])
-
-  (walk [this node-fn leaf-fn]
-    (node-fn (map #(walk % node-fn leaf-fn) this))))
-
-(extend-protocol WalkableShape
-  AffineTransformation
-  (walk [this node-fn leaf-fn]
-    ))
+(def sequential-types
+  "Reference. This needs to be included literally pretty much everywhere it's
+  used because macros always read the :clj for regardless of which runtime you
+  mean."
+  #?(:cljs [List
+            LazySeq
+            PersistentVector
+            IndexedSeq
+            ArrayList]
+     :clj [clojure.lang.PersistentVector
+           clojure.lang.PersistentList
+           clojure.lang.ArraySeq
+           clojure.lang.IndexedSeq
+           clojure.lang.LazySeq
+           clojure.lang.LazilyPersistentVector]))

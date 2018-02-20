@@ -1,144 +1,170 @@
 (ns lemonade.geometry
-  (:require [lemonade.core :as core]
-            [lemonade.math :as math]
-            [lemonade.sequentials :as seqs #?@(:cljs [:include-macros true])]))
+  (:refer-clojure :exclude [contains?])
+  #?(:clj
+     (:import [lemonade.core
+               AffineTransformation Composite Region Frame Text Line Arc
+               Circle]))
+  (:require [lemonade.math :as math]
+            [lemonade.core :as core
+             #?@(:cljs
+                 [:refer [AffineTransformation Frame Region Composite Text
+                          Line Arc]])]))
+(defprotocol Geometry
+  (bound [shape]
+    "Returns a bounding box for the shape.")
+  (^boolean contained-in? [shape box]
+    "Returns true iff shape overlaps visibly with the bounding box. Used to
+    decide what needs to be rendered. Don't implement for polygons as
+    Cohen-Sutherland is probably better than you.")
+  (^boolean contains? [shape point]
+   "Returns true iff shape contains point."))
 
-(defn normalise
-  "Converts an extent into normal form [lower-left top-right]"
-  [[[x1 y1] [x2 y2]]]
-  (let [[x1 x2] (sort [x1 x2])
-        [y1 y2] (sort [y1 y2])]
-    [[x1 y1] [x2 y2]]))
+(defprotocol GeometricSet
+  (-union [shape s2])
+  (-intersection [shape s2]))
 
-(defn within?
-  "Returns true is point is with the given bounding box."
-  [[x y] extent]
-  (when extent
-    (let [[[x1 y1] [x2 y2]] (normalise extent)]
-      (and (<= x1 x x2) (<= y1 y y2)))))
+(defrecord NilBox []
+    GeometricSet
+  (-union [this o] o)
+  (-intersection [this o] this))
+
+(def empty-box (NilBox.))
+
+(defrecord BoundingBox [xmin xmax ymin ymax]
+  GeometricSet
+  (-union [this o]
+    (if (instance? NilBox o)
+      this
+      (BoundingBox. (min xmin (:xmin o))
+                    (max xmax (:xmax o))
+                    (min ymin (:ymin o))
+                    (max ymax (:ymax o)))))
+
+  Geometry
+  (bound [box]
+    box)
+  (contains? [{:keys [xmin xmax ymin ymax]} [x y]]
+    (and (<= xmin x xmax) (<= ymin y ymax))))
+
+(defn union
+  ([] empty-box)
+  ([box] box)
+  ([b1 b2]
+   (-union ^not-native b1 b2))
+  ([b1 b2 & more]
+   (reduce -union (union b1 b2) more)))
+
+(defn intersection
+  ;; 0 args => infinite box. TODO: eventually
+  ([box] box)
+  ([b1 b2]
+   (-intersection ^not-native b1 b2))
+  ([b1 b2 & more]
+   (reduce -intersection (intersection b1 b2) more)))
+
+(defn bounding-box [[x1 y1] [x2 y2]]
+  (BoundingBox. (min x1 x2) (max x1 x2) (min y1 y2) (max y1 y2)))
 
 (defn min-box
-  "Returns the smallest bounding box around the convex hull of points"
+  "Returns the smallest bounding box around the convex hull of points."
   [points]
-  [[(apply min (map first points)) (apply min (map second points))]
-   [(apply max (map first points)) (apply max (map second points))]])
+  (let [xs (map first points)
+        ys (map second points)]
+    (BoundingBox. (apply min xs) (apply max xs) (apply min ys) (apply max ys))))
+
+(defn transform-bounding-box [atx {:keys [xmin ymin xmax ymax]}]
+  (let [cps (map (partial math/apply-atx atx)
+                 [[xmin ymin] [xmax ymax] [xmin ymax] [xmax ymin]])]
+    (min-box cps)))
 
 (defn pi-mults
   "Returns multiples of π/2 in interval [r s]"
   [r s]
-  (let [[r s] (map #(mod % (* 2 math/pi)) [r s])]
-    (filter #(<= r % s) (map #(* (/ math/pi 2) %) (range 0 8)))))
+  (if (<= (* 2 math/pi) (math/abs (- r s)))
+    (map #(* (/ math/pi 2) %) (range 0 4))
+    (let [[r s] (map #(mod % (* 2 math/pi)) [r s])]
+      (filter #(<= r % s) (map #(* (/ math/pi 2) %) (range 0 8))))))
 
-(defmulti extent
-  "Returns a bounding box for shape. Doesn't have to be optimal, but the
-  narrower the better."
-  :type)
-
-(defmethod extent :default
-  [s]
-  (if (core/template? s)
-    (extent (core/expand-template s))
-    [[0 0] [0 0]]))
-
-(defmethod extent ::core/text
-  [{:keys [corner text style]}]
-  ;; TODO: Get the line height from the style
-  ;; We need better text render modelling in any case.
-  [corner [(* 12 (count text)) 16]])
-
-(defmethod extent :pixel.core/pixel
-  [{[x y] :location}]
-  [[x y] [(inc x) (inc y)]])
-
-(defmethod extent ::core/circle
-  [{[x y] :centre r :radius}]
-  [[(- x r) (- y r)] [(+ x r) (+ y r)]])
-
-(defmethod extent ::core/line
-  [{[x1 y1] :from [x2 y2] :to}]
-  (let [[x1 x2] (sort [x1 x2])
-        [y1 y2] (sort [y1 y2])]
+(extend-protocol Geometry
+  #?(:clj Object :cljs default)
+  (bound [shape]
     (cond
-      (< (- x2 x1) 5) [[(- x1 2) y1] [(+ x2 2) y2]]
-      (< (- y2 y1) 5) [[x1 (- y1 2)] [x2 (+ y2 2)]]
-      :else           [[x1 y1] [x2 y2]])))
+      (core/template? shape)     (bound (core/expand-template shape))
+      (sequential? shape)        (reduce union (map bound shape))
+      (core/has-children? shape) (bound (core/children shape))
+      :else                      empty-box))
 
-(defmethod extent ::core/annulus
-  [{r :outer-radius c :centre}]
-  (extent (assoc core/circle :radius r :centre c)))
+  AffineTransformation
+  (bound [{:keys [atx base-shape]}]
+    (transform-bounding-box atx (bound base-shape)))
 
-(defmethod extent :elections-demo.core/annular-wedge
-  [{[x y] :centre from :from to :to r :outer-radius ir :inner-radius}]
-  (let [cf (math/cos from)
-        ct (math/cos to)
-        sf (math/sin from)
-        st (math/sin to)]
-    (min-box (conj (map (fn [x]
-                          [(* r (math/cos x)) (* r (math/sin x))])
-                        (pi-mults from to))
-                   [(* r cf) (* r sf)]
-                   [(* r ct) (* r st)]
-                   [(* ir cf) (* ir sf)]
-                   [(* ir ct) (* ir st)]))))
+  Text
+  (bound [{:keys [corner text]}]
+    (bounding-box corner [(* 12 (count text)) 16]))
 
-(defmethod extent ::core/polyline
-  [{:keys [points]}]
-  (min-box points))
+  Line
+  (bound [{:keys [from to]}]
+    (bounding-box from to))
 
-(defn branch-seq
+  Arc
+  (bound [{[x y] :centre from :from to :to r :radius}]
+    (let [cf (math/cos from)
+          ct (math/cos to)
+          sf (math/sin from)
+          st (math/sin to)]
+      (min-box (conj (map (fn [x]
+                            [(* r (math/cos x)) (* r (math/sin x))])
+                          (pi-mults from to))
+                     [(* r cf) (* r sf)]
+                     [(* r ct) (* r st)])))))
+(defn clean [node]
+  (-> node
+      (assoc :tag (gensym)
+             (core/children-key node) nil)))
+
+(defn recombinator [[head & tail]]
+  (if (seq tail)
+    (assoc head (core/children-key head) (recombinator tail))
+    head))
+
+(defn branch-seq*
   "Given a render tree, return a seq of all paths from the root to a leaf."
-  [tree]
-  (let [type  (core/classify tree)
-        clean (fn [tree]
-                (-> tree
-                    (dissoc :lemonade.events/handlers)
-                    (assoc :tag (gensym))))]
-    (cond
-      (= type ::core/sequential)
-      (let [node (with-meta
-                   (dissoc (clean (core/composite [])) :contents)
-                   (meta tree))]
-        (->> tree
-             (mapcat branch-seq)
-             (map (partial cons node))))
+  [shape]
+  (cond
+    (core/has-children? shape)
+    (let [node (clean shape)]
+      (->> shape
+           core/children
+           branch-seq*
+           (map #(conj % node))))
 
-      (= type ::core/composite)
-      (let [node (dissoc (clean tree) :contents)]
-        (->> tree
-             :contents
-             (mapcat branch-seq)
-             (map (partial cons node))))
+    (sequential? shape)
+    (let [node (with-meta
+                 (clean (core/composite))
+                 (meta shape))]
+      (->> shape
+           (mapcat branch-seq*)
+           (map #(conj % node))))
 
-      (= type ::core/frame)
-      (let [node (dissoc (clean tree) :contents)]
-        (->> tree
-             :base-shape
-             branch-seq
-             (map (partial cons node))))
+    :else
+    (list (list shape))))
 
-      (= type ::core/atx)
-      (let [node (dissoc (clean tree) :base-shape)]
-        (->> tree
-             :base-shape
-             branch-seq
-             (map (partial cons node))))
+(defn branch-seq [shape]
+  (map recombinator (branch-seq* shape)))
 
-      :else
-      (list (list tree)))))
-
-(defn bound-branch
+#_(defn bound-branch
   "Given a branch, calculate a (not necessarily optimal) bounding box."
   [[head & tail]]
   (cond
     (empty? tail)
-    (extent head)
+    (bound head)
 
-    (= ::core/atx (:type head))
-    (mapv (partial math/apply-atx (:atx head)) (bound-branch tail))
+    (instance? AffineTransformation head)
+    (mapv (partial transform-bounding-box (:atx head)) (bound-branch tail))
 
-    (= ::core/frame (:type head))
+    (instance? Frame head)
     (let [{[x y] :corner w :width h :height} head
-          [[x1 y1] [x2 y2]]                  (normalise (bound-branch tail))]
+          [[x1 y1] [x2 y2]]                  (bound-branch tail)]
       ;; FIXME: This assertion belongs somewhere else. Like where frames are
       ;; made. Except we can't do that. Specs are a good start.
       (assert (and (> h 0) (> w 0)))
@@ -153,7 +179,7 @@
   [point tree]
   (->> tree
        branch-seq
-       (filter #(within? point (bound-branch %)))))
+       (filter #(contains? (bound %) point))))
 
 (defn retree
   "Given a collection of branches that share the same root, reconstruct a
@@ -164,7 +190,10 @@
                      (let [root (dissoc root :tag)
                            type (core/classify root)]
                        (cond
-                         (contains? #{::core/composite ::core/frame} type)
+                         (= type ::core/composite)
+                         (assoc root :contents (retree (map rest branches)))
+
+                         (= type ::core/frame)
                          (assoc root :contents (retree (map rest branches)))
 
                          (= type ::core/atx)
