@@ -58,14 +58,21 @@
 (defn tag
   "Tags shape with key so that it can be looked up later. Key can be either a
   single value or a vector. If a vector is provided the index will be nested."
-  [shape key]
-  (with-meta shape
-    (update (meta shape) ::tag conj key)))
+  ([shape key] (tag shape key {}))
+  ([shape key metadata]
+   (with-meta shape
+     (update (meta shape) ::tag conj [key metadata]))))
 
 (defn get-tags
   "Returns all tags which have been added to this shape."
   [shape]
   (get (meta shape) ::tag))
+
+(defn get-tag-data [shape key]
+  (-> shape
+      meta
+      (get ::tag)
+      (get key)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Shape Universals
