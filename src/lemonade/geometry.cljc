@@ -17,7 +17,10 @@
     decide what needs to be rendered. Don't implement for polygons as
     Cohen-Sutherland is probably better than you.")
   (^boolean contains? [shape point]
-   "Returns true iff shape contains point."))
+   "Returns true iff shape contains point.")
+  (distance [shape point]
+    "Returns the distance from shape to point. Must return a positive number,
+  and (zero? (distance shape point)) <=> (contains? shape point)"))
 
 (defprotocol GeometricSet
   (-union [shape s2])
@@ -87,6 +90,8 @@
 
 (extend-protocol Geometry
   #?(:clj Object :cljs default)
+  (contains? [shape point]
+    (zero? (distance shape point)))
   (bound [shape]
     (cond
       (core/template? shape)     (bound (core/expand-template shape))
@@ -152,28 +157,6 @@
 (defn branch-seq [shape]
   (map recombinator (branch-seq* shape)))
 
-#_(defn bound-branch
-  "Given a branch, calculate a (not necessarily optimal) bounding box."
-  [[head & tail]]
-  (cond
-    (empty? tail)
-    (bound head)
-
-    (instance? AffineTransformation head)
-    (mapv (partial transform-bounding-box (:atx head)) (bound-branch tail))
-
-    (instance? Frame head)
-    (let [{[x y] :corner w :width h :height} head
-          [[x1 y1] [x2 y2]]                  (bound-branch tail)]
-      ;; FIXME: This assertion belongs somewhere else. Like where frames are
-      ;; made. Except we can't do that. Specs are a good start.
-      (assert (and (> h 0) (> w 0)))
-      (when-not (or (> x1 (+ x w)) (> y1 (+ y h)) (> x x2) (> y y2))
-        [[(max x x1) (max y y1)] [(min x2 (+ x w)) (min y2 (+ y h))]]))
-
-    :else
-    (recur tail)))
-
 (defn effected-branches
   "Returns all branches of tree which contain point in their bounding boxes."
   [point tree]
@@ -187,26 +170,18 @@
   [branches]
   (let [sets  (group-by first branches)
         trees (map (fn [[root branches]]
-                     (let [root (dissoc root :tag)
-                           type (core/classify root)]
-                       (cond
-                         (= type ::core/composite)
-                         (assoc root :contents (retree (map rest branches)))
-
-                         (= type ::core/frame)
-                         (assoc root :contents (retree (map rest branches)))
-
-                         (= type ::core/atx)
-                         (let [children (retree (map rest branches))]
-                           (assoc root :base-shape
-                                  (if (sequential? children)
-                                    (first children)
-                                    children)))
-
-                         :else
-                         root)))
+                     (if (core/has-children? root)
+                       (-> root
+                           (dissoc :tag)
+                           (assoc (core/children-key root)
+                                  (retree (map rest branches))))
+                       (dissoc root :tag)))
                    sets)]
-    trees))
+    (map (fn [branch]
+           (if (and (sequential? branch) (= 1 (count branch)))
+             (first branch)
+             branch))
+         trees)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; TODO: Index objects (not until speed becomes an issue)

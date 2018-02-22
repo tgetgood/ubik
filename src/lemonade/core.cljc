@@ -1,5 +1,5 @@
 (ns lemonade.core
-  #?(:cljs (:require-macros [lemonade.core :refer [deftemplate extend-to-types]]))
+  #?(:cljs (:require-macros [lemonade.core :refer [deftemplate]]))
   (:require [clojure.string :as string]
             [lemonade.math :as math]))
 
@@ -55,14 +55,17 @@
     (recur (expand-template shape))
     shape))
 
-(defn classify
-  "Shape classifier. Returns a keyword type for any valid shape. Returns nil for
-  invalid shapes. Intended for use in multimethods."
+(defn tag
+  "Tags shape with key so that it can be looked up later. Key can be either a
+  single value or a vector. If a vector is provided the index will be nested."
+  [shape key]
+  (with-meta shape
+    (update (meta shape) ::tag conj key)))
+
+(defn get-tags
+  "Returns all tags which have been added to this shape."
   [shape]
-  (cond
-    (template? shape)   ::template
-    (sequential? shape) ::sequential
-    :else               (type shape)))
+  (get (meta shape) ::tag))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Shape Universals

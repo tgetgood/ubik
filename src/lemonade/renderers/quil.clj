@@ -3,7 +3,7 @@
             [lemonade.renderers.util :as util]
             [quil.core :as q]))
 
-(defmulti render-fn (fn [state shape] (core/classify shape)))
+(defmulti render-fn (fn [state shape] (type shape)))
 
 (defn render-all [states shapes]
   (mapcat render-fn states shapes))

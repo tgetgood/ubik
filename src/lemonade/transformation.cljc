@@ -41,7 +41,7 @@
 ;; REVIEW: This should be a straight up cond, no?
 ;; The only switches here are on core builtins.
 
-(defmulti clean-node core/classify)
+(defmulti clean-node #(keyword :lemonade.core (type %)))
 
 (defmethod clean-node ::core/atx
   [atx]
