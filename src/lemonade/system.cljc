@@ -55,8 +55,7 @@
     :host           hosts/default-host
     :size           :fullscreen
     :event-handlers {}}
-   ;; Allow static images as well as state driven
-   (update opts :render #(if (fn? %) % (constantly %)))))
+   opts))
 
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
@@ -98,6 +97,8 @@
                                                      (state/world)
                                                      ev))))
 
+    ;; Rendering should be an event stream as well: requestAnimationframe ->
+    ;; (dispatch! ::draw!) or some such.
     (draw-loop @state/internal-db
                (coords/wrap-invert-coordinates render)
                (hp/render-fn host))))
