@@ -149,15 +149,15 @@
       (compile-leaf {:style style
 
                      :pre   [*begin-path]
-                     :draw (mapcat
-                            (fn [seg [start _] [_ end]]
-                              (if ( = start end)
-                                [seg]
-                                [(call "moveTo" (nth start 0) (nth start 1))
-                                 seg]))
-                                   (map region-compile* boundary)
-                                   endpoints
-                                   (cons [nil nil] endpoints))
+                     :draw  (mapcat
+                             (fn [seg [start _] [_ end]]
+                               (if ( = start end)
+                                 [seg]
+                                 [(call "moveTo" (nth start 0) (nth start 1))
+                                  seg]))
+                             (map region-compile* boundary)
+                             endpoints
+                             (cons [nil nil] endpoints))
                      :post  [*maybe-fill
                              *stroke]})))
 
@@ -169,10 +169,10 @@
   core/Rectangle
   (compile* [{:keys [style width height] [x y] :corner}]
     (compile-leaf {:style style
-                   :pre [*begin-path]
-                   :draw [(call "rect" x y width height)]
-                   :post [*maybe-fill
-                          *stroke]}))
+                   :pre   [*begin-path]
+                   :draw  [(call "rect" x y width height)]
+                   :post  [*maybe-fill
+                           *stroke]}))
 
   core/Line
   (region-compile* [{[x1 y1] :from [x2 y2] :to style :style}]
