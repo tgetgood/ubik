@@ -55,6 +55,10 @@
     (recur (expand-template shape))
     shape))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Indexing / Location
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn tag
   "Tags shape with key so that it can be looked up later. Key can be either a
   single value or a vector. If a vector is provided the index will be nested."
@@ -407,7 +411,7 @@
 
 (def sequential-types
   "Reference. This needs to be included literally pretty much everywhere it's
-  used because macros always read the :clj for regardless of which runtime you
+  used because macros always read the :clj form regardless of which runtime you
   mean."
   #?(:cljs [List
             LazySeq
@@ -418,5 +422,35 @@
            clojure.lang.PersistentList
            clojure.lang.ArraySeq
            clojure.lang.IndexedSeq
-           clojure.lang.LazySeq
-           clojure.lang.LazilyPersistentVector]))
+           clojure.lang.LazySeq]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Hosting & drawing
+;;
+;; Drawing shapes is tightly coupled with the host platform. Obviously there's
+;; an inherent connection since we need to have a host in order to draw, but I
+;; feel like there's more I can do here.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^:dynamic *host*
+  "Global rendering context."
+  nil)
+
+(defprotocol Host
+  (event-system [this])
+  (render-fn [this])
+  (width [this] "Current frame width")
+  (height [this] "Current frame height")
+  (on-resize [this cb] "Invoke cb when host is resized")
+  (resize-frame [this [width height]])
+  (fullscreen [this]))
+
+(defn draw!
+  "Draws shape to host. If host not specified, the currently set host is
+  used. If no host is set, we can't draw anything."
+  ([shape] (draw! shape *host*))
+  ([shape host]
+   ((render-fn host)
+    (with-meta
+      (transform shape (math/atx [1 0 0 -1] [0 (height host)]))
+      {:atx-type ::coordinate-inversion}))))

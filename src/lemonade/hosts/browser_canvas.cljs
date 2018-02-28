@@ -2,7 +2,7 @@
   (:require [goog.object :as obj]
             [lemonade.events.canvas :as events]
             [lemonade.renderers.canvas :as canvas-renderer]
-            [lemonade.hosts.protocol :as protocol]))
+            [lemonade.core :as core]))
 
 (defn canvas-elem []
   (js/document.getElementById "canvas"))
@@ -29,15 +29,15 @@
     (set! (.-onresize js/window)
           (fn []
             (when (compare-and-set! running false true)
-              (.requestAnimationFrame
-               js/window
+              (js/setTimeout
                (fn []
                  (when (compare-and-set! running true false)
-                   (cb)))))))))
+                   (cb)))
+               200))))))
 
 (defn host [element]
   (reify
-    protocol/Host
+    core/Host
 
     (event-system [_] (events/event-system element))
     (render-fn [_] (partial canvas-renderer/draw! element))
