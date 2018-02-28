@@ -41,6 +41,8 @@
   (s/and (s/keys :req-un [::boundary] :opt-un [::style/style])
          #(core/closed-path? (:contents %))))
 
+(s/def ::shape any?)
+
 (s/def ::base-shape ::shape)
 
 (s/def ::affine-transform
@@ -54,7 +56,8 @@
 (defmulti template-spec :type)
 
 (s/def ::template
-  (s/or :speced (s/multi-spec template-spec :type)
+  #(satisfies? core/ITemplate %)
+  #_(s/or :speced (s/multi-spec template-spec :type)
         :recursive (s/and
                     core/template?
                     #(s/valid? ::shape (core/expand-template %)))))

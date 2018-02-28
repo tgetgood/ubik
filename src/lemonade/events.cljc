@@ -7,7 +7,7 @@
 
 (defn enqueue [event]
   (swap! event-queue conj event))
-e
+
 (defn dispatcher
   "Returns an event dispatch fn."
   ;; TODO: Will eventually need to use a queue and not block the main thread too

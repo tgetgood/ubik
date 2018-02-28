@@ -6,9 +6,7 @@
   (realise [this signal-graph]))
 
 (defn instantiate [shape state]
-  (if (instance? SubscribedShape shape)
-    (realise shape state)
-    (core/walk-down shape #(instantiate % state))))
+  (core/walk-down shape #(realise % state)))
 
 (extend-protocol ISubscription
   ;; If you don't subscribe, this is pass through. You can alternately think of

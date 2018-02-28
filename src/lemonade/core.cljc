@@ -97,10 +97,10 @@
     (into (empty shape) (map f shape))
 
     (has-children? shape)
-    (assoc shape (children-key shape) (f (children shape)))
+    (f (assoc shape (children-key shape) (f (children shape))))
 
     :else
-    shape))
+    (f shape)))
 
 (extend-protocol IShape
   nil
