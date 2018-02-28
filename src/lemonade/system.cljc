@@ -1,7 +1,6 @@
 ;;;
 (ns lemonade.system
-  (:require [lemonade.coordinates :as coords]
-            [lemonade.core :as core]
+  (:require [lemonade.core :as core]
             [lemonade.events.hlei :as hlei]
             [lemonade.hosts :as hosts]
             [lemonade.state :as state]
@@ -47,7 +46,7 @@
 (defn with-defaults [opts]
   (merge
    {:app-db         (atom {})
-    :host           core/*host*
+    :host           hosts/default-host
     :size           :fullscreen
     :event-handlers {}}
    opts))
@@ -63,21 +62,15 @@
   (let [{:keys [app-db render host event-handlers size]}
         (with-defaults opts)]
 
-    (set! core/*host* (:host opts))
+    (set! core/*host* host)
 
     (reset! state/internal-db app-db)
 
     (when (= size :fullscreen)
-      (core/fullscreen host)
-      (core/on-resize host (fn []
-                           (core/fullscreen host)
-                           (swap! @state/internal-db update :lemonade.core/window
-                                  assoc
-                                  :height (core/height host)
-                                  :width (core/width host)))))
+      (core/fullscreen host))
 
     (when (and (vector? size) (= 2 (count size)))
-      (apply core/resize-frame host size))
+      (core/resize-frame host size))
 
     (when-not (:lemonade.core/window @@state/internal-db)
       (swap! @state/internal-db assoc :lemonade.core/window window/initial-window))
@@ -86,18 +79,10 @@
            :height (core/height host)
            :width  (core/width host))
 
-    (let [event-system (core/event-system host)
-          event-dispatcher (events/dispatcher event-handlers)]
-      (events/teardown event-system)
-      (events/setup event-system (fn [ev]
-                                   (event-dispatcher @@state/internal-db
-                                                     (state/world)
-                                                     ev))))
-
     ;; Rendering should be an event stream as well: requestAnimationframe ->
     ;; (dispatch! ::draw!) or some such.
     (draw-loop @state/internal-db
-               (coords/wrap-invert-coordinates render))))
+               render)))
 
 (defn stop! []
   (when-let [sfn @idem]

@@ -2,13 +2,12 @@
   (:require [lemonade.geometry :as geo]
             [lemonade.state :as state]))
 
-(defprotocol IEventSystem
-  (setup [this dispatch-fn]
-    "Initialise the event system. System should call dispatch-fn with events
-    received.")
-  (teardown [this]
-    "Clean up and shut down this event system."))
+(def event-queue (atom #?(:clj clojure.lang.PersistentQueue/EMPTY
+                          :cljs (.-EMPTY PersistentQueue))))
 
+(defn enqueue [event]
+  (swap! event-queue conj event))
+e
 (defn dispatcher
   "Returns an event dispatch fn."
   ;; TODO: Will eventually need to use a queue and not block the main thread too

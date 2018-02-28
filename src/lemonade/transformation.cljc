@@ -32,7 +32,7 @@
       ["Adjustable Window Frame" {:zoom (first (:matrix (:atx atx)))
                                   :pan (:translation (:atx atx))}]
 
-      (= t :lemonade.coordinates/flip)
+      (= t :lemonade.core/invert-coordinates)
       "Coordinate Inversion"
 
       :else

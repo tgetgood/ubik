@@ -83,15 +83,12 @@
 
 (defonce ^:private registered-listeners (atom {}))
 
-(defn event-system [elem]
-  (reify
-    events/IEventSystem
-    (teardown [this]
-      (doseq [[event cb] @registered-listeners]
-        (.removeEventListener elem (kw->js event) cb)))
+(defn teardown [elem]
+          (doseq [[event cb] @registered-listeners]
+            (.removeEventListener elem (kw->js event) cb)))
 
-    (setup [this dispatch-fn]
-      (let [handlers (event-map elem dispatch-fn)]
-        (reset! registered-listeners handlers)
-        (doseq [[event cb] handlers]
-          (.addEventListener elem (kw->js event) cb))))))
+(defn setup [elem dispatch-fn]
+       (let [handlers (event-map elem dispatch-fn)]
+         (reset! registered-listeners handlers)
+         (doseq [[event cb] handlers]
+           (.addEventListener elem (kw->js event) cb))))

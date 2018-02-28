@@ -91,6 +91,17 @@
 (defn children [shape]
   (get shape (children-key shape)))
 
+(defn walk-down [shape f]
+  (cond
+    (sequential? shape)
+    (into (empty shape) (map f shape))
+
+    (has-children? shape)
+    (assoc shape (children-key shape) (f (children shape)))
+
+    :else
+    shape))
+
 (extend-protocol IShape
   nil
   (children-key [_] nil)
@@ -437,13 +448,13 @@
   nil)
 
 (defprotocol Host
-  (event-system [this])
-  (render-fn [this])
+  (setup [this] "Initialise the host.")
+  (teardown [this] "Disconnect and cleanup the host.")
+  (render-fn [this] "Returns the draw fn for this host")
   (width [this] "Current frame width")
   (height [this] "Current frame height")
-  (on-resize [this cb] "Invoke cb when host is resized")
-  (resize-frame [this [width height]])
-  (fullscreen [this]))
+  (resize-frame [this [width height]] "Resize host window.")
+  (fullscreen [this] "Make the host fullscreen (to the extent permitted)"))
 
 (defn draw!
   "Draws shape to host. If host not specified, the currently set host is

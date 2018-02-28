@@ -4,7 +4,7 @@
 (defn ne! []
   (throw (Exception. "Not Implemented!")))
 
-(defn host []
+(defn host [opts]
   (reify
     core/Host
 
