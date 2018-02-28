@@ -170,12 +170,10 @@
   [branches]
   (let [sets  (group-by first branches)
         trees (map (fn [[root branches]]
-                     (if (core/has-children? root)
-                       (-> root
-                           (dissoc :tag)
-                           (assoc (core/children-key root)
-                                  (retree (map rest branches))))
-                       (dissoc root :tag)))
+                     (cond-> (dissoc root :tag)
+                       (core/has-children? root)
+                       (assoc (core/children-key root)
+                              (retree (map rest branches)))))
                    sets)]
     (map (fn [branch]
            (if (and (sequential? branch) (= 1 (count branch)))
