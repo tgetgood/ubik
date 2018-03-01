@@ -76,6 +76,8 @@
     (set! core/*host* host)
 
     (reset! state/internal-db app-db)
+
+    (reset! events/handlers {})
     (events/add-handlers event-handlers)
 
     (cond

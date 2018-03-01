@@ -20,11 +20,27 @@
 (def handlers (atom {}))
 
 (defn add-handlers [hs]
-  (swap! handlers #(merge-with concat % hs)))
+  (let [hs (into {} (map (fn [[k v]] [k (if (sequential? v) v [v])]) hs))]
+    (swap! handlers #(merge-with concat % hs))))
+
+(defmutli run-effect (fn [[k v]] k))
+
+(defmethod run-effect :swap!
+  [[_ v]]
+  (apply swap! state/internal-db v))
+
+(defmethod run-effect :reset!
+  [[_ v]]
+  (reset! state/internal-db v))
+
+(defn effects [m]
+  (assert (not (and (:swap! m) (:reset! m))))
+  (run! run-effect m))
 
 (defn handle-event [e handlers]
   (doseq [handler (get handlers (:type e))]
-    (handler e)))
+    (effects
+     (handler e @state/internal-db))))
 
 (let [reading? (atom false)]
   (add-watch event-queue ::stream
