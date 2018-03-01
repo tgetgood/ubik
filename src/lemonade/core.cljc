@@ -97,7 +97,7 @@
     (into (empty shape) (map f shape))
 
     (has-children? shape)
-    (f (assoc shape (children-key shape) (f (children shape))))
+    (f (update shape (children-key shape) f))
 
     :else
     (f shape)))
@@ -443,11 +443,15 @@
 ;; feel like there's more I can do here.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def ^:dynamic *host*
-  "Global rendering context."
+(defonce
+  ^{:dynamic true
+    :doc   "Global rendering context."}
+  *host*
   nil)
 
 (defprotocol Host
+  "I don't like this protocol much at all. It exposes too much of the inner mess
+  of the DOM while at the same time not exposing enough. Plain bad design."
   (setup [this] "Initialise the host.")
   (teardown [this] "Disconnect and cleanup the host.")
   (render-fn [this] "Returns the draw fn for this host")

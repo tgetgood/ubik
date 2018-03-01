@@ -20,6 +20,7 @@
                    (.preventDefault e)
                    (.stopPropagation e))
 
+   ;; This is to make sure keyboard events happen at all.
    :mouse-over   (fn [e]
                    (.preventDefault e)
                    (.focus elem))
@@ -73,11 +74,6 @@
                                  :raw  e}))
 
    :key-up       (fn [e]
-                   ;; FIXME: There are certain things that I don't want to
-                   ;; override. Like back, (alt-left), devtools, &c..
-                   ;; TODO: But if I want it consistent with the non-browser
-                   ;; version, I need to implement them in my own logic.
-                   (.preventDefault e)
                    (dispatch-fn {:type ::events/key-up
                                  :raw  e}))})
 

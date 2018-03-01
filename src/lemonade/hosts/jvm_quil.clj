@@ -8,9 +8,9 @@
   (reify
     core/Host
 
-    (event-system [_] (ne!))
+    (setup [_] (ne!))
+    (teardown [_] (ne!))
     (render-fn [_] (ne!))
     (width [_] (ne!))
     (height [_] (ne!))
-    (resize-frame [_ [width height]] (ne!))
     (fullscreen [_] (ne!))))

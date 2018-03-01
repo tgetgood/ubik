@@ -2,8 +2,38 @@
   (:require [lemonade.geometry :as geo]
             [lemonade.state :as state]))
 
+(def events
+  "List of known event types."
+  [::mouse-down
+   ::mouse-up
+   ::mouse-move
+   ::touch-start
+   ::touch-move
+   ::touch-end
+   ::wheel
+   ::key-down
+   ::key-up])
+
 (def event-queue (atom #?(:clj clojure.lang.PersistentQueue/EMPTY
                           :cljs (.-EMPTY PersistentQueue))))
+
+(def handlers (atom {}))
+
+(defn add-handlers [hs]
+  (swap! handlers #(merge-with concat % hs)))
+
+(defn handle-event [e handlers]
+  (doseq [handler (get handlers (:type e))]
+    (handler e)))
+
+(let [reading? (atom false)]
+  (add-watch event-queue ::stream
+             (fn [_ r _ q]
+               (when (compare-and-set! reading? false true)
+                 (when-let [e (peek q)]
+                   (handle-event e @handlers)
+                   (swap! r pop)
+                   (reset! reading? false))))))
 
 (defn enqueue [event]
   (swap! event-queue conj event))

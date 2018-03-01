@@ -1,7 +1,8 @@
-;;;
 (ns lemonade.system
   (:require [lemonade.core :as core]
             [lemonade.events.hlei :as hlei]
+            clojure.walk
+
             [lemonade.hosts :as hosts]
             [lemonade.state :as state]
             [lemonade.window :as window]
@@ -18,7 +19,7 @@
   [state-ref shape]
   (when-let [stop @idem]
     (stop))
-  (let [last-state (atom nil)
+  (let [last-state (atom (gensym "NO-MATCH"))
         continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
               #?(:clj
@@ -63,15 +64,23 @@
   (let [{:keys [app-db render host event-handlers size]}
         (with-defaults opts)]
 
+    ;; Set screen size
+    ;; Initialise internal DB
+    ;; Set up event handling
+    ;; Start draw loop
+
+    (when core/*host*
+      (core/teardown core/*host*))
+
+    (core/setup host)
     (set! core/*host* host)
 
     (reset! state/internal-db app-db)
+    (events/add-handlers event-handlers)
 
-    (when (= size :fullscreen)
-      (core/fullscreen host))
-
-    (when (and (vector? size) (= 2 (count size)))
-      (core/resize-frame host size))
+    (cond
+      (= size :fullscreen)                    (core/fullscreen host)
+      (and (vector? size) (= 2 (count size))) (core/resize-frame host size))
 
     (when-not (:lemonade.core/window @@state/internal-db)
       (swap! @state/internal-db assoc :lemonade.core/window window/initial-window))
@@ -80,8 +89,6 @@
            :height (core/height host)
            :width  (core/width host))
 
-    ;; Rendering should be an event stream as well: requestAnimationframe ->
-    ;; (dispatch! ::draw!) or some such.
     (draw-loop @state/internal-db
                render)))
 
