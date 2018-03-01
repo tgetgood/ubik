@@ -5,7 +5,8 @@
             [lemonade.hosts :as hosts]
             [lemonade.state :as state]
             [lemonade.window :as window]
-            [lemonade.events :as events]))
+            [lemonade.events :as events]
+            [lemonade.spray :as spray]))
 
 (defonce ^:private idem (atom nil))
 
@@ -14,21 +15,21 @@
 (defn draw-loop
   "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
   animation frame if @state-ref has changed."
-  [state-ref app-fn]
+  [state-ref shape]
   (when-let [stop @idem]
     (stop))
   (let [last-state (atom nil)
         continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
               #?(:clj
-                 (core/draw! (app-fn @state-ref))
+                 (core/draw! (spray/instantiate shape @state-ref))
                  :cljs
                  (js/window.requestAnimationFrame
                   (fn [now]
                     (when @continue?
                       (let [state @state-ref]
                         (when-not (= state @last-state)
-                          (let [world (app-fn state)]
+                          (let [world (spray/instantiate shape state)]
                             (swap! state-ref assoc :lemonade.core/world world)
                             (core/draw! world))
                           (reset! last-state @state-ref)))
