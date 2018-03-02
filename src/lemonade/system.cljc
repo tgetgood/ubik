@@ -4,7 +4,7 @@
             clojure.walk
 
             [lemonade.hosts :as hosts]
-            [lemonade.state :as state]
+            [lemonade.db :as db]
             [lemonade.window :as window]
             [lemonade.events :as events]
             [lemonade.spray :as spray]))
@@ -16,24 +16,22 @@
 (defn draw-loop
   "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
   animation frame if @state-ref has changed."
-  [state-ref shape]
+  [world]
   (when-let [stop @idem]
     (stop))
   (let [last-state (atom (gensym "NO-MATCH"))
         continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
               #?(:clj
-                 (core/draw! (spray/instantiate shape @state-ref))
+                 (core/draw! (spray/reality world))
                  :cljs
                  (js/window.requestAnimationFrame
                   (fn [now]
                     (when @continue?
-                      (let [state @state-ref]
-                        (when-not (= state @last-state)
-                          (let [world (spray/instantiate shape state)]
-                            (swap! state-ref assoc :lemonade.core/world world)
-                            (core/draw! world))
-                          (reset! last-state @state-ref)))
+                      (let [the-world (spray/reality world)]
+                        (when-not (= the-world @last-state)
+                          (core/draw! the-world)
+                          (reset! last-state the-world)))
                       (if (and *profile* (< 1000 (- now last-run)))
                         (do
                           (println (* 1000 (/ counter (- now last-run))))
@@ -75,7 +73,7 @@
     (core/setup host)
     (set! core/*host* host)
 
-    (reset! state/internal-db app-db)
+    (reset! db/app-db app-db)
 
     (reset! events/handlers {})
     (events/add-handlers event-handlers)
@@ -84,15 +82,15 @@
       (= size :fullscreen)                    (core/fullscreen host)
       (and (vector? size) (= 2 (count size))) (core/resize-frame host size))
 
-    (when-not (:lemonade.core/window @@state/internal-db)
-      (swap! @state/internal-db assoc :lemonade.core/window window/initial-window))
+    (when-not (:lemonade.core/window @@db/app-db)
+      (swap! @db/app-db assoc :lemonade.core/window window/initial-window))
 
-    (swap! @state/internal-db update :lemonade.core/window assoc
+    (swap! @db/app-db update :lemonade.core/window assoc
            :height (core/height host)
            :width  (core/width host))
 
-    (draw-loop @state/internal-db
-               render)))
+    (let [world (spray/halucination render)]
+      (draw-loop world))))
 
 (defn stop! []
   (when-let [sfn @idem]

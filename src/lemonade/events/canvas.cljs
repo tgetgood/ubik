@@ -12,7 +12,7 @@
   "Returns pixel clicked on relative to canvas element."
   [elem e]
   [(- (oget e "clientX") (oget elem "offsetLeft"))
-   (- (oget e "clientY") (oget elem "offsetTop"))])
+   (- (oget elem "height") (- (oget e "clientY") (oget elem "offsetTop")))])
 
 (defn ^:private event-map
   [elem dispatch-fn]

@@ -76,7 +76,7 @@
 
 (defmethod clean-node :default
   [shape]
-  [(:type shape) (dissoc shape :type)])
+  [(type shape) shape])
 
 (defn friendlify-code [tree]
   (clean-node tree))

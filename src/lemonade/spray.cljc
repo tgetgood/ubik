@@ -1,6 +1,8 @@
 (ns lemonade.spray
-  (:require [clojure.walk :as walk]
-            [lemonade.core :as core]))
+  (:refer-clojure :exclude [find -deref])
+  (:require [lemonade.core :as core]
+            [lemonade.db :as db]
+            [lemonade.geometry :as geo]))
 
 (defprotocol ISubscription
   (realise [this signal-graph]))
@@ -33,3 +35,43 @@
   {:style/indent [1 :form]}
   [subscriptions render-fn]
   (SubscribedShape. subscriptions render-fn (gensym "no-match") nil))
+
+(defprotocol MyDeref
+  (-deref [this db]))
+
+(defonce world (atom nil))
+
+(defrecord World [shape]
+  MyDeref
+  (-deref [_ db]
+    (instantiate shape db)))
+
+(defn halucination [shape]
+  (World. shape))
+
+(defn reality [w]
+  (reset! world (-deref w @@db/app-db)))
+
+(defn sub-tagged? [s t]
+  (cond
+    (contains? (core/get-tags s) t) true
+    (sequential? s)                 (some #(sub-tagged? % t) s)
+    (core/has-children? s)          (recur (core/children s) t)
+    :else                           false))
+
+(defn find [tag location]
+  (->> @world
+       (geo/effected-branches location)
+       (filter #(sub-tagged? % tag))
+       first))
+
+(defn tagged-value [shape tag]
+  (if-let [v (core/get-tag-data shape tag)]
+    v
+    (cond
+      (sequential? shape) (first (map #(tagged-value % tag) shape))
+      (core/has-children? shape) (recur (core/children shape) tag)
+      :else nil)))
+
+(defn lookup-tag [tag location]
+  (tagged-value (find tag location) tag))

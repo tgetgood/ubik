@@ -1,6 +1,6 @@
 (ns lemonade.events
   (:require [lemonade.geometry :as geo]
-            [lemonade.state :as state]))
+            [lemonade.db :as db]))
 
 (def events
   "List of known event types."
@@ -23,15 +23,15 @@
   (let [hs (into {} (map (fn [[k v]] [k (if (sequential? v) v [v])]) hs))]
     (swap! handlers #(merge-with concat % hs))))
 
-(defmutli run-effect (fn [[k v]] k))
+(defmulti run-effect (fn [[k v]] k))
 
 (defmethod run-effect :swap!
   [[_ v]]
-  (apply swap! state/internal-db v))
+  (apply swap! @db/app-db v))
 
 (defmethod run-effect :reset!
   [[_ v]]
-  (reset! state/internal-db v))
+  (reset! @db/app-db v))
 
 (defn effects [m]
   (assert (not (and (:swap! m) (:reset! m))))
@@ -40,7 +40,7 @@
 (defn handle-event [e handlers]
   (doseq [handler (get handlers (:type e))]
     (effects
-     (handler e @state/internal-db))))
+     (handler e @db/app-db))))
 
 (let [reading? (atom false)]
   (add-watch event-queue ::stream
@@ -66,4 +66,4 @@
           (when-let [next-event (:dispatch outcome)]
             (dispatch! state world next-event))
           (when-let [mutation (:mutation outcome)]
-            (state/handle-mutation mutation)))))))
+            (db/handle-mutation mutation)))))))

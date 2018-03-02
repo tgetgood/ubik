@@ -65,12 +65,12 @@
   ([shape key] (tag shape key {}))
   ([shape key metadata]
    (with-meta shape
-     (update (meta shape) ::tag conj [key metadata]))))
+     (update (meta shape) ::tag merge {key metadata}))))
 
 (defn get-tags
   "Returns all tags which have been added to this shape."
   [shape]
-  (get (meta shape) ::tag))
+  (into #{} (map key (get (meta shape) ::tag))))
 
 (defn get-tag-data [shape key]
   (-> shape
@@ -92,15 +92,18 @@
   (get shape (children-key shape)))
 
 (defn walk-down [shape f]
-  (cond
-    (sequential? shape)
-    (into (empty shape) (map f shape))
+  (let [f (fn [s] (with-meta (f s) (meta s)))]
+    (cond
+      (sequential? shape)
+      (with-meta
+        (into (empty shape) (map f shape))
+        (meta shape))
 
-    (has-children? shape)
-    (f (update shape (children-key shape) f))
+      (has-children? shape)
+      (f (update shape (children-key shape) f))
 
-    :else
-    (f shape)))
+      :else
+      (f shape))))
 
 (extend-protocol IShape
   nil
