@@ -1,13 +1,13 @@
-(ns lemonade.system
-  (:require [lemonade.core :as core]
-            [lemonade.events.hlei :as hlei]
+(ns ubik.system
+  (:require [ubik.core :as core]
+            [ubik.events.hlei :as hlei]
             clojure.walk
 
-            [lemonade.hosts :as hosts]
-            [lemonade.db :as db]
-            [lemonade.window :as window]
-            [lemonade.events :as events]
-            [lemonade.spray :as spray]))
+            [ubik.hosts :as hosts]
+            [ubik.db :as db]
+            [ubik.window :as window]
+            [ubik.events :as events]
+            [ubik.spray :as spray]))
 
 (defonce ^:private idem (atom nil))
 
@@ -82,10 +82,10 @@
       (= size :fullscreen)                    (core/fullscreen host)
       (and (vector? size) (= 2 (count size))) (core/resize-frame host size))
 
-    (when-not (:lemonade.core/window @@db/app-db)
-      (swap! @db/app-db assoc :lemonade.core/window window/initial-window))
+    (when-not (:ubik.core/window @@db/app-db)
+      (swap! @db/app-db assoc :ubik.core/window window/initial-window))
 
-    (swap! @db/app-db update :lemonade.core/window assoc
+    (swap! @db/app-db update :ubik.core/window assoc
            :height (core/height host)
            :width  (core/width host))
 

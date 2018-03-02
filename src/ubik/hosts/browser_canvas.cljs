@@ -1,14 +1,14 @@
-(ns lemonade.hosts.browser-canvas
-  "Hosts Lemonade in an HTML Canvas element in a browser. Assumes a markup
+(ns ubik.hosts.browser-canvas
+  "Hosts Ubik in an HTML Canvas element in a browser. Assumes a markup
   structure as follows:
 
   <div id='canvas-container'>
     <canvas id='canvas'></canvas>
   </div>"
   (:require [goog.object :as obj]
-            [lemonade.events.canvas :as events]
-            [lemonade.renderers.canvas :as canvas-renderer]
-            [lemonade.core :as core]))
+            [ubik.events.canvas :as events]
+            [ubik.renderers.canvas :as canvas-renderer]
+            [ubik.core :as core]))
 
 (defn canvas-elem []
   (js/document.getElementById "canvas"))
@@ -44,7 +44,7 @@
   (let [element (canvas-elem)
         this (reify
                core/Host
-               (setup [_] (events/setup element lemonade.events/enqueue))
+               (setup [_] (events/setup element ubik.events/enqueue))
                (teardown [_] (events/teardown element))
                (render-fn [_] (partial canvas-renderer/draw! element))
                (width [_] (obj/get element "width"))

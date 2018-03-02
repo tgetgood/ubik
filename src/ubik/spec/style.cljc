@@ -1,6 +1,6 @@
-(ns lemonade.spec.style
+(ns ubik.spec.style
   (:require [clojure.spec.alpha :as s]
-            [lemonade.spec.math :as math]))
+            [ubik.spec.math :as math]))
 
 (def rgba-re
   #"rgba\(\d{1,3}, *\d{0,3}, *\d{0,3}, *(\d\.\d+|\d)\)")

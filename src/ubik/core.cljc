@@ -1,7 +1,7 @@
-(ns lemonade.core
-  #?(:cljs (:require-macros [lemonade.core :refer [deftemplate]]))
+(ns ubik.core
+  #?(:cljs (:require-macros [ubik.core :refer [deftemplate]]))
   (:require [clojure.string :as string]
-            [lemonade.math :as math]))
+            [ubik.math :as math]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Templates
@@ -40,8 +40,8 @@
           ;; causes the whole thing to go haywire even though the relevant parts
           ;; of the expansion don't change at all...
           (defrecord ~template-name [~@fields]
-            lemonade.core/ITemplate
-            (lemonade.core/expand-template [this#]
+            ubik.core/ITemplate
+            (ubik.core/expand-template [this#]
               ~expansion)
             ~@impls)
           (def ~instance-name
@@ -227,7 +227,7 @@
 
 (def frame
   "A frame is a visual which restricts image to fall within a rectangle.
-  Keys as per lemonade.core/rectangle plus the :base-shape which is framed."
+  Keys as per ubik.core/rectangle plus the :base-shape which is framed."
   (map->Frame
    {:corner [0 0]
     :width 1

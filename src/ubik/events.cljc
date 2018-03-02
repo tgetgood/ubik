@@ -1,6 +1,6 @@
-(ns lemonade.events
-  (:require [lemonade.geometry :as geo]
-            [lemonade.db :as db]))
+(ns ubik.events
+  (:require [ubik.geometry :as geo]
+            [ubik.db :as db]))
 
 (def events
   "List of known event types."

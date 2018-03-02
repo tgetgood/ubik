@@ -1,7 +1,7 @@
-(ns lemonade.window
+(ns ubik.window
   "Model the canvas as a window into R^2."
-  (:require [lemonade.core :as core]
-            [lemonade.math :as math]))
+  (:require [ubik.core :as core]
+            [ubik.math :as math]))
 
 (defn normalise-zoom [dz]
   (let [scale 100]
@@ -29,7 +29,7 @@
   {:zoom 0 :offset [0 0]})
 
 (def window-events
-  #:lemonade.events
+  #:ubik.events
   {:scroll    (fn [{:keys [dy location]} _ _]
                 {:mutation [update ::core/window update-zoom location dy]})
 
@@ -38,7 +38,7 @@
 
 (defn wrap-windowing [render]
   (fn [state]
-    (let [{:keys [height width]} (:lemonade.core/window state)]
+    (let [{:keys [height width]} (:ubik.core/window state)]
       [(with-meta (assoc core/frame :height height :width width)
          {:events {:key ::window}})
        (with-meta

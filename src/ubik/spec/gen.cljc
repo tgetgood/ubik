@@ -1,8 +1,8 @@
-(ns lemonade.spec.gen
+(ns ubik.spec.gen
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             clojure.test.check.generators
-            [lemonade.math :as math]))
+            [ubik.math :as math]))
 
 (s/def ::on-screen
   (s/and ::math/real #(< 0 % 1200)))
@@ -31,5 +31,5 @@
 (def segment-gen
   (fn []
     (gen/fmap #(connect [] %)
-              (gen/fmap #(map first (s/exercise :lemonade.core/path-segment %))
+              (gen/fmap #(map first (s/exercise :ubik.core/path-segment %))
                         (gen/int)))))

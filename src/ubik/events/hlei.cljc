@@ -1,7 +1,7 @@
-(ns lemonade.events.hlei
-  (:require [lemonade.core :as core]
-            [lemonade.events :as events]
-            [lemonade.math :as math]))
+(ns ubik.events.hlei
+  (:require [ubik.core :as core]
+            [ubik.events :as events]
+            [ubik.math :as math]))
 
 (defn now []
   #?(:cljs (js/Date.now)
@@ -15,7 +15,7 @@
   (let [drag-state (atom nil)
         down       (atom nil)
         drag-start (atom nil)]
-    #:lemonade.events
+    #:ubik.events
     {:wheel           (fn [ev]
                         {:dispatch (assoc ev :type ::events/scroll)})
 

@@ -1,11 +1,11 @@
-(defproject macroexpanse/lemonade "0.3.1-SNAPSHOT"
+(defproject macroexpanse/ubik "0.3.1-SNAPSHOT"
   :description "High level language for graphical and UI programming. No markup."
-  :url "https://github.com/tgetgood/lemonade"
+  :url "https://github.com/tgetgood/ubik"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
 
   :scm {:name "git"
-        :url "https://github.com/tgetgood/lemonade"}
+        :url "https://github.com/tgetgood/ubik"}
 
   :min-lein-version "2.7.1"
 
@@ -24,9 +24,9 @@
    [{:id           "canvas"
      :source-paths ["src"]
 
-     :figwheel     {:on-jsload "lemonade.demos.canvas/on-js-reload"}
+     :figwheel     {:on-jsload "ubik.demos.canvas/on-js-reload"}
 
-     :compiler     {:main                 lemonade.demos.canvas
+     :compiler     {:main                 ubik.demos.canvas
                     :asset-path           "js/compiled/out"
                     :output-to            "resources/public/js/compiled/canvas.js"
                     :output-dir           "resources/public/js/compiled/out"
@@ -36,7 +36,7 @@
                     :preloads             [devtools.preload]}}
     {:id           "min"
      :source-paths ["src"]
-     :compiler     {:main            lemonade.demos.canvas
+     :compiler     {:main            ubik.demos.canvas
                     :output-to       "resources/public/js/compiled/app.js"
                     :optimizations   :advanced
                     :parallel-build  true

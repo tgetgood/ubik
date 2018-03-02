@@ -1,4 +1,4 @@
-(ns lemonade.renderers.canvas)
+(ns ubik.renderers.canvas)
 
 (defmacro call [f & args]
   `(Call. ~f ~@(take 6 (concat args (repeat nil)))))
@@ -44,7 +44,7 @@
        (as-> coll# ~acc
          ~@(concat (maybe-reduce xf acc pre)
                    [`(reduce ~xf ~acc
-                             (lemonade.renderers.canvas/compile ~recur-on))]
+                             (ubik.renderers.canvas/compile ~recur-on))]
                    (maybe-reduce xf acc post))))))
 
 (defn compile-style [style inner]
@@ -75,7 +75,7 @@
 (def compile*-seq-method
   `(~'compile* [seq#]
     (reduce (fn [acc# x#]
-              (into acc# (lemonade.renderers.canvas/compile x#)))
+              (into acc# (ubik.renderers.canvas/compile x#)))
             []  seq#)))
 
 (defmacro add-seq-compilers

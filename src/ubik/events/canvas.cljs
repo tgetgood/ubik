@@ -1,6 +1,6 @@
-(ns lemonade.events.canvas
+(ns ubik.events.canvas
   (:require [clojure.string :as string]
-            [lemonade.events :as events]))
+            [ubik.events :as events]))
 
 (defn- kw->js [kw]
   (string/replace (name kw) #"-" ""))

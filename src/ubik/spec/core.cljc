@@ -1,9 +1,9 @@
-(ns lemonade.spec.core
+(ns ubik.spec.core
   (:require [clojure.spec.alpha :as s]
-            [lemonade.core :as core]
-            [lemonade.spec.gen :as gen]
-            [lemonade.spec.math :as math]
-            [lemonade.spec.style :as style]))
+            [ubik.core :as core]
+            [ubik.spec.gen :as gen]
+            [ubik.spec.math :as math]
+            [ubik.spec.style :as style]))
 
 (s/def ::line
   (s/keys :req-un [::math/from ::math/to]  :opt-un [::style/style]))
@@ -14,8 +14,8 @@
 
 
 (s/def ::arc
-  (s/keys :req-un [::math/centre ::math/radius :lemonade.math.angle/to
-                   :lemonade.math.angle/from ::clockwise?]
+  (s/keys :req-un [::math/centre ::math/radius :ubik.math.angle/to
+                   :ubik.math.angle/from ::clockwise?]
           :opt-un [::style/style]))
 
 (defmulti path-segment :type)

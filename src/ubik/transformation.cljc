@@ -1,7 +1,7 @@
-(ns lemonade.transformation
+(ns ubik.transformation
   "AST transformations."
   (:require [clojure.walk :as walk]
-            [lemonade.core :as core]))
+            [ubik.core :as core]))
 
 (defn template-expand [tree]
   ;; REVIEW: Do I need to memoise this?
@@ -32,7 +32,7 @@
       ["Adjustable Window Frame" {:zoom (first (:matrix (:atx atx)))
                                   :pan (:translation (:atx atx))}]
 
-      (= t :lemonade.core/invert-coordinates)
+      (= t :ubik.core/invert-coordinates)
       "Coordinate Inversion"
 
       :else
@@ -41,7 +41,7 @@
 ;; REVIEW: This should be a straight up cond, no?
 ;; The only switches here are on core builtins.
 
-(defmulti clean-node #(keyword :lemonade.core (type %)))
+(defmulti clean-node #(keyword :ubik.core (type %)))
 
 (defmethod clean-node ::core/atx
   [atx]

@@ -1,14 +1,14 @@
-(ns lemonade.renderers.canvas
+(ns ubik.renderers.canvas
   ;; TODO: Names in this space are shit. Product of experiments with
   ;; optimisation and lots of throwaway code.
   "HTML Canvas renderer. Technically an ad hoc compiler."
-  (:require-macros [lemonade.renderers.canvas
+  (:require-macros [ubik.renderers.canvas
                     :refer [unsafe-invoke call compile-node compile-leaf
                             add-seq-compilers]])
   (:require [clojure.walk :as walk]
-            [lemonade.core :as core]
-            [lemonade.math :as math]
-            [lemonade.renderers.util :as util]))
+            [ubik.core :as core]
+            [ubik.math :as math]
+            [ubik.renderers.util :as util]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Code Building
@@ -348,7 +348,7 @@
 
 (defn stack-tx
   "Returns a tranducer that emulates the canvas API's statefullness and
-  transforms the raw lemonade instructions into final canvas instructions.
+  transforms the raw ubik instructions into final canvas instructions.
   Is it an interpreter or an optimising compiler? I don't know, it's a pretty
   crappy either...'"
   []

@@ -1,5 +1,5 @@
-(ns lemonade.hosts.jvm-quil
-  (:require [lemonade.core :as core]))
+(ns ubik.hosts.jvm-quil
+  (:require [ubik.core :as core]))
 
 (defn ne! []
   (throw (Exception. "Not Implemented!")))

@@ -1,4 +1,4 @@
-#+TITLE: lemonade
+#+TITLE: Ubik
 
 Experiment in higher order visual programming.
 
@@ -12,18 +12,20 @@ Check out [[https://github.com/tgetgood/expanse][Expanse]] to see it in use.
 	These two parts will likely be separated at a future date, but since the is
 	mostly an experiment at present, it's far more convenient to keep them
 	together.
+
+	The name is a reference to the fact that I have no idea what this is, but it seems to do anything you want it to...
 * Breakdown
-	 =lemonade.core=: The core graphics primitives.
+	 =ubik.core=: The core graphics primitives.
 
-	=lemonade.math=: Mathematical and interop helpers.
+	=ubik.math=: Mathematical and interop helpers.
 
-	=lemonade.geometry=: Geometric model of the rendered world to map back and
+	=ubik.geometry=: Geometric model of the rendered world to map back and
 	forth from screen coordinates to the leaves of the render tree.
 
-	=lemonade.events=: Event processing logic. N.B.: This is being thoroughly
+	=ubik.events=: Event processing logic. N.B.: This is being thoroughly
 	rethought and is not to be considered stable.
 
-	Renderers are in =lemonade.renderers.*=. There are currently only 2, an HTML
+	Renderers are in =ubik.renderers.*=. There are currently only 2, an HTML
 	Canvas 2d rendering context renderer for the browser and a quil renderer for
 	JVM Clojure. As of this writing the canvas renderer is fully functional and
 	the quil renderer is a joke.

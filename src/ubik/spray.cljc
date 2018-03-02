@@ -1,8 +1,8 @@
-(ns lemonade.spray
+(ns ubik.spray
   (:refer-clojure :exclude [find -deref])
-  (:require [lemonade.core :as core]
-            [lemonade.db :as db]
-            [lemonade.geometry :as geo]))
+  (:require [ubik.core :as core]
+            [ubik.db :as db]
+            [ubik.geometry :as geo]))
 
 (defprotocol ISubscription
   (realise [this signal-graph]))

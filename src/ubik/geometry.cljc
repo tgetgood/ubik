@@ -1,11 +1,11 @@
-(ns lemonade.geometry
+(ns ubik.geometry
   (:refer-clojure :exclude [contains?])
   #?(:clj
-     (:import [lemonade.core
+     (:import [ubik.core
                AffineTransformation Composite Region Frame Text Line Arc
                Circle]))
-  (:require [lemonade.math :as math]
-            [lemonade.core :as core
+  (:require [ubik.math :as math]
+            [ubik.core :as core
              #?@(:cljs
                  [:refer [AffineTransformation Frame Region Composite Text
                           Line Arc]])]))

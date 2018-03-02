@@ -1,4 +1,4 @@
-(ns lemonade.math)
+(ns ubik.math)
 
 ;;;;; Trig
 

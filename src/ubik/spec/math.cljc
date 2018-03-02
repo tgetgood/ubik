@@ -1,7 +1,7 @@
-(ns lemonade.spec.math
-  #?(:cljs (:require-macros [lemonade.spec.math :refer [derive-spec]]))
+(ns ubik.spec.math
+  #?(:cljs (:require-macros [ubik.spec.math :refer [derive-spec]]))
   (:require [clojure.spec.alpha :as s]
-            [lemonade.math :as math]))
+            [ubik.math :as math]))
 
 #?(:clj
    (defmacro derive-spec
@@ -71,7 +71,7 @@
 ;;;;; fns
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(s/fdef lemonade.math/deg->rad
+(s/fdef ubik.math/deg->rad
         :args (s/cat :angle ::real)
         :ret ::real)
 
@@ -90,7 +90,7 @@
 ;; REVIEW: And they totally do, but the real reason is that we're reaching float
 ;; over/underflow conditions. The fact that webgl can't use doubles makes life a
 ;; little difficult.
-(s/fdef lemonade.math/invert-atx
+(s/fdef ubik.math/invert-atx
         :args (s/cat :atx ::atx)
         :ret ::atx
         :fn #(and

@@ -1,4 +1,4 @@
-(ns lemonade.db)
+(ns ubik.db)
 
 ;; Intentionally not defonce so that I can catch attempts to access it before
 ;; initalisation. The app-db passed into initialise! should be defonced, so hot
@@ -15,4 +15,4 @@
   world tree are batched on animation frames, so this value is only up to date
   as of the last render."
   []
-  (:lemonade.core/world @@app-db))
+  (:ubik.core/world @@app-db))

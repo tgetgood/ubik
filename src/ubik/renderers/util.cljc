@@ -1,6 +1,6 @@
-(ns lemonade.renderers.util
-  (:require [lemonade.core :as core]
-            [lemonade.math :as math]))
+(ns ubik.renderers.util
+  (:require [ubik.core :as core]
+            [ubik.math :as math]))
 
 (def noop
   "What a render-fn returns if it wants to do nothing."

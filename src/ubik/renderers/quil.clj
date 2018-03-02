@@ -1,6 +1,6 @@
-(ns lemonade.renderers.quil
-  (:require [lemonade.core :as core]
-            [lemonade.renderers.util :as util]
+(ns ubik.renderers.quil
+  (:require [ubik.core :as core]
+            [ubik.renderers.util :as util]
             [quil.core :as q]))
 
 (defmulti render-fn (fn [state shape] (type shape)))
