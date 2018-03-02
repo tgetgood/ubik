@@ -466,8 +466,17 @@
 (defn draw!
   "Draws shape to host. If host not specified, the currently set host is
   used. If no host is set, we can't draw anything."
-  ([shape] (draw! shape *host*))
+  ([shape]
+   (draw! shape *host* {}))
   ([shape host]
+   (draw! shape host {}))
+  ([shape host {:keys [size]}]
+   (when size
+     (cond
+       (= :fullscreen size)                    (fullscreen host)
+       (and (vector? size) (= 2 (count size))) (resize-frame host size)
+       ;; TODO: Log bad size param being ignored.
+       :else                                   nil))
    ((render-fn host)
     (with-meta
       (transform shape (math/atx [1 0 0 -1] [0 (height host)]))
