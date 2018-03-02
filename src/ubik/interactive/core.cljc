@@ -1,7 +1,7 @@
-(ns ubik.spray
+(ns ubik.interactive.core
   (:refer-clojure :exclude [find -deref])
   (:require [ubik.core :as core]
-            [ubik.db :as db]
+            [ubik.interactive.db :as db]
             [ubik.geometry :as geo]))
 
 (defprotocol ISubscription

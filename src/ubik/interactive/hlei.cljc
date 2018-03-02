@@ -1,6 +1,5 @@
-(ns ubik.events.hlei
+(ns ubik.interactive.hlei
   (:require [ubik.core :as core]
-            [ubik.events :as events]
             [ubik.math :as math]))
 
 (defn now []
@@ -15,9 +14,8 @@
   (let [drag-state (atom nil)
         down       (atom nil)
         drag-start (atom nil)]
-    #:ubik.events
     {:wheel           (fn [ev]
-                        {:dispatch (assoc ev :type ::events/scroll)})
+                        {:dispatch (assoc ev :type :scroll)})
 
      :left-mouse-down (fn [{:keys [location]}]
                         (reset! drag-state location)
@@ -28,9 +26,9 @@
                         (if @drag-state
                           (let [delta (mapv - @drag-state location)]
                             (reset! drag-state location)
-                            {:dispatch {:type  ::events/left-drag
+                            {:dispatch {:type  :left-drag
                                         :delta (update delta 1 -)}})
-                          {:dispatch {:type ::events/hover
+                          {:dispatch {:type :hover
                                       :location location}}))
 
      :left-mouse-up   (fn [{:keys [location] :as ev}]
@@ -43,7 +41,7 @@
                                   (< (- (now) d) click-timeout)
                                   (< (math/norm (map - start location))
                                      click-move-threshold))
-                             (assoc ev :type ::events/left-click))}))}))
+                             (assoc ev :type :left-click))}))}))
 
 (defn expand [event dispatch-fn]
   (when-let [handler (get handlers (:type event))]

@@ -1,6 +1,6 @@
-(ns ubik.events
+(ns ubik.interactive.events
   (:require [ubik.geometry :as geo]
-            [ubik.db :as db]))
+            [ubik.interactive.db :as db]))
 
 (def events
   "List of known event types."

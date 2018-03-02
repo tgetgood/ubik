@@ -1,4 +1,4 @@
-(ns ubik.core
+(n ubik.core
   #?(:cljs (:require-macros [ubik.core :refer [deftemplate]]))
   (:require [clojure.string :as string]
             [ubik.math :as math]))
@@ -446,18 +446,12 @@
 ;; feel like there's more I can do here.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defonce
-  ^{:dynamic true
-    :doc   "Global rendering context."}
-  *host*
-  nil)
-
 (defprotocol Host
   "I don't like this protocol much at all. It exposes too much of the inner mess
   of the DOM while at the same time not exposing enough. Plain bad design."
-  (setup [this] "Initialise the host.")
-  (teardown [this] "Disconnect and cleanup the host.")
-  (render-fn [this] "Returns the draw fn for this host")
+  (render-fn [this]
+    "Returns a function which takes a shape and draws it to this host as a side
+    effect.")
   (width [this] "Current frame width")
   (height [this] "Current frame height")
   (resize-frame [this [width height]] "Resize host window.")

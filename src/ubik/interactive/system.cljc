@@ -1,13 +1,11 @@
-(ns ubik.system
+(ns ubik.interactive.system
   (:require [ubik.core :as core]
-            [ubik.events.hlei :as hlei]
             clojure.walk
 
             [ubik.hosts :as hosts]
-            [ubik.db :as db]
-            [ubik.window :as window]
-            [ubik.events :as events]
-            [ubik.spray :as spray]))
+            [ubik.interactive.db :as db]
+            [ubik.interactive.events :as events]
+            [ubik.interactive.core :as spray]))
 
 (defonce ^:private idem (atom nil))
 
@@ -46,7 +44,6 @@
 (defn with-defaults [opts]
   (merge
    {:app-db         (atom {})
-    :host           hosts/default-host
     :size           :fullscreen
     :event-handlers {}}
    opts))
@@ -67,12 +64,6 @@
     ;; Set up event handling
     ;; Start draw loop
 
-    (when core/*host*
-      (core/teardown core/*host*))
-
-    (core/setup host)
-    (set! core/*host* host)
-
     (reset! db/app-db app-db)
 
     (reset! events/handlers {})
@@ -81,9 +72,6 @@
     (cond
       (= size :fullscreen)                    (core/fullscreen host)
       (and (vector? size) (= 2 (count size))) (core/resize-frame host size))
-
-    (when-not (:ubik.core/window @@db/app-db)
-      (swap! @db/app-db assoc :ubik.core/window window/initial-window))
 
     (swap! @db/app-db update :ubik.core/window assoc
            :height (core/height host)

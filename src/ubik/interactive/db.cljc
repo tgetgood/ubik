@@ -1,4 +1,4 @@
-(ns ubik.db)
+(ns ubik.interactive.db)
 
 ;; Intentionally not defonce so that I can catch attempts to access it before
 ;; initalisation. The app-db passed into initialise! should be defonced, so hot

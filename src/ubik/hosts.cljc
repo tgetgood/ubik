@@ -11,6 +11,6 @@
    (defn jvm-quil [opts]
      (jvm-quil/host opts)))
 
-(def ^:dynamic default-host
+(def ^:dynamic *host*
   #?(:cljs (html-canvas {})
      :clj (jvm-quil {})))

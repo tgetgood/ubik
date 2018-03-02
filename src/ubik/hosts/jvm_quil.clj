@@ -8,8 +8,6 @@
   (reify
     core/Host
 
-    (setup [_] (ne!))
-    (teardown [_] (ne!))
     (render-fn [_] (ne!))
     (width [_] (ne!))
     (height [_] (ne!))
