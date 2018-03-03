@@ -13,37 +13,28 @@
          [ubik.geometry :as geo]
          [ubik.interactive.db :as db])]))
 
-(defprotocol ISubscription
-  (lookup [this signal-graph]))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Subscriptions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(deftype SubscribedShape [key body
-                          ^:volatile-mutable _args
-                          ^:volatile-mutable _shape]
-  ISubscription
-  (lookup [_ sg]
-    #_(let [args (map #(% sg) subscriptions)]
-      (if (= args _args)
-        _shape
-        (let [shape (instantiate (apply render-fn args) sg)]
-          (set! _args args)
-          (set! _shape shape)
-          shape)))))
+(defn sub
+  "Returns a subscription to the value k."
+  [k]
+  ^::subscription
+  (fn [signal-graph]
+    ((get signal-graph k) signal-graph)))
 
-(def symbol-table (atom {}))
-
-(defn sub [kw]
-  (list 'sub kw)
-  #_(when-not (contains? @symbol-table kw)
-    (swap! symbol-table ))
-  )
-
-#?(:clj
-   ;; REVIEW: Better to have a record with a signal protocol or some such...
-   (defn subscription? [form]
-     (and (list? form)
-          (= (count form) 2)
-          (= 'sub (first form))
-          (keyword? (second form)))))
+(defn subscription? [form]
+  #?(:clj
+     (or (::subscription (meta form))
+         ;; This might be overkill, but I'm worried about macromagical
+         ;; extravagerrors.
+        (and (list? form)
+             (= (count form) 2)
+             (symbol? (first form))
+             (= (resolve (first form)) (var sub))
+             (keyword? (second form))))
+     :cljs (::subscription (meta form))))
 
 #?(:clj
    (defn intern-subscription [form table]
@@ -56,7 +47,22 @@
 
 #?(:clj
    (defn create-subscription
-     "Returns a subscription for form."
+     "Returns a subscription for form.
+  A subscription is a function which given a signal graph returns a value.
+
+  The signal graph is just a map from keys to subscriptions.
+
+  A subscription does not need to be part of the signal graph it receives (but
+  probably will be).
+
+  By default subscriptions are memoized so that recomputation is only necessary
+  if their upstream subscriptions take on a new value. ^no-cache metadata on
+  form will prevent memoization, as will a subscription to the :db sub. This
+  last is to prevent massive memory consumption. It might make sense to add a
+  ^force-cache metadata as well.
+
+  Even if the subscription isn't fully memoised, the last value is cached so
+  checks are quick if nothing has changed."
      [form]
      (let [symbol-table (atom {})
 
@@ -72,18 +78,28 @@
            sub-fn       `(fn [~@(map val sym-seq)]
                            ~body)
 
-           memoize?     (not (:no-cache (meta form)))
+           ;; Don't memoize subscriptions to the entire DB. There's not much
+           ;; point since the DB as a whole is going to be in constant flux. The
+           ;; savings are to be had downstream.
+           ;;
+           ;; Incidentally, this is the real reason that you should have a bunch
+           ;; of trivial seeming key lookup subscriptions.
+           memoize?     (or (contains? @symbol-table :db)
+                            (not (:no-cache (meta form))))
 
            memo-fn      (if memoize?
                           `(cache/cached-fn ~sub-fn)
-                          sub-fn)
+                          `(cache/cache-1 ~sub-fn))
 
            sg           (gensym)]
 
-       `(fn [~sg]
-          (~memo-fn ~@(map (fn [s]
-                             `((get ~sg ~s) ~sg))
-                           (map key sym-seq)))))))
+       ;; We need this closure so that the memoized function doesn't get
+       ;; recreated.
+       `(let [f# ~memo-fn]
+          (fn [~sg]
+            (f# ~@(map (fn [s]
+                         `((get ~sg ~s) ~sg))
+                       (map key sym-seq))))))))
 
 #?(:clj
    (defmacro defsubs [name m]
@@ -92,11 +108,59 @@
                (map (fn [[k# v#]] [k# (create-subscription v#)]) m)))))
 
 (defsubs ex
-  {:current (:current (sub :db))
-   :view (nth (:examples (sub :db)) (sub :current))
-   :window ^:no-cache (:window (sub :db))
+  {:current (do (println "yeaik") (:current (sub :db)))
+   :examples (:examples (sub :db))
+   :view (do (println "no cache")
+             (nth (sub :examples) (sub :current)))
+   :window ^:no-cache (do (println "win") (:window (sub :db)))
    :window-height (:height (sub :window))
    })
+
+(defn log [m]
+  ;; TODO: Logging solution.
+  (println m))
+
+(defn check-key [m k]
+  (cond
+    (= k :db)
+    (log
+     "You're clobbering the :db subscription. Things won't go well for you.")
+
+    (contains? m k)
+    (log (str "Multiple definitions of " k
+              " found. This will probably end badly."))
+    :else nil))
+
+(defn merge-sub-maps
+  "Merges all subscription maps. Logs an error if any keys conflict or the
+  special :db key is overwritten"
+  ([m1 m2]
+   (reduce (fn [m [k v]]
+             (check-key m k)
+             (assoc m k v))
+           m1 m2))
+  ([m1 m2 & more]
+   (reduce merge-sub-maps (merge-sub-maps m1 m2) more)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Stateful Shapes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defprotocol ISubscription
+  (lookup [this signal-graph]))
+
+(deftype SubscribedShape [key body
+                          ^:volatile-mutable _args
+                          ^:volatile-mutable _shape]
+  ISubscription
+  (lookup [_ sg]
+    #_(let [args (map #(% sg) subscriptions)]
+      (if (= args _args)
+        _shape
+        (let [shape (instantiate (apply render-fn args) sg)]
+          (set! _args args)
+          (set! _shape shape)
+          shape)))))
 
 (defn instantiate [shape state]
   (core/walk-down shape #(lookup % state)))

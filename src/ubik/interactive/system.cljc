@@ -21,6 +21,8 @@
         continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
               #?(:clj
+                 ;; Need some kind of abstraction around animation frames.
+                 ;; We can't be drawing in a busy loop like this
                  (core/draw! (spray/reality world))
                  :cljs
                  (js/window.requestAnimationFrame
@@ -48,6 +50,12 @@
     :event-handlers {}}
    opts))
 
+(defn clean-subscriptions [s]
+  (cond
+    (sequential? s) (apply spray/merge-sub-maps s)
+    (map? s)        s
+    :else           (do #_log-error {})))
+
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
 ;; state atoms, etc.
@@ -57,9 +65,9 @@
   "Initialises the system, whatever that means right now."
   [opts]
   (let [{:keys [shape host subscriptions event-handlers effect-handlers]}
-        (with-defaults opts)]
-
-    ;; Build subscription graph
+        (with-defaults opts)
+        ;; Build subscription graph
+        signal-graph (clean-subscriptions subscriptions)]
 
     ;; Register effect / coeffect handlers
 
@@ -79,15 +87,3 @@
 (defn stop! []
   (when-let [sfn @idem]
     (sfn)))
-
-;;;;; Example subscriptions
-
-(defn subscribe [n])
-(def sub subscribe)
-
-(def subscriptions
-  {:current (:current (subscribe :db))
-   :view (nth (:examples (subscribe :db)) (subscribe :current))
-   :window (:window (sub :db))
-   :window-height (:height (sub :window))
-   })
