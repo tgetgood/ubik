@@ -14,7 +14,7 @@
 (defn draw-loop
   "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
   animation frame if @state-ref has changed."
-  [world]
+  [world host]
   (when-let [stop @idem]
     (stop))
   (let [last-state (atom (gensym "NO-MATCH"))
@@ -28,7 +28,7 @@
                     (when @continue?
                       (let [the-world (spray/reality world)]
                         (when-not (= the-world @last-state)
-                          (core/draw! the-world)
+                          (core/draw! the-world host)
                           (reset! last-state the-world)))
                       (if (and *profile* (< 1000 (- now last-run)))
                         (do
@@ -59,7 +59,6 @@
   (let [{:keys [app-db render host event-handlers size]}
         (with-defaults opts)]
 
-    ;; Set screen size
     ;; Initialise internal DB
     ;; Set up event handling
     ;; Start draw loop
@@ -69,16 +68,8 @@
     (reset! events/handlers {})
     (events/add-handlers event-handlers)
 
-    (cond
-      (= size :fullscreen)                    (core/fullscreen host)
-      (and (vector? size) (= 2 (count size))) (core/resize-frame host size))
-
-    (swap! @db/app-db update :ubik.core/window assoc
-           :height (core/height host)
-           :width  (core/width host))
-
     (let [world (spray/halucination render)]
-      (draw-loop world))))
+      (draw-loop world host))))
 
 (defn stop! []
   (when-let [sfn @idem]

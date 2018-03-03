@@ -8,9 +8,5 @@
      (browser-canvas/host opts)))
 
 #?(:clj
-   (defn jvm-quil [opts]
+   (defn quil [opts]
      (jvm-quil/host opts)))
-
-(def ^:dynamic *host*
-  #?(:cljs (html-canvas {})
-     :clj (jvm-quil {})))

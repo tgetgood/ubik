@@ -1,4 +1,4 @@
-(n ubik.core
+(ns ubik.core
   #?(:cljs (:require-macros [ubik.core :refer [deftemplate]]))
   (:require [clojure.string :as string]
             [ubik.math :as math]))
@@ -439,39 +439,14 @@
            clojure.lang.LazySeq]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Hosting & drawing
-;;
-;; Drawing shapes is tightly coupled with the host platform. Obviously there's
-;; an inherent connection since we need to have a host in order to draw, but I
-;; feel like there's more I can do here.
+;;;;; Drawing
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defprotocol Host
-  "I don't like this protocol much at all. It exposes too much of the inner mess
-  of the DOM while at the same time not exposing enough. Plain bad design."
-  (render-fn [this]
-    "Returns a function which takes a shape and draws it to this host as a side
-    effect.")
-  (width [this] "Current frame width")
-  (height [this] "Current frame height")
-  (resize-frame [this [width height]] "Resize host window.")
-  (fullscreen [this] "Make the host fullscreen (to the extent permitted)"))
-
 (defn draw!
-  "Draws shape to host. If host not specified, the currently set host is
-  used. If no host is set, we can't draw anything."
-  ([shape]
-   (draw! shape *host* {}))
+  "Draws shape to host. The host determines what drawing means. Return value
+  isn't generally meaningful."
   ([shape host]
-   (draw! shape host {}))
-  ([shape host {:keys [size]}]
-   (when size
-     (cond
-       (= :fullscreen size)                    (fullscreen host)
-       (and (vector? size) (= 2 (count size))) (resize-frame host size)
-       ;; TODO: Log bad size param being ignored.
-       :else                                   nil))
-   ((render-fn host)
+   ((:render-fn host)
     (with-meta
-      (transform shape (math/atx [1 0 0 -1] [0 (height host)]))
+      (transform shape (math/atx [1 0 0 -1] [0 (:height host)]))
       {:atx-type ::coordinate-inversion}))))
