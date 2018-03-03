@@ -23,27 +23,14 @@
   {:builds
    [{:id           "canvas"
      :source-paths ["src"]
-
-     :figwheel     {:on-jsload "ubik.demos.canvas/on-js-reload"}
-
-     :compiler     {:main                 ubik.demos.canvas
+     :compiler     {:main                 ubik.core
                     :asset-path           "js/compiled/out"
-                    :output-to            "resources/public/js/compiled/canvas.js"
+                    :output-to            "resources/public/js/compiled/ubik.js"
                     :output-dir           "resources/public/js/compiled/out"
                     :parallel-build       true
                     :source-map-timestamp true
                     :checked-arrays       :warn
-                    :preloads             [devtools.preload]}}
-    {:id           "min"
-     :source-paths ["src"]
-     :compiler     {:main            ubik.demos.canvas
-                    :output-to       "resources/public/js/compiled/app.js"
-                    :optimizations   :advanced
-                    :parallel-build  true
-                    :closure-defines {goog.DEBUG false}
-                    :pretty-print    false}}]}
-
-  :figwheel {:css-dirs ["resources/public/css"]}
+                    :preloads             [devtools.preload]}}]}
 
   :profiles
   {:dev {:dependencies  [[binaryage/devtools "0.9.9"]
