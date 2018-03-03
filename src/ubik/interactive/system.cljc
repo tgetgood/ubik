@@ -56,21 +56,38 @@
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [opts]
-  (let [{:keys [app-db render host event-handlers size]}
+  (let [{:keys [shape host subscriptions event-handlers effect-handlers]}
         (with-defaults opts)]
 
-    ;; Initialise internal DB
-    ;; Set up event handling
-    ;; Start draw loop
+    ;; Build subscription graph
 
-    (reset! db/app-db app-db)
+    ;; Register effect / coeffect handlers
 
+    ;; Build event handlers
+
+    ;; Initialise event system
     (reset! events/handlers {})
     (events/add-handlers event-handlers)
 
-    (let [world (spray/halucination render)]
+    ;; Preprocess render tree.
+
+    (let [world (spray/halucination shape)]
+    ;; Start draw loop
+
       (draw-loop world host))))
 
 (defn stop! []
   (when-let [sfn @idem]
     (sfn)))
+
+;;;;; Example subscriptions
+
+(defn subscribe [n])
+(def sub subscribe)
+
+(def subscriptions
+  {:current (:current (subscribe :db))
+   :view (nth (:examples (subscribe :db)) (subscribe :current))
+   :window (:window (sub :db))
+   :window-height (:height (sub :window))
+   })
