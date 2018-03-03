@@ -9,10 +9,3 @@
   "Like swap!, but signals global state change."
   [[f & args]]
   (apply swap! @app-db f args))
-
-(defn world
-  "Returns the 'world', the root of the render tree. Note, that updates to the
-  world tree are batched on animation frames, so this value is only up to date
-  as of the last render."
-  []
-  (:ubik.core/world @@app-db))
