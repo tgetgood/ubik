@@ -13,9 +13,9 @@
 (defn sub
   "Returns a subscription to the value k."
   [k]
-  ^::subscription
-  (fn [signal-graph]
-    ((get signal-graph k) signal-graph)))
+  (with-meta
+    (list 'sub k)
+    {::subscription true}))
 
 (defn subscription? [form]
   #?(:clj

@@ -10,3 +10,6 @@
 #?(:clj
    (defn quil [opts]
      (jvm-quil/host opts)))
+
+(defn default-host [opts]
+  (#?(:clj quil :cljs html-canvas) opts))
