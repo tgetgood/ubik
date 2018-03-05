@@ -1,7 +1,6 @@
 (ns ubik.interactive.system
   (:require [ubik.core :as core]
             clojure.walk
-
             [ubik.hosts :as hosts]
             [ubik.interactive.db :as db]
             [ubik.interactive.events :as events]
@@ -14,7 +13,7 @@
 (defn draw-loop
   "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
   animation frame if @state-ref has changed."
-  [world host]
+  [world host sg]
   (when-let [stop @idem]
     (stop))
   (let [last-state (atom (gensym "NO-MATCH"))
@@ -23,13 +22,14 @@
               #?(:clj
                  ;; Need some kind of abstraction around animation frames.
                  ;; We can't be drawing in a busy loop like this
-                 (core/draw! (spray/reality world))
+                 (core/draw! world)
                  :cljs
                  (js/window.requestAnimationFrame
                   (fn [now]
                     (when @continue?
-                      (let [the-world (spray/reality world)]
+                      (let [the-world (spray/walk-subscriptions world sg)]
                         (when-not (= the-world @last-state)
+                          (println the-world)
                           (core/draw! the-world host)
                           (reset! last-state the-world)))
                       (if (and *profile* (< 1000 (- now last-run)))
@@ -50,12 +50,6 @@
     :event-handlers {}}
    opts))
 
-(defn clean-subscriptions [s]
-  (cond
-    (sequential? s) (apply spray/merge-sub-maps s)
-    (map? s)        s
-    :else           (do #_log-error {})))
-
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
 ;; state atoms, etc.
@@ -65,9 +59,7 @@
   "Initialises the system, whatever that means right now."
   [opts]
   (let [{:keys [shape host subscriptions event-handlers effect-handlers]}
-        (with-defaults opts)
-        ;; Build subscription graph
-        signal-graph (clean-subscriptions subscriptions)]
+        (with-defaults opts)]
 
     ;; Register effect / coeffect handlers
 
@@ -79,10 +71,8 @@
 
     ;; Preprocess render tree.
 
-    (let [world (spray/halucination shape)]
-    ;; Start draw loop
-
-      (draw-loop world host))))
+    (println "Is it starting?")
+    (draw-loop shape host subscriptions)))
 
 (defn stop! []
   (when-let [sfn @idem]

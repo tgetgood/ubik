@@ -91,6 +91,9 @@
 (defn children [shape]
   (get shape (children-key shape)))
 
+(defn update-children [shape f]
+  (update shape (children-key shape) f))
+
 (defn walk-down [shape f]
   (let [f (fn [s] (with-meta (f s) (meta s)))]
     (cond

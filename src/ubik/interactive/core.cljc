@@ -10,24 +10,50 @@
 ;;;;; Subscriptions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn sub
-  "Returns a subscription to the value k."
-  [k]
-  (with-meta
-    (list 'sub k)
-    {::subscription true}))
+(defprotocol Signal
+  (-value [this signal-graph]))
 
-(defn subscription? [form]
-  #?(:clj
-     (or (::subscription (meta form))
-         ;; This might be overkill, but I'm worried about macromagical
-         ;; extravagerrors.
-        (and (list? form)
-             (= (count form) 2)
-             (symbol? (first form))
-             (= (resolve (first form)) (var sub))
-             (keyword? (second form))))
-     :cljs (::subscription (meta form))))
+;; TODO: Eventually we'll want more aggressive caching.
+(deftype MemoizedSubscription [])
+
+(deftype SimpleSubscription [dependencies reaction
+                             ^:volatile-mutable _last-args
+                             ^:volatile-mutable _last-val]
+  Signal
+  (-value [_ sg]
+    (let [args (->> dependencies (map #(get sg %)) (map #(-value % sg)))]
+      (if (= _last-args args)
+        _last-val
+        (let [next-val (apply reaction args)]
+          (set! _last-args args)
+          (set! _last-val next-val)
+          next-val)))))
+
+(defrecord RefSub [ref]
+  Signal
+  (-value [_ _] @ref))
+
+(def db (RefSub. db/app-db))
+
+(defn subscription? [sig]
+  (satisfies? Signal sig))
+
+(defn subscription
+  {:style/indent [1 :form]}
+  [deps reaction]
+  (SimpleSubscription. deps reaction (gensym "NOMATCH") nil))
+
+(defn signal-graph [subs]
+  (assoc subs :db db))
+
+(defn deref-signal
+  "Returns the current value of a signal"
+  [sig graph]
+  (cond
+    (keyword? sig) (-value (get graph sig) (signal-graph graph))
+    (subscription? sig)  (-value sig (signal-graph graph))
+    ;; TODO: Error logging
+    :else          nil))
 
 #?(:clj
    (defn intern-subscription [form table]
@@ -52,7 +78,7 @@
 ;; Subscriptions should probably also be a type, because this is getting a
 ;; little silly.
 #?(:clj
-   (defn create-subscription
+   (defn build-subscription
      "Returns a subscribed version of form.
 
   This subscription is a function which given a signal graph returns a value.
@@ -70,7 +96,7 @@
 
   Even if the subscription isn't fully memoised, the last value is cached so
   checks are quick if nothing has changed."
-     [form]
+     [subscription? form]
      (let [symbol-table (atom {})
 
            body         (walk/prewalk
@@ -80,65 +106,39 @@
                              f))
                          form)
 
-           sym-seq      (seq @symbol-table)
-
-           sub-fn       `(fn [~@(map val sym-seq)]
-                           ~body)
-
-           ;; Don't memoize subscriptions to the entire DB. There's not much
-           ;; point since the DB as a whole is going to be in constant flux. The
-           ;; savings are to be had downstream.
-           ;;
-           ;; Incidentally, this is the real reason that you should have a bunch
-           ;; of trivial seeming key lookup subscriptions.
-           memoize?     (or (contains? @symbol-table :db)
-                            (not (:no-cache (meta form))))
-
-           memo-fn      (if memoize?
-                          `(cache/cached-fn ~sub-fn)
-                          `(cache/cache-1 ~sub-fn))
-
-           sg           (gensym)]
-
-       ;; We need this closure so that the memoized function doesn't get
-       ;; recreated.
-       `(let [f# ~memo-fn]
-          (fn [~sg]
-            (f# ~@(map (fn [s]
-                         `((get ~sg ~s) ~sg))
-                       (map key sym-seq))))))))
+           sym-seq      (seq @symbol-table)]
+       `(subscription [~@(map key sym-seq)]
+          (fn [~@(map val sym-seq)]
+            ~body)))))
 
 #?(:clj
-   (defmacro defsubs [name m]
-     `(def ~name
-        ~(into {}
-               (map (fn [[k# v#]] [k# (create-subscription v#)]) m)))))
+   (defn sub-checker [sym]
+     (fn [form]
+       (and (list? form)
+            (= (count form) 2)
+            (symbol? (first form))
+            (= (first form) sym)
+            (keyword? (second form))))))
 
-(defn log [m]
-  ;; TODO: Logging solution.
-  (println m))
+#?(:clj
+   (defmacro defsubs [name operator sub-map]
+     (let [sub? (sub-checker operator)]
+       `(def ~name
+          ~(into {}
+                 (map (fn [[k# v#]] [k# (build-subscription sub? v#)])
+                      sub-map))))))
 
-(defn- check-key [m k]
+(defn walk-subscriptions
+  [shape sg]
   (cond
-    (= k :db)
-    (log
-     "You're clobbering the :db subscription. Things won't go well for you.")
+    (subscription? shape)
+    (recur (deref-signal shape sg) sg)
 
-    (contains? m k)
-    (log (str "Multiple definitions of " k
-              " found. This will probably end badly."))
-    :else nil))
+    (core/has-children? shape)
+    (core/update-children shape #(walk-subscriptions % sg))
 
-(defn merge-sub-maps
-  "Merges all subscription maps. Logs an error if any keys conflict or the
-  special :db key is overwritten"
-  ([m1 m2]
-   (reduce (fn [m [k v]]
-             (check-key m k)
-             (assoc m k v))
-           m1 m2))
-  ([m1 m2 & more]
-   (reduce merge-sub-maps (merge-sub-maps m1 m2) more)))
+    :else
+    shape))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Events
@@ -149,48 +149,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Stateful Shapes
+;;;;; Internal Bookkeeping
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defprotocol ISubscription
-  (lookup [this signal-graph]))
-
-(deftype SubscribedShape [key body
-                          ^:volatile-mutable _args
-                          ^:volatile-mutable _shape]
-  ISubscription
-  (lookup [_ sg]
-    #_(let [args (map #(% sg) subscriptions)]
-      (if (= args _args)
-        _shape
-        (let [shape (instantiate (apply render-fn args) sg)]
-          (set! _args args)
-          (set! _shape shape)
-          shape)))))
-
-(defn instantiate [shape state]
-  (core/walk-down shape #(lookup % state)))
-
-(defn subscribed-shape
-  {:style/indent [1 :form]}
-  [subscriptions render-fn]
-  #_(SubscribedShape. subscriptions render-fn (gensym "no-match") nil))
-
-(defprotocol MyDeref
-  (-deref [this db]))
-
-(defonce world (atom nil))
-
-(defrecord World [shape]
-  MyDeref
-  (-deref [_ db]
-    (instantiate shape db)))
-
-(defn halucination [shape]
-  (World. shape))
-
-(defn reality [w]
-  (reset! world (-deref w @@db/app-db)))
 
 (defn sub-tagged? [s t]
   (cond
@@ -199,19 +159,19 @@
     (core/has-children? s)          (recur (core/children s) t)
     :else                           false))
 
-(defn find [tag location]
+#_(defn find [tag location]
   (->> @world
        (geo/effected-branches location)
        (filter #(sub-tagged? % tag))
        first))
 
-(defn tagged-value [shape tag]
-  (if-let [v (core/get-tag-data shape tag)]
-    v
-    (cond
-      (sequential? shape) (first (map #(tagged-value % tag) shape))
-      (core/has-children? shape) (recur (core/children shape) tag)
-      :else nil)))
+;; (defn tagged-value [shape tag]
+;;   (if-let [v (core/get-tag-data shape tag)]
+;;     v
+;;     (cond
+;;       (sequential? shape) (first (map #(tagged-value % tag) shape))
+;;       (core/has-children? shape) (recur (core/children shape) tag)
+;;       :else nil)))
 
-(defn lookup-tag [tag location]
-  (tagged-value (find tag location) tag))
+;; (defn lookup-tag [tag location]
+;;   (tagged-value (find tag location) tag))
