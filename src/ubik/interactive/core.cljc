@@ -43,15 +43,18 @@
   [deps reaction]
   (SimpleSubscription. deps reaction (gensym "NOMATCH") nil))
 
-(defn signal-graph [subs]
-  (assoc subs :db db))
+(defn sub
+  {:style/indent [1 :form]
+   :doc "Alias for subscription (or subscribe)."}
+  [deps reaction]
+  (subscription deps reaction))
 
 (defn deref-signal
   "Returns the current value of a signal"
   [sig graph]
   (cond
-    (keyword? sig) (-value (get graph sig) (signal-graph graph))
-    (subscription? sig)  (-value sig (signal-graph graph))
+    (keyword? sig) (-value (get graph sig) graph)
+    (subscription? sig)  (-value sig graph)
     ;; TODO: Error logging
     :else          nil))
 
@@ -128,6 +131,18 @@
                  (map (fn [[k# v#]] [k# (build-subscription sub? v#)])
                       sub-map))))))
 
+#?(:clj
+   (defmacro sub++
+     "Helper macro to build subscriptions quickly. Possibly too
+  slick. Definitely a little ugly.
+
+  Walks form and collects all forms (sub :??) where :?? can be any subscription
+  key. Build a subscription by replacing these sub forms with symbol and
+  wrapping in a function. "
+     ;; TODO: Example
+     [form]
+     (build-subscription (sub-checker 'sub) form)))
+
 (defn walk-subscriptions
   [shape sg]
   (cond
@@ -139,6 +154,12 @@
 
     :else
     shape))
+
+(defn realise-world
+  "Returns the passed in shape with all subscriptions replaced by their
+  current values."
+  [shape subs]
+  (walk-subscriptions shape (assoc subs :db db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Events

@@ -27,7 +27,7 @@
                  (js/window.requestAnimationFrame
                   (fn [now]
                     (when @continue?
-                      (let [the-world (spray/walk-subscriptions world sg)]
+                      (let [the-world (spray/realise-world world sg)]
                         (when-not (= the-world @last-state)
                           (println the-world)
                           (core/draw! the-world host)
