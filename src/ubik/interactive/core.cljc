@@ -1,17 +1,10 @@
 (ns ubik.interactive.core
   (:refer-clojure :exclude [find -deref])
-  #?@(:clj
-       [(:require
-         [clojure.walk :as walk]
-         [ubik.core :as core]
-         [ubik.geometry :as geo]
-         [ubik.interactive.caching :as cache]
-         [ubik.interactive.db :as db])]
-       :cljs
-       [(:require
-         [ubik.core :as core]
-         [ubik.geometry :as geo]
-         [ubik.interactive.db :as db])]))
+  (:require [clojure.walk :as walk]
+            [ubik.core :as core]
+            [ubik.geometry :as geo]
+            [ubik.interactive.caching :as cache]
+            [ubik.interactive.db :as db]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Subscriptions
@@ -45,15 +38,27 @@
            (swap! table assoc k sym)
            sym)))))
 
+;; REVIEW: Here's an idea: Pass in the subscription magic marker to the
+;; macro. That would be interesting. It makes it explicit that I want to use
+;; (SYM :key) to access other subscriptions. Likely very confusing for new
+;; users.
+;;
+;; At the same time we should provide a re-frame style functional form
+;; (subscription [:k1 :k2] (fn [k1 k2] ...)) which is very transparent and easy
+;; to use.
+;;
+;; Subscriptions should probably also be a type, because this is getting a
+;; little silly.
 #?(:clj
    (defn create-subscription
-     "Returns a subscription for form.
-  A subscription is a function which given a signal graph returns a value.
+     "Returns a subscribed version of form.
+
+  This subscription is a function which given a signal graph returns a value.
 
   The signal graph is just a map from keys to subscriptions.
 
   A subscription does not need to be part of the signal graph it receives (but
-  probably will be).
+  probably will be). Recursive calls will end in disaster.
 
   By default subscriptions are memoized so that recomputation is only necessary
   if their upstream subscriptions take on a new value. ^no-cache metadata on
@@ -107,20 +112,11 @@
         ~(into {}
                (map (fn [[k# v#]] [k# (create-subscription v#)]) m)))))
 
-(defsubs ex
-  {:current (do (println "yeaik") (:current (sub :db)))
-   :examples (:examples (sub :db))
-   :view (do (println "no cache")
-             (nth (sub :examples) (sub :current)))
-   :window ^:no-cache (do (println "win") (:window (sub :db)))
-   :window-height (:height (sub :window))
-   })
-
 (defn log [m]
   ;; TODO: Logging solution.
   (println m))
 
-(defn check-key [m k]
+(defn- check-key [m k]
   (cond
     (= k :db)
     (log
@@ -217,5 +213,3 @@
 
 (defn lookup-tag [tag location]
   (tagged-value (find tag location) tag))
-
-(require '[clojure.pprint :refer [pp pprint]])
