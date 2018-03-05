@@ -31,12 +31,14 @@
 
 #?(:clj
    (defn intern-subscription [form table]
-     (let [k (second form)]
-       (if (contains? @table k)
-         (get @table k)
+     (let [k (second form)
+           tv @table]
+       (if (contains? tv k)
+         (get tv k)
          (let [sym (gensym)]
-           (swap! table assoc k sym)
-           sym)))))
+           (if (compare-and-set! table tv (assoc tv k sym))
+             sym
+             (recur form table)))))))
 
 ;; REVIEW: Here's an idea: Pass in the subscription magic marker to the
 ;; macro. That would be interesting. It makes it explicit that I want to use
