@@ -3,8 +3,9 @@
      :clj (:require [ubik.hosts.jvm-quil :as jvm-quil])))
 
 #?(:cljs
-   (defn html-canvas [opts]
+   (defn html-canvas
      "Runs ubik in a the given <canvas> element in the browser."
+     [opts]
      (browser-canvas/host opts)))
 
 #?(:clj
