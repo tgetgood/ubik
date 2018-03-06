@@ -22,6 +22,9 @@
    (- (oget elem "height")
       (- (oget e "clientY") (oget elem "offsetTop")))])
 
+(defn- now []
+  (js/Date.now))
+
 (defn ^:private event-map
   "Returns a map of event handlers for elem."
   [elem dispatch-fn]
@@ -41,7 +44,9 @@
                      (case b
                        ;; Only handling left click for now.
                        0 (dispatch-fn {:type     :left-mouse-down
-                                       :location p})
+                                       :raw      e
+                                       :location p
+                                       :time     (now)})
                        nil)))
 
    :touch-move   (fn [e]
@@ -50,7 +55,8 @@
    :mouse-move   (fn [e]
                    (.preventDefault e)
                    (dispatch-fn {:type     :mouse-move
-                                 :location (pixel-point elem e)}))
+                                 :location (pixel-point elem e)
+                                 :time     (now)}))
 
    :mouse-up     (fn [e]
                    (.preventDefault e)
@@ -62,8 +68,10 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 {:type     :left-mouse-up
-                          :location p}
+                       0 (dispatch-fn {:type     :left-mouse-up
+                                       :raw      e
+                                       :location p
+                                       :time     (now)})
                        nil)))
 
    :wheel        (fn [e]
@@ -71,20 +79,23 @@
                    (let [mag (if (= 1 (oget e "deltaMode")) 15 1)
                          dx  (* mag (js/parseInt (oget e "deltaX")))
                          dy  (* mag (js/parseInt (oget e "deltaY")))]
-                     {:type     :wheel
-                      :location (pixel-point elem e)
-                      :dx       dx
-                      :dy       dy}))
+                     (dispatch-fn {:type     :wheel
+                                   :location (pixel-point elem e)
+                                   :time     (now)
+                                   :dx       dx
+                                   :dy       dy})))
 
    :key-down     (fn [e]
                    (.preventDefault e)
-                   {:type :key-down
-                    :raw  e})
+                   (dispatch-fn {:type :key-down
+                                 :time (now)
+                                 :raw  e}))
 
    :key-up       (fn [e]
                    (.preventDefault e)
-                   {:type :key-up
-                    :raw  e})})
+                   (dispatch-fn {:type :key-up
+                                 :time (now)
+                                 :raw  e}))})
 
 (defonce ^:private registered-listeners (atom {}))
 
