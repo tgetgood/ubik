@@ -29,7 +29,6 @@
                     (when @continue?
                       (let [the-world (spray/realise-world world sg)]
                         (when-not (= the-world @last-state)
-                          (println the-world)
                           (core/draw! the-world host)
                           (reset! last-state the-world)))
                       (if (and *profile* (< 1000 (- now last-run)))
@@ -71,8 +70,7 @@
 
     ;; Preprocess render tree.
 
-    (println "Is it starting?")
-    (draw-loop shape host subscriptions)))
+    (draw-loop shape (if host host core/*host*) subscriptions)))
 
 (defn stop! []
   (when-let [sfn @idem]
