@@ -50,11 +50,12 @@
 (defn deref-signal
   "Returns the current value of a signal"
   [sig graph]
-  (cond
-    (keyword? sig) (-value (get graph sig) graph)
-    (subscription? sig)  (-value sig graph)
-    ;; TODO: Error logging
-    :else          nil))
+  (let [graph (assoc graph :db db)]
+    (cond
+      (keyword? sig) (-value (get graph sig) graph)
+      (subscription? sig)  (-value sig graph)
+      ;; TODO: Error logging
+      :else          nil)))
 
 #?(:clj
    (defn intern-subscription [form table]
@@ -142,16 +143,15 @@
      (build-subscription (sub-checker 'sub) form)))
 
 (defn walk-subscriptions
+  "Walks render tree recursively replacing all subscriptions by their
+  instantaneous value."
   [shape sg]
-  (cond
-    (subscription? shape)
-    (recur (deref-signal shape sg) sg)
-
-    (core/has-children? shape)
-    (core/update-children shape #(walk-subscriptions % sg))
-
-    :else
-    shape))
+  (walk/prewalk
+   (fn [form]
+     (if (subscription? form)
+       (walk-subscriptions (-value form sg) sg)
+       form))
+   shape))
 
 (defn realise-world
   "Returns the passed in shape with all subscriptions replaced by their
