@@ -445,14 +445,11 @@
 ;;;;; Drawing
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def ^:dynamic *host* nil)
-
 (defn draw!
   "Draws shape to host. The host determines what drawing means. Return value
   isn't generally meaningful."
-  ([shape] (draw! shape *host*))
-  ([shape host]
-   ((:render-fn host)
-    (with-meta
-      (transform shape (math/atx [1 0 0 -1] [0 (:height host)]))
-      {:atx-type ::coordinate-inversion}))))
+  [shape host]
+  ((:render-fn host)
+   (with-meta
+     (transform shape (math/atx [1 0 0 -1] [0 (:height host)]))
+     {:atx-type ::coordinate-inversion})))

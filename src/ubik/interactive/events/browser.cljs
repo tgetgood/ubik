@@ -1,6 +1,9 @@
 (ns ubik.interactive.events.browser
   (:require [clojure.string :as string]))
 
+(defn canvas-elem []
+  (js/document.getElementById "canvas"))
+
 (defn- kw->js
   "Returns js property name corresponding to idiomatic keyword."
   [kw]
@@ -21,7 +24,7 @@
 
 (defn ^:private event-map
   "Returns a map of event handlers for elem."
-  [elem]
+  [elem dispatch-fn]
   {:context-menu (fn [e]
                    (.preventDefault e)
                    (.stopPropagation e))
@@ -37,8 +40,8 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 {:type     :ubik.events/left-mouse-down
-                          :location p}
+                       0 (dispatch-fn {:type     :left-mouse-down
+                                       :location p})
                        nil)))
 
    :touch-move   (fn [e]
@@ -46,8 +49,8 @@
 
    :mouse-move   (fn [e]
                    (.preventDefault e)
-                   {:type     :ubik.events/mouse-move
-                    :location (pixel-point elem e)})
+                   (dispatch-fn {:type     :mouse-move
+                                 :location (pixel-point elem e)}))
 
    :mouse-up     (fn [e]
                    (.preventDefault e)
@@ -59,7 +62,7 @@
                          p (pixel-point elem e)]
                      (case b
                        ;; Only handling left click for now.
-                       0 {:type     :ubik.events/left-mouse-up
+                       0 {:type     :left-mouse-up
                           :location p}
                        nil)))
 
@@ -68,19 +71,19 @@
                    (let [mag (if (= 1 (oget e "deltaMode")) 15 1)
                          dx  (* mag (js/parseInt (oget e "deltaX")))
                          dy  (* mag (js/parseInt (oget e "deltaY")))]
-                     {:type     :ubik.events/wheel
+                     {:type     :wheel
                       :location (pixel-point elem e)
                       :dx       dx
                       :dy       dy}))
 
    :key-down     (fn [e]
                    (.preventDefault e)
-                   {:type :ubik.events/key-down
+                   {:type :key-down
                     :raw  e})
 
    :key-up       (fn [e]
                    (.preventDefault e)
-                   {:type :ubik.events/key-up
+                   {:type :key-up
                     :raw  e})})
 
 (defonce ^:private registered-listeners (atom {}))
@@ -90,7 +93,9 @@
     (.removeEventListener elem (kw->js event) cb)))
 
 (defn setup [elem dispatch-fn]
-  (let [handlers (event-map elem)]
+  (when (seq @registered-listeners)
+    (teardown elem))
+  (let [handlers (event-map elem dispatch-fn)]
     (reset! registered-listeners handlers)
     (doseq [[event cb] handlers]
       (.addEventListener elem (kw->js event) cb))))

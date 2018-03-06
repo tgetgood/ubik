@@ -1,10 +1,10 @@
 (ns ubik.interactive.core
-  (:refer-clojure :exclude [find -deref])
   (:require [clojure.walk :as walk]
             [ubik.core :as core]
             [ubik.geometry :as geo]
-            [ubik.interactive.caching :as cache]
-            [ubik.interactive.db :as db]))
+            [ubik.interactive.db :as db]
+            [ubik.interactive.events :as events]
+            [ubik.hosts :as hosts]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Subscriptions
@@ -16,17 +16,15 @@
 ;; TODO: Eventually we'll want more aggressive caching.
 (deftype MemoizedSubscription [])
 
-(deftype SimpleSubscription [dependencies reaction
-                             ^:volatile-mutable _last-args
-                             ^:volatile-mutable _last-val]
+(deftype SimpleSubscription [dependencies reaction ^:volatile-mutable _last]
   Signal
   (-value [_ sg]
-    (let [args (->> dependencies (map #(get sg %)) (map #(-value % sg)))]
-      (if (= _last-args args)
-        _last-val
+    (let [args (->> dependencies (map #(get sg %)) (map #(-value % sg)))
+          [last-args last-val] _last]
+      (if (= last-args args)
+        last-val
         (let [next-val (apply reaction args)]
-          (set! _last-args args)
-          (set! _last-val next-val)
+          (set! _last [args next-val])
           next-val)))))
 
 (defrecord RefSub [ref]
@@ -41,7 +39,7 @@
 (defn subscription
   {:style/indent [1 :form]}
   [deps reaction]
-  (SimpleSubscription. deps reaction (gensym "NOMATCH") nil))
+  (SimpleSubscription. deps reaction [(gensym "NOMATCH") nil]))
 
 (defn sub
   {:style/indent [1 :form]
@@ -162,12 +160,31 @@
   (walk-subscriptions shape (assoc subs :db db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Effects
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def default-effect-handlers
+  {:swap! (fn [f]
+            (swap! db/app-db f))
+   :reset! (fn [value]
+             (reset! db/app-db value))})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Events
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Effects
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- dispatcher
+  "Returns an event dispatch fn."
+  ;; TODO: Will eventually need to use a queue and not block the main thread too
+  ;; long. I can probably just lift the queue out of reframe
+  [event-map effect-map]
+  (fn dispatch! [event]
+    (when-let [ev-handlers (get event-map (:type event))]
+      (doseq [evh (if (fn? ev-handlers) [ev-handlers] ev-handlers)]
+        (let [outcome (evh event)]
+          (doseq [[effect arg] outcome]
+            (when (contains? effect-map effect)
+              ((get effect-map effect) arg))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Internal Bookkeeping
@@ -196,3 +213,64 @@
 
 ;; (defn lookup-tag [tag location]
 ;;   (tagged-value (find tag location) tag))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Roundup
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defonce ^:private idem (atom nil))
+
+(defn draw-loop
+  "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
+  animation frame if @state-ref has changed."
+  [world host sg]
+  (when-let [stop @idem]
+    (stop))
+  (let [last-state (atom (gensym "NO-MATCH"))
+        continue?  (atom true)]
+    (letfn [(recurrent [counter last-run]
+              #?(:clj
+                 ;; Need some kind of abstraction around animation frames.
+                 ;; We can't be drawing in a busy loop like this
+                 (core/draw! world)
+                 :cljs
+                 (js/window.requestAnimationFrame
+                  (fn [now]
+                    (when @continue?
+                      (let [the-world (realise-world world sg)]
+                        (when-not (= the-world @last-state)
+                          (core/draw! the-world host)
+                          (reset! last-state the-world)))
+                      (recurrent (inc counter) last-run))))))]
+      (recurrent 0 0)
+
+      (reset! idem
+              (fn []
+                (reset! continue? false))))))
+
+;; REVIEW: I've made this dynamic so that it can be swapped out by code
+;; introspection programs which need to evaluate code and grab their handlers,
+;; state atoms, etc.
+;;
+;; There's got to be a better way to get the desired dynamism
+(defn ^:dynamic initialise!
+  "Initialises the system, whatever that means right now."
+  [{:keys [shape host subscriptions event-handlers effect-handlers]}]
+  ;; Register effect / coeffect handlers
+
+  ;; Build event handlers
+
+  ;; Initialise event system
+
+  (let [dispatch-fn (dispatcher event-handlers
+                               (merge effect-handlers
+                                      default-effect-handlers))]
+    (events/start-event-system! dispatch-fn))
+
+  ;; Preprocess render tree.
+
+  (draw-loop shape (if host host (hosts/default-host {})) subscriptions))
+
+(defn stop! []
+  (when-let [sfn @idem]
+    (sfn)))

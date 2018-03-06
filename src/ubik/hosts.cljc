@@ -14,7 +14,3 @@
 
 (defn default-host [opts]
   (#?(:clj quil :cljs html-canvas) opts))
-
-;; HACK: I don't want users to have to worry about hosts at all until they need
-;; to. Is there a better way to accomplish that?
-(set! ubik.core/*host* (default-host {}))
