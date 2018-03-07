@@ -80,17 +80,6 @@
              sym
              (recur form table)))))))
 
-;; REVIEW: Here's an idea: Pass in the subscription magic marker to the
-;; macro. That would be interesting. It makes it explicit that I want to use
-;; (SYM :key) to access other subscriptions. Likely very confusing for new
-;; users.
-;;
-;; At the same time we should provide a re-frame style functional form
-;; (subscription [:k1 :k2] (fn [k1 k2] ...)) which is very transparent and easy
-;; to use.
-;;
-;; Subscriptions should probably also be a type, because this is getting a
-;; little silly.
 #?(:clj
    (defn build-subscription
      "Returns a subscribed version of form.
