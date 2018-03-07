@@ -131,18 +131,6 @@
                  (map (fn [[k# v#]] [k# (build-subscription sub? v#)])
                       sub-map))))))
 
-#?(:clj
-   (defmacro sub++
-     "Helper macro to build subscriptions quickly. Possibly too
-  slick. Definitely a little ugly.
-
-  Walks form and collects all forms (sub :??) where :?? can be any subscription
-  key. Build a subscription by replacing these sub forms with symbol and
-  wrapping in a function. "
-     ;; TODO: Example
-     [form]
-     (build-subscription (sub-checker 'sub) form)))
-
 (defn walk-subscriptions
   "Walks render tree recursively replacing all subscriptions by their
   instantaneous value."
