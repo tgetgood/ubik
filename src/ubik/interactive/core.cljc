@@ -13,10 +13,21 @@
 (defprotocol Signal
   (-value [this signal-graph]))
 
+;; Token protocol
+;; FIXME: Terrible name
+(defprotocol ISignal)
+
+(extend-protocol Signal
+  ;; I'm not sure I like this...
+  nil
+  (-value [_ _] nil))
+
 ;; TODO: Eventually we'll want more aggressive caching.
-(deftype MemoizedSubscription [])
+(deftype MemoizedSubscription []
+  ISignal)
 
 (deftype SimpleSubscription [dependencies reaction ^:volatile-mutable _last]
+  ISignal
   Signal
   (-value [_ sg]
     (let [args (->> dependencies (map #(get sg %)) (map #(-value % sg)))
@@ -28,13 +39,14 @@
           next-val)))))
 
 (defrecord RefSub [ref]
+  ISignal
   Signal
   (-value [_ _] @ref))
 
 (def db (RefSub. db/app-db))
 
 (defn subscription? [sig]
-  (satisfies? Signal sig))
+  (satisfies? ISignal sig))
 
 (defn subscription
   {:style/indent [1 :form]}
