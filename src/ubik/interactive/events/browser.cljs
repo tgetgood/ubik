@@ -44,7 +44,6 @@
                      (case b
                        ;; Only handling left click for now.
                        0 (dispatch-fn {:type     :left-mouse-down
-                                       :raw      e
                                        :location p
                                        :time     (now)})
                        nil)))
@@ -69,7 +68,6 @@
                      (case b
                        ;; Only handling left click for now.
                        0 (dispatch-fn {:type     :left-mouse-up
-                                       :raw      e
                                        :location p
                                        :time     (now)})
                        nil)))
@@ -89,13 +87,15 @@
                    (.preventDefault e)
                    (dispatch-fn {:type :key-down
                                  :time (now)
-                                 :raw  e}))
+                                 :key (.-key e)
+                                 :key-code (.-keyCode e)}))
 
    :key-up       (fn [e]
                    (.preventDefault e)
                    (dispatch-fn {:type :key-up
                                  :time (now)
-                                 :raw  e}))})
+                                 :key (.-key e)
+                                 :key-code (.-keyCode e)}))})
 
 (defonce ^:private registered-listeners (atom {}))
 
