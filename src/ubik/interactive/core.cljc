@@ -81,8 +81,18 @@
              (recur form table)))))))
 
 #?(:clj
-   (defn build-subscription
-     "Returns a subscribed version of form.
+   (defn sub-checker [sym]
+     (fn [form]
+       (and (list? form)
+            (= (count form) 2)
+            (symbol? (first form))
+            (= (first form) sym)
+            (keyword? (second form))))))
+
+#?(:clj
+   (defmacro sub-form
+     {:style/indent [1 :form]
+      :doc "Returns a subscribed version of form.
 
   This subscription is a function which given a signal graph returns a value.
 
@@ -98,9 +108,11 @@
   ^force-cache metadata as well.
 
   Even if the subscription isn't fully memoised, the last value is cached so
-  checks are quick if nothing has changed."
-     [subscription? form]
+  checks are quick if nothing has changed."}
+     [operator form]
      (let [symbol-table (atom {})
+
+           subscription? (sub-checker operator)
 
            body         (walk/prewalk
                          (fn [f]
@@ -115,21 +127,11 @@
             ~body)))))
 
 #?(:clj
-   (defn sub-checker [sym]
-     (fn [form]
-       (and (list? form)
-            (= (count form) 2)
-            (symbol? (first form))
-            (= (first form) sym)
-            (keyword? (second form))))))
-
-#?(:clj
    (defmacro defsubs [name operator sub-map]
-     (let [sub? (sub-checker operator)]
-       `(def ~name
-          ~(into {}
-                 (map (fn [[k# v#]] [k# (build-subscription sub? v#)])
-                      sub-map))))))
+     `(def ~name
+        ~(into {}
+               (map (fn [[k# v#]] [k# `(sub-form ~operator ~v#)])
+                    sub-map)))))
 
 (defn walk-subscriptions
   "Walks render tree recursively replacing all subscriptions by their
