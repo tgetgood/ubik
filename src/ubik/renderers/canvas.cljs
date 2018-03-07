@@ -36,9 +36,6 @@
 (def *fill (call "fill"))
 (def *clip (call "clip"))
 
-;; TODO: Compilation as a notion needs to be first class. Geometry needs it
-;; too. So move it to core?
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Styling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
