@@ -6,6 +6,8 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
+(def the-world (atom nil))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Subscriptions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -181,29 +183,15 @@
 ;;;;; Internal Bookkeeping
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn sub-tagged? [s t]
-  (cond
-    (contains? (core/get-tags s) t) true
-    (sequential? s)                 (some #(sub-tagged? % t) s)
-    (core/has-children? s)          (recur (core/children s) t)
-    :else                           false))
-
-#_(defn find [tag location]
-  (->> @world
-       (geo/effected-branches location)
-       (filter #(sub-tagged? % tag))
-       first))
-
-;; (defn tagged-value [shape tag]
-;;   (if-let [v (core/get-tag-data shape tag)]
-;;     v
-;;     (cond
-;;       (sequential? shape) (first (map #(tagged-value % tag) shape))
-;;       (core/has-children? shape) (recur (core/children shape) tag)
-;;       :else nil)))
-
-;; (defn lookup-tag [tag location]
-;;   (tagged-value (find tag location) tag))
+(defn find-by-tag [tag]
+  (->> @the-world
+       geo/branch-seq*
+       (filter (fn [b]
+                 (some (fn [s]
+                         (contains? (core/get-tags s) tag))
+                       b)))
+       first
+       geo/recombinator))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Roundup
@@ -217,8 +205,8 @@
   [world host sg]
   (when-let [stop @idem]
     (stop))
-  (let [last-state (atom (gensym "NO-MATCH"))
-        continue?  (atom true)]
+  (reset! the-world nil)
+  (let [continue?  (atom true)]
     (letfn [(recurrent [counter last-run]
               #?(:clj
                  ;; Need some kind of abstraction around animation frames.
@@ -228,10 +216,10 @@
                  (js/window.requestAnimationFrame
                   (fn [now]
                     (when @continue?
-                      (let [the-world (realise-world world sg)]
-                        (when-not (= the-world @last-state)
-                          (core/draw! the-world host)
-                          (reset! last-state the-world)))
+                      (let [world (realise-world world sg)]
+                        (when-not (= @the-world world)
+                          (core/draw! world host)
+                          (reset! the-world world)))
                       (recurrent (inc counter) last-run))))))]
       (recurrent 0 0)
 

@@ -16,11 +16,11 @@
     "Returns true iff shape overlaps visibly with the bounding box. Used to
     decide what needs to be rendered. Don't implement for polygons as
     Cohen-Sutherland is probably better than you.")
-  (^boolean contains? [shape point]
+  (^boolean -contains? [shape point]
    "Returns true iff shape contains point.")
   (distance [shape point]
     "Returns the distance from shape to point. Must return a positive number,
-  and (zero? (distance shape point)) <=> (contains? shape point)"))
+  and (zero? (distance shape point)) <=> (-contains? shape point)"))
 
 (defprotocol GeometricSet
   (-union [shape s2])
@@ -46,7 +46,7 @@
   Geometry
   (bound [box]
     box)
-  (contains? [{:keys [xmin xmax ymin ymax]} [x y]]
+  (-contains? [{:keys [xmin xmax ymin ymax]} [x y]]
     (and (<= xmin x xmax) (<= ymin y ymax))))
 
 (defn union
@@ -90,7 +90,7 @@
 
 (extend-protocol Geometry
   #?(:clj Object :cljs default)
-  (contains? [shape point]
+  (-contains? [shape point]
     (zero? (distance shape point)))
   (bound [shape]
     (cond
@@ -162,7 +162,7 @@
   [point tree]
   (->> tree
        branch-seq
-       (filter #(contains? (bound %) point))))
+       (filter #(-contains? (bound %) point))))
 
 (defn retree
   "Given a collection of branches that share the same root, reconstruct a
@@ -180,6 +180,9 @@
              (first branch)
              branch))
          trees)))
+
+(defn contains? [shape point]
+  (-contains? (bound shape) point))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; TODO: Index objects (not until speed becomes an issue)
