@@ -348,14 +348,13 @@
   transforms the raw ubik instructions into final canvas instructions.
   Is it an interpreter or an optimising compiler? I don't know, it's a pretty
   crappy either...'"
-  []
+  [xf]
   (let [state (CompilerState. nil nil nil nil)]
-    (fn [xf]
-      (fn
-        ([] (xf))
-        ([acc] (xf acc))
-        ([acc n]
-         (stack-process ^not-native n xf acc state))))))
+    (fn
+      ([] (xf))
+      ([acc] (xf acc))
+      ([acc n]
+       (stack-process ^not-native n xf acc state)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Debugging
@@ -390,7 +389,7 @@
   "Returns a vector of strings which represents the code that gets executed on
   the canvas context in attempting to draw the given shape."
   [shape]
-  (transduce (comp (stack-tx) (map inspect) (remove nil?))
+  (transduce (comp stack-tx (map inspect) (remove nil?))
              conj
              (compile shape)))
 
@@ -410,7 +409,7 @@
 
 (defn execute! [ctx cmds]
   (clear-screen! ctx)
-  (transduce (stack-tx) (exec-reduce ctx) cmds))
+  (transduce stack-tx (exec-reduce ctx) cmds))
 
 (defn draw!
   "Draw world to HTML Canvas element."
