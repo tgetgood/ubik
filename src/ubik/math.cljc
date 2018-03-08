@@ -63,8 +63,7 @@
   (reduce + (map * x y)))
 
 (defn norm [[x y]]
-  (+ (* x x) (* y y)))
-
+  (sqrt (+ (* x x) (* y y))))
 
 ;;;;; Linear and Affine
 
