@@ -57,7 +57,7 @@
   (satisfies? ISignal sig))
 
 (defn subscription
-  {:style/indent [1 :form]}
+  {:style/indent [1]}
   [deps reaction]
   (SimpleSubscription. deps reaction (gensym "NOMATCH") nil))
 
@@ -93,7 +93,7 @@
 
 #?(:clj
    (defmacro sub-form
-     {:style/indent [1 :form]
+     {:style/indent [1]
       :doc          "Returns a subscribed version of form.
 
   This subscription is a function which given a signal graph returns a value.
@@ -124,9 +124,11 @@
                          form)
 
            sym-seq      (seq @symbol-table)]
-       `(subscription [~@(map key sym-seq)]
-          (fn [~@(map val sym-seq)]
-            ~body)))))
+       (if (empty? sym-seq)
+         form
+         `(subscription [~@(map key sym-seq)]
+            (fn [~@(map val sym-seq)]
+              ~body))))))
 
 #?(:clj
    (defmacro defsubs [name operator sub-map]
