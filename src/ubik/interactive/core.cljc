@@ -6,7 +6,7 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
-(def the-world (atom nil))
+(defonce the-world (atom nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Subscriptions
@@ -21,6 +21,9 @@
 
 (extend-protocol Signal
   ;; I'm not sure I like this...
+  #?(:clj Object :cljs default)
+  (-value [this _] this)
+
   nil
   (-value [_ _] nil))
 
@@ -28,16 +31,18 @@
 (deftype MemoizedSubscription []
   ISignal)
 
-(deftype SimpleSubscription [dependencies reaction ^:volatile-mutable _last]
+(deftype SimpleSubscription [dependencies reaction
+                             ^:volatile-mutable _last-args
+                             ^:volatile-mutable _last-val]
   ISignal
   Signal
   (-value [_ sg]
-    (let [args (->> dependencies (map #(get sg %)) (map #(-value % sg)))
-          [last-args last-val] _last]
-      (if (= last-args args)
-        last-val
+    (let [args (->> dependencies (map #(get sg %)) (map #(-value % sg)))]
+      (if (= _last-args args)
+        _last-val
         (let [next-val (apply reaction args)]
-          (set! _last [args next-val])
+          (set! _last-args args)
+          (set! _last-val next-val)
           next-val)))))
 
 (defrecord RefSub [ref]
@@ -53,13 +58,7 @@
 (defn subscription
   {:style/indent [1 :form]}
   [deps reaction]
-  (SimpleSubscription. deps reaction [(gensym "NOMATCH") nil]))
-
-(defn sub
-  {:style/indent [1 :form]
-   :doc "Alias for subscription (or subscribe)."}
-  [deps reaction]
-  (subscription deps reaction))
+  (SimpleSubscription. deps reaction (gensym "NOMATCH") nil))
 
 (defn deref-signal
   "Returns the current value of a signal"
@@ -197,35 +196,27 @@
 ;;;;; Roundup
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defonce ^:private idem (atom nil))
+(defonce ^:private continue? (atom nil))
 
 (defn draw-loop
   "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
   animation frame if @state-ref has changed."
-  [world host sg]
-  (when-let [stop @idem]
-    (stop))
-  (reset! the-world nil)
-  (let [continue?  (atom true)]
-    (letfn [(recurrent [counter last-run]
-              #?(:clj
-                 ;; Need some kind of abstraction around animation frames.
-                 ;; We can't be drawing in a busy loop like this
-                 (core/draw! world)
-                 :cljs
-                 (js/window.requestAnimationFrame
-                  (fn [now]
-                    (when @continue?
-                      (let [world (realise-world world sg)]
-                        (when-not (= @the-world world)
-                          (core/draw! world host)
-                          (reset! the-world world)))
-                      (recurrent (inc counter) last-run))))))]
-      (recurrent 0 0)
-
-      (reset! idem
-              (fn []
-                (reset! continue? false))))))
+  [world host sg check-sym]
+  (letfn [(recurrent [counter last-run]
+            #?(:clj
+               ;; Need some kind of abstraction around animation frames.
+               ;; We can't be drawing in a busy loop like this
+               (core/draw! world)
+               :cljs
+               (js/window.requestAnimationFrame
+                (fn [now]
+                  (when (= check-sym @continue?)
+                    (let [world (realise-world world sg)]
+                      (when-not (= @the-world world)
+                        (core/draw! world host)
+                        (reset! the-world world))
+                      (recurrent (inc counter) last-run)))))))]
+    (recurrent 0 0)))
 
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
@@ -247,9 +238,10 @@
     (events/start-event-system! dispatch-fn))
 
   ;; Preprocess render tree.
+  (let [host (or host (hosts/default-host {}))]
+    ;; HACK: When hot reloading, you need to draw even if nothing has changed
+    ;; because the canvas gets cleared.
+    (when-let [world @the-world]
+      (core/draw! world host))
 
-  (draw-loop shape (if host host (hosts/default-host {})) subscriptions))
-
-(defn stop! []
-  (when-let [sfn @idem]
-    (sfn)))
+    (draw-loop shape host subscriptions (reset! continue? (gensym)))))
