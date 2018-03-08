@@ -32,6 +32,7 @@
   ISignal)
 
 (deftype SimpleSubscription [dependencies reaction
+                             ;; FIXME: Not synchronised
                              ^:volatile-mutable _last-args
                              ^:volatile-mutable _last-val]
   ISignal
@@ -93,7 +94,7 @@
 #?(:clj
    (defmacro sub-form
      {:style/indent [1 :form]
-      :doc "Returns a subscribed version of form.
+      :doc          "Returns a subscribed version of form.
 
   This subscription is a function which given a signal graph returns a value.
 
@@ -113,11 +114,11 @@
      [operator form]
      (let [symbol-table (atom {})
 
-           subscription? (sub-checker operator)
+           magic-sym?   (sub-checker operator)
 
            body         (walk/prewalk
                          (fn [f]
-                           (if (subscription? f)
+                           (if (magic-sym? f)
                              (intern-subscription f symbol-table)
                              f))
                          form)
