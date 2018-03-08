@@ -102,7 +102,8 @@
     (if (core/template? this)
       (compile* (core/expand-template this))
       (do
-        (println (str "I don't know how to render a " (type this) ". Aborting."))
+        (println (str "I don't know how to render a " (type this)
+                      ". Rendering nothing."))
         [])))
 
   nil
