@@ -10,6 +10,27 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Subscriptions
+;;
+;; Every signal can be modelled so that the current value is the last emission
+;; of a transducer or the last result of a reducer. Reducers give us classic
+;; foldp, but transducers give us stream to stream mappings that don't suffer
+;; from spacetime leaks.
+;;
+;; This seems like big deal. The advantages of the reduced store, without the
+;; loss of concurrency or the necessity to store interim results in the central
+;; store (they're kept inside stateful transducers.
+;;
+;; In addition each isolated stateful process is thread isolated. So we get
+;; safe, automatic parallelism without spacetime leaks.
+;;
+;; Question: What would programming this way be like?
+;;
+;; TODO: I need to write an underlying collection for signal
+;; transduction. Vectors and Seqs are no good since we'd need to take the last
+;; value of eductions for each update. Channels would work, but semantically
+;; signals are like agents: they always have a value and you should be able to
+;; simply deref them to get it without sending them a message or subscribing to
+;; them.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol Signal
