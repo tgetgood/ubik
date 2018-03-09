@@ -169,11 +169,16 @@
        form))
    shape))
 
-(defn realise-world
-  "Returns the passed in shape with all subscriptions replaced by their
+(let [last-db (atom (gensym "AhAhAh"))]
+  (defn realise-world
+    "Returns the passed in shape with all subscriptions replaced by their
   current values."
-  [shape subs]
-  (walk-subscriptions shape (assoc subs :db db)))
+    [shape subs]
+    (if (identical? @last-db @db/app-db)
+      @the-world
+      (do
+        (reset! last-db @db/app-db)
+        (walk-subscriptions shape (assoc subs :db db))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Effects
