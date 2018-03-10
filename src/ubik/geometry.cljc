@@ -194,6 +194,8 @@
 ;; To retrieve, pick the quadrant the point is in until we come to a bucket (no
 ;; more quadrants). Iterate through each VO in bucket and collect those that the
 ;; point is inside.
+;;
+;; Compare to R*
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Winding number algo for second pass
