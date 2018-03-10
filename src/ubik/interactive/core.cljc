@@ -122,16 +122,7 @@
   The signal graph is just a map from keys to subscriptions.
 
   A subscription does not need to be part of the signal graph it receives (but
-  probably will be). Recursive calls will end in disaster.
-
-  By default subscriptions are memoized so that recomputation is only necessary
-  if their upstream subscriptions take on a new value. ^no-cache metadata on
-  form will prevent memoization, as will a subscription to the :db sub. This
-  last is to prevent massive memory consumption. It might make sense to add a
-  ^force-cache metadata as well.
-
-  Even if the subscription isn't fully memoised, the last value is cached so
-  checks are quick if nothing has changed."}
+  probably will be). Recursive calls will end in disaster."}
      [operator form]
      (let [symbol-table (atom {})
 
@@ -276,4 +267,5 @@
     (when-let [world @the-world]
       (core/draw! world host))
 
+    (reset! reload true)
     (draw-loop shape host subscriptions (reset! continue? (gensym)))))
