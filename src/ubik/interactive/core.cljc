@@ -59,7 +59,9 @@
   ISignal
   Signal
   (-value [_ sg]
-    (let [args (->> dependencies (map #(get sg %)) (map #(-value % sg)))]
+    (let [subs (map (fn [s] (if (keyword? s) (get sg s) s)) dependencies)
+          args (map #(-value % sg) subs)]
+
       (if (= _last-args args)
         _last-val
         (let [next-val (apply reaction args)]
