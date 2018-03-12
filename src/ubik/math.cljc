@@ -31,6 +31,9 @@
 (defn cos [x]
   (#?(:cljs js/Math.cos :clj Math/cos) x))
 
+(defn atan [x]
+  (#?(:clj Math/atan :cljs js/Math.atan) x))
+
 (defn abs [x]
   (if (< x 0)
     (- x)
