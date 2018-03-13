@@ -7,6 +7,8 @@
   :scm {:name "git"
         :url "https://github.com/tgetgood/ubik"}
 
+  :deploy-repositories [["releases" :clojars]]
+
   :min-lein-version "2.7.1"
 
   :dependencies [[org.clojure/clojure "1.9.0"]
