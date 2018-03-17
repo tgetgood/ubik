@@ -1,59 +1,111 @@
 (ns ubik.renderers.quil
-  (:require [ubik.core :as core]
-            [ubik.renderers.util :as util]
-            [quil.core :as q]))
+  (:require [quil.core :as q]
+            [ubik.core :as core]
+            [ubik.util :refer [import-ubik-types]])
+  (:import [ubik.core AffineTransformation Line]))
+
+(import-ubik-types)
+
+(defprotocol Invocable
+  (invoke [this]))
+
+(defrecord PushMatrix []
+  Invocable
+  (invoke [_]
+    (q/push-matrix)))
+
+(def push-matrix (PushMatrix.))
+
+(defrecord PopMatrix []
+  Invocable
+  (invoke [_]
+    (q/pop-matrix)))
+
+(def pop-matrix (PopMatrix.))
+
+(defrecord ApplyMatrix [a b c d e f]
+  Invocable
+  (invoke [_]
+    (q/apply-matrix a b e c d f)))
+
+(defn apply-matrix [{[a b c d] :matrix [e f] :translation}]
+  (ApplyMatrix. a b c d e f))
+
+(defrecord QLine [x1 y1 x2 y2]
+  Invocable
+  (invoke [_]
+    (q/line x1 y1 x2 y2)))
+
+(defn line [[x1 y1] [x2 y2]]
+  (QLine. x1 y1 x2 y2))
 
 (defprotocol QuilRenderable
   (compile* [this]))
 
-(def t (atom nil))
+(def compile*-seq-method
+  `(compile* [this#]
+             {:draw (mapcat compile* this#)}))
+
+#?(:clj
+   (defmacro add-seq-compilers [types]
+     `(extend-protocol QuilRenderable
+        ~@(interleave types (repeat compile*-seq-method)))))
+
+(add-seq-compilers
+   #?(:cljs [List
+            LazySeq
+            PersistentVector
+            IndexedSeq
+            ArrayList]
+     :clj [clojure.lang.PersistentVector
+           clojure.lang.PersistentList
+           clojure.lang.ArraySeq
+           clojure.lang.IndexedSeq
+           clojure.lang.LazySeq]))
+
+(extend-protocol QuilRenderable
+  nil
+  (compile* [_]
+    (println "Can't render nil.")
+    [])
+
+  #?(:clj Object :cljs default)
+  (compile* [this]
+    (if (core/template? this)
+      (compile* (core/expand-template this))
+      (do
+        (println (str "I don't know how to render a " (type this)
+                      ". Doing nothing."))
+       [])))
+
+  AffineTransformation
+  (compile* [{atx :atx base :base-shape}]
+    {:pre [push-matrix
+           (apply-matrix atx)]
+     :recur-on base
+     :post [pop-matrix]})
+
+  Line
+  (compile* [{:keys [from to style]}]
+    {:style style
+     :draw [(line from to)]}))
+
+(defn walk-compile [shape]
+  (let [c (compile* shape)]
+    (concat
+     (:pre c)
+     (:draw c)
+     (when (:recur-on c)
+       (walk-compile (:recur-on c)))
+     (:post c))))
+
+(defonce t (atom nil))
 
 (defn renderer
   "Returns a render function which when passed a context, renders the given
   shape."
   [graphics shape]
-  #_(q/with-graphics graphics
-    (doto graphics
-      (.clear )
-      (.background 255)
-      (.stroke 0 255 129)
-      (.line 0 0 400 400)
-      (.stroke 0)
-      (.line 500 0 0 500)
-
-      (.stroke 0 0 0 0)
-      (.fill 255 128 14)
-      (.ellipse 300 300 150 70)))
   (q/clear)
-  (q/fill 0 0 0 0)
-  (q/stroke 0)
   (q/background 255)
-
-  (q/line 0 0 400 400)
-
-  (q/fill 128 240 13)
-  (q/stroke 0 0 0 0)
-  (q/ellipse 300 300 150 70)
-
-  (q/stroke 128)
-  (q/line 300 500 100 200)
-
-  (let [s (.createShape graphics)]
-    (doto s
-      (.beginShape)
-      (.vertex 20 20)
-      (.stroke 0 0 0 0)
-      (.vertex 20 80)
-      (.vertex 80 170)
-      (.stroke 255 0 0)
-      (.fill 255 255 123)
-      (.vertex 10 110)
-      (.vertex 20 20)
-      (.endShape))
-    (q/shape s)
-    (q/scale 2)
-    (q/rotate -0.54)
-    (q/shape s)
-    )
-
-  #_(render-fn {:zoom 1 :style {}} shape))
+  (run! invoke (walk-compile shape))
+  )

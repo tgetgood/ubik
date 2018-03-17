@@ -3,7 +3,7 @@
             [ubik.renderers.quil :as renderer]
             [quil.core :as q]))
 
-(defn host [{:keys [size]}]
+(defn host [{:keys [size] :or {size :fullscreen}}]
   (let [f      (atom (constantly nil))
         applet (q/sketch :size size :renderer :p2d
                          :draw (fn [] (@f)))
@@ -15,12 +15,9 @@
                               (renderer/renderer g shape))))}))
 
 (def test-image
-  [(-> core/line
-       (core/rotate 30)
-       (core/scale 300))
-
-   ]
- )
+  (-> core/line
+      (core/rotate 30)
+      (core/scale 300)))
 
 (alias 'l 'ubik.core)
 
