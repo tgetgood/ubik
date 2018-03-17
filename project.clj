@@ -5,13 +5,14 @@
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
 
   :scm {:name "git"
-        :url "https://github.com/tgetgood/ubik"}
+        :url  "https://github.com/tgetgood/ubik"}
 
   :deploy-repositories [["releases" :clojars]]
 
   :min-lein-version "2.7.1"
 
-  :dependencies [[org.clojure/clojure "1.9.0"]
+  :dependencies [[net.cgrand/macrovich "0.2.1"]
+                 [org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.9.946"]
                  [org.clojure/spec.alpha "0.1.143"]
                  [quil "2.6.0" :exclusions [[org.clojure/clojure]]]]
@@ -36,12 +37,12 @@
 
   :profiles
   {:dev {:dependencies  [[binaryage/devtools "0.9.9"]
-                         [org.clojure/tools.namespace "0.2.11"]
-                         [org.clojure/core.async "0.3.465"]
+                         [com.cemerick/piggieback "0.2.2"]
                          [figwheel-sidecar "0.5.14"
                           :exclusions [org.clojure/core.async]]
-                         [com.cemerick/piggieback "0.2.2"]
-                         [org.clojure/test.check "0.9.0"]]
+                         [org.clojure/core.async "0.3.465"]
+                         [org.clojure/test.check "0.9.0"]
+                         [org.clojure/tools.namespace "0.2.11"]]
          ;; need to add dev source path here to get user.clj loaded
          :source-paths  ["src" "dev"]
 
