@@ -3,23 +3,34 @@
             [ubik.renderers.quil :as renderer]
             [quil.core :as q]))
 
-(defn host [{:keys [size] :or {size :fullscreen}}]
+(defonce error-log (atom []))
+
+(defn host [{:keys [size] :or {size [500 500]}}]
   (let [f      (atom (constantly nil))
         applet (q/sketch :size size :renderer :p2d
+                         :resizable true
                          :draw (fn [] (@f)))
         g      (.-g applet)]
-    {:width     (.width g)
-     :height    (.height g)
+    {:width     (fn [] (.width g))
+     :height    (fn [] (.height g))
+     :applet    applet
      :render-fn (fn [shape]
                   (reset! f (fn []
-                              (renderer/renderer g shape))))}))
+                              (try
+                                (renderer/renderer g shape)
+                                (catch Exception e
+                                  (.exit applet)
+                                  (swap! error-log conj e))))))}))
 
 (def test-image
   (-> core/line
-      (core/rotate 30)
+      (assoc :to [10 0])
+      (core/rotate 10)
+
       (core/scale 300)))
 
 (alias 'l 'ubik.core)
+
 
 (def ex
   [(-> l/polyline
@@ -42,3 +53,12 @@
          (l/translate [500 500])))
 
    (l/scale l/circle [4000 500])])
+
+(require '[clojure.pprint :refer [pp pprint]])
+
+(defonce the-host (atom nil))
+
+(when @the-host
+  (.exit (:applet @the-host)))
+(reset! the-host (host {}))
+(core/draw! ex @the-host)
