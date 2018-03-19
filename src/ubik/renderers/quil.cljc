@@ -1,7 +1,9 @@
 (ns ubik.renderers.quil
-  (:require [quil.core :as q]
+  (:require [clojure.string :as string]
+            [net.cgrand.macrovich :as macros]
+            [quil.core :as q]
             [ubik.core :as core]
-            [ubik.util :refer [import-ubik-types]])
+            [ubik.renderers.util :as util])
   (:import [ubik.core AffineTransformation Line]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -12,54 +14,57 @@
   (inspect [this]))
 
 (defprotocol Invocable
-  (invoke [this]))
+  (invoke [this graphics]))
 
-(defrecord PushMatrix []
-  HumanReadable
-  (inspect [_]
-    "pushMatrix()")
+(macros/deftime
 
-  Invocable
-  (invoke [_]
-    (q/push-matrix)))
+  (defn tocmd [cmd]
+    (let [parts (string/split (name cmd) #"-")]
+      (symbol (apply str "." (first parts)
+                     (map string/capitalize (rest parts))))))
 
-(def push-matrix (PushMatrix.))
+  (defn call-form [g cmd args]
+    (apply list (tocmd cmd) g args))
 
-(defrecord PopMatrix []
-  HumanReadable
-  (inspect [_]
-    "popMatrix()")
+  (defn cmd-body [form]
+    (let [single? (symbol? form)
+          cmd (if single? form (first form))
+          args (if single? [] (rest form))
+          record-name (gensym (name cmd))
+          graphics (gensym)]
+      `(do
+         (defrecord ~record-name [~@args]
+           HumanReadable
+           (inspect [_#]
+             ;; Adding in "g" as placeholder for passed graphics.
+             ~(str (apply str "(" (name (tocmd cmd)) " g " (interpose " " args))
+                   ")"))
+           Invocable
+           (invoke [_# ~graphics]
+             ~(apply list (tocmd cmd) graphics args)))
+         ~(if single?
+            `(def ~cmd (~(symbol (str record-name "."))))
+            `(defn ~cmd [~@args]
+               (~(symbol (str record-name ".")) ~@args))))))
 
-  Invocable
-  (invoke [_]
-    (q/pop-matrix)))
+  (defmacro defcmds [& forms]
+    `(do
+       ~@(map cmd-body forms))))
 
-(def pop-matrix (PopMatrix.))
+(defcmds
+  push-matrix
+  pop-matrix
+  (apply-matrix a b c d e f)
 
-(defrecord ApplyMatrix [a b c d e f]
-  HumanReadable
-  (inspect [_]
-    (str
-     (apply str "applyMatrix(" (interpose ", " [a b e c d f])) ")"))
+  push-style
+  pop-style
+  (update-stroke-width w)
+  (stroke r g b a)
+  (fill r g b a)
 
-  Invocable
-  (invoke [_]
-    (q/apply-matrix a b e c d f)))
+  (line x1 y1 x2 y2)
 
-(defn apply-matrix [{[a b c d] :matrix [e f] :translation}]
-  (ApplyMatrix. a b c d e f))
-
-(defrecord QLine [x1 y1 x2 y2]
-  HumanReadable
-  (inspect [_]
-    (str "line(" x1 ", " y1 ", " x2 ", " y2 ")"))
-
-  Invocable
-  (invoke [_]
-    (q/line x1 y1 x2 y2)))
-
-(defn line [[x1 y1] [x2 y2]]
-  (QLine. x1 y1 x2 y2))
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Rendering
@@ -107,20 +112,20 @@
        [])))
 
   AffineTransformation
-  (compile* [{[a b c d :as atx] :atx base :base-shape}]
+  (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
     (let [mag (util/magnitude a b c d)]
       {:pre [push-matrix
-             push-style
-             (line-width mag)
-             (apply-matrix atx)]
+             #_push-style
+             #_(line-width mag)
+             (apply-matrix a b e c d f)]
        :recur-on base
        :post [pop-matrix
-              pop-style]}))
+              #_pop-style]}))
 
   Line
-  (compile* [{:keys [from to style]}]
+  (compile* [{[x1 y1] :from [x2 y2] :to style :style}]
     {:style style
-     :draw [(line from to)]}))
+     :draw [(line x1 y1 x2 y2)]}))
 
 (defn walk-compile [shape]
   (let [c (compile* shape)]
@@ -140,8 +145,7 @@
   (q/clear)
   (q/reset-matrix)
   (q/background 200)
-  (q/stroke-weight (/ 1 300))
-  (run! invoke (walk-compile shape))
+  (run! #(invoke % graphics) (walk-compile shape))
 
   ;; (q/push-matrix)
   ;; (q/apply-matrix 300.0 0.0 0.0 0 300 0)
@@ -157,3 +161,5 @@
   (let [inst (walk-compile shape)]
     (= (count (filter #(= push-matrix %) inst))
        (count (filter #(= pop-matrix %) inst)))))
+
+(require '[clojure.pprint :refer [pp pprint]])

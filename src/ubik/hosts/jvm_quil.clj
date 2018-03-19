@@ -24,10 +24,11 @@
 
 (def test-image
   (-> core/line
-      (assoc :to [10 0])
-      (core/rotate 10)
+      (assoc :to [100 10])
 
-      (core/scale 300)))
+      ;; (core/scale 300)
+      #_(core/rotate 45)
+      ))
 
 (alias 'l 'ubik.core)
 
@@ -61,4 +62,4 @@
 (when @the-host
   (.exit (:applet @the-host)))
 (reset! the-host (host {}))
-(core/draw! ex @the-host)
+(core/draw! test-image @the-host)
