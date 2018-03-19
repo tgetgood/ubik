@@ -1,10 +1,29 @@
 (ns ubik.renderers.quil
-  (:require [clojure.string :as string]
-            [net.cgrand.macrovich :as macros]
-            [quil.core :as q]
-            [ubik.core :as core]
-            [ubik.renderers.util :as util])
-  (:import [ubik.core AffineTransformation Line]))
+  #?@(:clj
+       [(:require
+         [clojure.string :as string]
+         [net.cgrand.macrovich :as macros]
+         [quil.core :as q]
+         [ubik.core :as core]
+         [ubik.renderers.util :as util])
+        (:import
+         [ubik.core
+          AffineTransformation
+          Arc
+          Composite
+          Frame
+          Line
+          RawText
+          Region])]
+       :cljs
+       [(:require
+         [clojure.string :as string]
+         [net.cgrand.macrovich :as macros]
+         [quil.core :as q]
+         [ubik.core :as core]
+         [ubik.renderers.util :as util])
+        (:require-macros
+         [ubik.renderers.quil :refer [defcmds implement-sequentials]])]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Quil Wrapper
@@ -30,14 +49,15 @@
     (let [single? (symbol? form)
           cmd (if single? form (first form))
           args (if single? [] (rest form))
-          record-name (gensym (name cmd))
+          record-name (symbol (str "P" (name (core/type-case cmd))))
           graphics (gensym)]
       `(do
          (defrecord ~record-name [~@args]
            HumanReadable
            (inspect [_#]
              ;; Adding in "g" as placeholder for passed graphics.
-             ~(str (apply str "(" (name (tocmd cmd)) " g " (interpose " " args))
+             (str (apply str ~(subs (name (tocmd cmd)) 1) "("
+                         (interpose ", " [~@args]))
                    ")"))
            Invocable
            (invoke [_# ~graphics]
@@ -49,7 +69,24 @@
 
   (defmacro defcmds [& forms]
     `(do
-       ~@(map cmd-body forms))))
+       ~@(map cmd-body forms)))
+
+  (defmacro implement-sequentials
+    {:style/indent [1 :form [1]]}
+    [prot & methods]
+    (let [types (macros/case :cljs '[List
+                                     LazySeq
+                                     PersistentVector
+                                     IndexedSeq
+                                     ArrayList]
+                             :clj '[clojure.lang.PersistentVector
+                                    clojure.lang.PersistentList
+                                    clojure.lang.ArraySeq
+                                    clojure.lang.IndexedSeq
+                                    clojure.lang.PersistentVector$ChunkedSeq
+                                    clojure.lang.LazySeq])]
+      `(extend-protocol ~prot
+         ~@(mapcat (fn [a b] `[~a ~@b]) types (repeat methods))))))
 
 (defcmds
   push-matrix
@@ -59,47 +96,56 @@
   push-style
   pop-style
   (update-stroke-width w)
+  (stroke-weight w)
   (stroke r g b a)
   (fill r g b a)
+  no-fill
+  no-stroke
+
+  (clip x y w h)
+  no-clip
 
   (line x1 y1 x2 y2)
+  (arc x y a b from to)
+  (bezier x1 y1 c1x c1y c2x c2y x2 y2)
 
-  )
+  (text str x y))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Rendering
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn wrap-style [style cmds]
+  (if style
+    (concat
+     [push-style]
+     (when (:stroke style)
+       [(stroke 22 128 255 209)])
+     cmds
+     [pop-style])
+    cmds))
+
 (defprotocol QuilRenderable
   (compile* [this]))
 
-(declare walk-compile)
+(defn walk-compile [shape]
+  (let [c (compile* shape)]
+    (wrap-style (:style shape)
+                (concat
+                 (:pre c)
+                 (:draw c)
+                 (when (:recur-on c)
+                   (walk-compile (:recur-on c)))
+                 (:post c)))))
 
-(def compile*-seq-method
-  `(compile* [this#]
-             {:draw (mapcat walk-compile this#)}))
-
-#?(:clj
-   (defmacro add-seq-compilers [types]
-     `(extend-protocol QuilRenderable
-        ~@(interleave types (repeat compile*-seq-method)))))
-
-(add-seq-compilers
-   #?(:cljs [List
-            LazySeq
-            PersistentVector
-            IndexedSeq
-            ArrayList]
-     :clj [clojure.lang.PersistentVector
-           clojure.lang.PersistentList
-           clojure.lang.ArraySeq
-           clojure.lang.IndexedSeq
-           clojure.lang.LazySeq]))
+(implement-sequentials QuilRenderable
+  (compile* [this]
+    {:draw (mapcat walk-compile this)}))
 
 (extend-protocol QuilRenderable
   nil
   (compile* [_]
-    (println "Can't render nil.")
+    #_(println "Can't render nil.")
     [])
 
   #?(:clj Object :cljs default)
@@ -107,6 +153,7 @@
     (if (core/template? this)
       (compile* (core/expand-template this))
       (do
+        ;; FIXME: We need logging, but logging these to stdout every frame is no good.
         (println (str "I don't know how to render a " (type this)
                       ". Doing nothing."))
        [])))
@@ -115,26 +162,50 @@
   (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
     (let [mag (util/magnitude a b c d)]
       {:pre [push-matrix
-             #_push-style
-             #_(line-width mag)
-             (apply-matrix a b e c d f)]
+             push-style
+             (apply-matrix a b e c d f)
+             (update-stroke-width mag)]
        :recur-on base
        :post [pop-matrix
-              #_pop-style]}))
+              pop-style]}))
+
+  Composite
+  (compile* [{:keys [style contents]}]
+    {:style style
+     :recur-on contents})
+
+  Frame
+  (compile* [{w :width h :height [x y] :corner base :base-shape}]
+    {:pre [(clip x y w h)]
+     :recur-on base
+     :post [no-clip]})
+
+  Region
+  (compile* [{:keys [boundary style]}]
+    {:style style
+     :pre []
+     :recur-on boundary
+     :post []})
 
   Line
   (compile* [{[x1 y1] :from [x2 y2] :to style :style}]
     {:style style
-     :draw [(line x1 y1 x2 y2)]}))
+     :draw [(line x1 y1 x2 y2)]})
 
-(defn walk-compile [shape]
-  (let [c (compile* shape)]
-    (concat
-     (:pre c)
-     (:draw c)
-     (when (:recur-on c)
-       (walk-compile (:recur-on c)))
-     (:post c))))
+  Arc
+  (compile* [{r :radius [x y] :centre :keys [from to style clockwise?] :as this}]
+    {:style style
+     :pre [push-style
+           no-fill]
+     :draw  [(arc x y r r from to)]
+     :post [pop-style]})
+
+  RawText
+  (compile* [{[x y] :corner t :text style :style}]
+    {:style style
+     :draw [(text t x y )]})
+
+)
 
 (defonce t (atom nil))
 
@@ -145,14 +216,18 @@
   (q/clear)
   (q/reset-matrix)
   (q/background 200)
-  (run! #(invoke % graphics) (walk-compile shape))
-
-  ;; (q/push-matrix)
-  ;; (q/apply-matrix 300.0 0.0 0.0 0 300 0)
-  ;; (q/apply-matrix 1 0.5 0 0.2 -1.0 0.0)
-  ;; (q/line 0 0 1 1)
-  ;; (q/pop-matrix)
-  )
+  (loop [state {:weight 1}
+         [cmd & cmds] (walk-compile shape)]
+    (when cmd
+      (if (instance? PUpdateStrokeWidth cmd)
+        (if (= 1 (:w cmd))
+          (recur state cmds)
+          (let [w (/ (:weight state) (:w cmd))]
+            (invoke (stroke-weight w) graphics)
+            (recur (assoc state :weight w) cmds)))
+        (do
+          (invoke cmd graphics)
+          (recur state cmds))))))
 
 (defn debug [shape]
   (map inspect (walk-compile shape)))

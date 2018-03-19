@@ -6,37 +6,45 @@
 (defonce error-log (atom []))
 
 (defn host [{:keys [size] :or {size [500 500]}}]
-  (let [f      (atom (constantly nil))
+  (let [go?    (ref false)
+        f      (ref (constantly nil))
         applet (q/sketch :size size :renderer :p2d
-                         :resizable true
-                         :draw (fn [] (@f)))
+                         :features #{:resizable
+                                     :no-bind-output}
+                         :draw (fn []
+                                 (@f)))
         g      (.-g applet)]
     {:width     (fn [] (.width g))
      :height    (fn [] (.height g))
      :applet    applet
      :render-fn (fn [shape]
-                  (reset! f (fn []
-                              (try
-                                (renderer/renderer g shape)
-                                (catch Exception e
-                                  (.exit applet)
-                                  (swap! error-log conj e))))))}))
+                  ;; FIXME: This is not the right place to respond to
+                  ;; resizing. The draw method needs to be reinvoked on resize.
+                  (dosync
+                   (ref-set go? true)
+                   (ref-set f
+                            (fn []
+                              (dosync
+                               (when @go?
+                                 (ref-set go? false)
+                                 (try
+                                   (renderer/renderer g shape)
+                                   (catch Exception e
+                                     (.exit applet)
+                                     (swap! error-log conj e)))))))))}))
 
 (def test-image
   (-> core/line
-      (assoc :to [100 10])
-
-      ;; (core/scale 300)
-      #_(core/rotate 45)
-      ))
+      (core/scale 100)
+      (core/rotate 45)
+      (core/translate [300 300])))
 
 (alias 'l 'ubik.core)
-
 
 (def ex
   [(-> l/polyline
        (assoc :points [[0 0] [100 100] [300 100] [100 300] [0 0]]
-              :style {:stroke :cyan
+              :style {:stroke "aa5500"
                       :fill   :purple})
        (l/tag ::poly)
        (l/scale 3)
@@ -57,9 +65,7 @@
 
 (require '[clojure.pprint :refer [pp pprint]])
 
-(defonce the-host (atom nil))
+(defonce the-host (atom (host {})))
 
 (when @the-host
-  (.exit (:applet @the-host)))
-(reset! the-host (host {}))
-(core/draw! test-image @the-host)
+  (core/draw! ex @the-host))

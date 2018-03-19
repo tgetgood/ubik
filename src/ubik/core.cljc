@@ -310,7 +310,7 @@
     ;; Rotation matrix corrected for coordinate inversion.
     ;; N.B.: If we ever have a host that does not invert, some refactoring will
     ;; be in order
-    (math/atx [c s s (- c)])))
+    (math/atx [c (- s) s c])))
 
 (defn scaling
   "Returns a linear map which scales by [x y] in the x and y directions"
