@@ -454,5 +454,5 @@
   [shape host]
   ((:render-fn host)
    (with-meta
-     (transform shape (math/atx [1 0 0 -1] [0 (:height host)]))
+     (transform shape (math/atx [1 0 0 -1] [0 ((:height host))]))
      {:atx-type ::coordinate-inversion})))

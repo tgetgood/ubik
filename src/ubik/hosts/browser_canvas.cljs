@@ -46,6 +46,6 @@
       (and (vector? size) (= 2 (count size))) (set-canvas-size! elem size)
       ;; TODO: Log bad size arg
       :else                                   nil)
-    {:width     (obj/get elem "width")
-     :height    (obj/get elem "height")
+    {:width     (fn [] (obj/get elem "width"))
+     :height    (fn [] (obj/get elem "height"))
      :render-fn (partial canvas-renderer/draw! elem)}))
