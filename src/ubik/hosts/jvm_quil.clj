@@ -74,7 +74,7 @@
 
 (defn re []
   (when @the-host
-    (.exit (:applet @the-host)))
+    (.exit ^quil.Applet (:applet @the-host)))
   (reset! the-host (host {}))
   (core/draw! ex @the-host))
 
