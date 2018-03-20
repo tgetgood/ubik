@@ -8,16 +8,13 @@
 (defn host [{:keys [size] :or {size [500 500]}}]
   (let [go?                 (ref false)
         f                   (ref (constantly nil))
-        ^quil.Applet applet (q/sketch :size size :renderer :p2d
+        ^quil.Applet applet (q/sketch :size size :renderer :java2d
                                       :features #{:resizable
                                                   :no-bind-output}
                                       :draw (fn [] (@f))
                                       :setup (fn []
                                                (q/pixel-density
-                                                (q/display-density))
-                                               )
-                                      :settings (fn []
-                                                  (q/smooth 8)))
+                                                (q/display-density))))
         g                   (.-g applet)]
     {:width     (fn [] (.width g))
      :height    (fn [] (.height g))

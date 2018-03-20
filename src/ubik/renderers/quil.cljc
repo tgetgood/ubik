@@ -228,6 +228,9 @@
   "Returns a render function which when passed a context, renders the given
   shape."
   [graphics shape]
+  ;; Need to set default fill to 0 otherwise text won't render and you won't
+  ;; know why...
+  (q/fill 0)
   (q/clear)
   (q/reset-matrix)
   (q/background 255)
