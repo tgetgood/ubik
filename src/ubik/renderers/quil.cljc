@@ -5,6 +5,7 @@
          [net.cgrand.macrovich :as macros]
          [quil.core :as q]
          [ubik.core :as core]
+         [ubik.renderers.colours :as colours]
          [ubik.renderers.util :as util])
         (:import
          [ubik.core
@@ -33,12 +34,13 @@
   (inspect [this]))
 
 (defprotocol Invocable
-  (invoke [this graphics]))
+  (invoke [this]))
 
 (macros/deftime
 
   (defn tocmd [cmd]
-    (let [parts (string/split (name cmd) #"-")]
+    (symbol "quil.core" (name cmd))
+    #_(let [parts (string/split (name cmd) #"-")]
       (symbol (apply str "." (first parts)
                      (map string/capitalize (rest parts))))))
 
@@ -55,13 +57,12 @@
          (defrecord ~record-name [~@args]
            HumanReadable
            (inspect [_#]
-             ;; Adding in "g" as placeholder for passed graphics.
              (str (apply str ~(subs (name (tocmd cmd)) 1) "("
                          (interpose ", " [~@args]))
                    ")"))
            Invocable
-           (invoke [_# ~graphics]
-             ~(apply list (tocmd cmd) graphics args)))
+           (invoke [_#]
+             ~(apply list (tocmd cmd) args)))
          ~(if single?
             `(def ~cmd (~(symbol (str record-name "."))))
             `(defn ~cmd [~@args]
@@ -95,7 +96,6 @@
 
   push-style
   pop-style
-  (update-stroke-width w)
   (stroke-weight w)
   (stroke r g b a)
   (fill r g b a)
@@ -111,19 +111,34 @@
 
   (text str x y))
 
+(defrecord PUpdateStrokeWidth [w])
+
+(defn update-stroke-width [w]
+  (PUpdateStrokeWidth. w))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Rendering
+;;;;; Styling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn wrap-style [style cmds]
+(defn read-stroke [style]
+  (when-let [s (:stroke style)]
+    (let [[r g b] (colours/read-colour s)]
+      [(stroke r g b 255)])))
+
+(defn wrap-style
+  {:style/indent 1}
+  [style cmds]
   (if style
     (concat
      [push-style]
-     (when (:stroke style)
-       [(stroke 22 128 255 209)])
+     (read-stroke style)
      cmds
      [pop-style])
     cmds))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Rendering
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol QuilRenderable
   (compile* [this]))
@@ -131,12 +146,12 @@
 (defn walk-compile [shape]
   (let [c (compile* shape)]
     (wrap-style (:style shape)
-                (concat
-                 (:pre c)
-                 (:draw c)
-                 (when (:recur-on c)
-                   (walk-compile (:recur-on c)))
-                 (:post c)))))
+      (concat
+       (:pre c)
+       (:draw c)
+       (when (:recur-on c)
+         (walk-compile (:recur-on c)))
+       (:post c)))))
 
 (implement-sequentials QuilRenderable
   (compile* [this]
@@ -215,7 +230,7 @@
   [graphics shape]
   (q/clear)
   (q/reset-matrix)
-  (q/background 200)
+  (q/background 255)
   (loop [state {:weight 1}
          [cmd & cmds] (walk-compile shape)]
     (when cmd
@@ -223,10 +238,10 @@
         (if (= 1 (:w cmd))
           (recur state cmds)
           (let [w (/ (:weight state) (:w cmd))]
-            (invoke (stroke-weight w) graphics)
+            (invoke (stroke-weight w))
             (recur (assoc state :weight w) cmds)))
         (do
-          (invoke cmd graphics)
+          (invoke cmd)
           (recur state cmds))))))
 
 (defn debug [shape]

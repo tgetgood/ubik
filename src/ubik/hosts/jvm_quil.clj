@@ -3,17 +3,22 @@
             [ubik.renderers.quil :as renderer]
             [quil.core :as q]))
 
-(defonce error-log (atom []))
+(defonce quil-errors (atom []))
 
 (defn host [{:keys [size] :or {size [500 500]}}]
-  (let [go?    (ref false)
-        f      (ref (constantly nil))
-        applet (q/sketch :size size :renderer :p2d
-                         :features #{:resizable
-                                     :no-bind-output}
-                         :draw (fn []
-                                 (@f)))
-        g      (.-g applet)]
+  (let [go?                 (ref false)
+        f                   (ref (constantly nil))
+        ^quil.Applet applet (q/sketch :size size :renderer :p2d
+                                      :features #{:resizable
+                                                  :no-bind-output}
+                                      :draw (fn [] (@f))
+                                      :setup (fn []
+                                               (q/pixel-density
+                                                (q/display-density))
+                                               )
+                                      :settings (fn []
+                                                  (q/smooth 8)))
+        g                   (.-g applet)]
     {:width     (fn [] (.width g))
      :height    (fn [] (.height g))
      :applet    applet
@@ -28,10 +33,10 @@
                                (when @go?
                                  (ref-set go? false)
                                  (try
-                                   (renderer/renderer g shape)
+                                   (renderer/renderer applet shape)
                                    (catch Exception e
                                      (.exit applet)
-                                     (swap! error-log conj e)))))))))}))
+                                     (swap! quil-errors conj e)))))))))}))
 
 (def test-image
   (-> core/line
@@ -44,7 +49,7 @@
 (def ex
   [(-> l/polyline
        (assoc :points [[0 0] [100 100] [300 100] [100 300] [0 0]]
-              :style {:stroke "aa5500"
+              :style {:stroke :red
                       :fill   :purple})
        (l/tag ::poly)
        (l/scale 3)
@@ -66,6 +71,12 @@
 (require '[clojure.pprint :refer [pp pprint]])
 
 (defonce the-host (atom (host {})))
+
+(defn re []
+  (when @the-host
+    (.exit (:applet @the-host)))
+  (reset! the-host (host {}))
+  (core/draw! ex @the-host))
 
 (when @the-host
   (core/draw! ex @the-host))
