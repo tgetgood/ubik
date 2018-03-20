@@ -39,25 +39,23 @@
 (macros/deftime
 
   (defn tocmd [cmd]
-    (symbol "quil.core" (name cmd))
-    #_(let [parts (string/split (name cmd) #"-")]
-      (symbol (apply str "." (first parts)
-                     (map string/capitalize (rest parts))))))
+    @(get (ns-interns 'quil.core) cmd))
 
-  (defn call-form [g cmd args]
-    (apply list (tocmd cmd) g args))
+  (defn processing-name [cmd]
+    (let [parts (string/split (name cmd) #"-")]
+      (apply str (first parts)
+             (map string/capitalize (rest parts)))))
 
   (defn cmd-body [form]
     (let [single? (symbol? form)
           cmd (if single? form (first form))
           args (if single? [] (rest form))
-          record-name (symbol (str "P" (name (core/type-case cmd))))
-          graphics (gensym)]
+          record-name (symbol (str "P" (name (core/type-case cmd))))]
       `(do
          (defrecord ~record-name [~@args]
            HumanReadable
            (inspect [_#]
-             (str (apply str ~(subs (name (tocmd cmd)) 1) "("
+             (str (apply str ~(processing-name cmd) "("
                          (interpose ", " [~@args]))
                    ")"))
            Invocable
@@ -111,7 +109,10 @@
 
   (text str x y))
 
-(defrecord PUpdateStrokeWidth [w])
+(defrecord PUpdateStrokeWidth [w]
+  HumanReadable
+  (inspect [_]
+    (str "Adjust stroke width by " w)))
 
 (defn update-stroke-width [w]
   (PUpdateStrokeWidth. w))
@@ -120,10 +121,44 @@
 ;;;;; Styling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defrecord Stroke [r g b a])
+(defrecord Fill [r g b a])
+(defrecord Alpha [a])
+(defrecord Font [f])
+
+(defprotocol IStyle
+  (process-style [this state]))
+
+(extend-protocol IStyle
+  #?(:clj Object :cljs default)
+  (process-style [this stack]
+    nil))
+
+(defn styling-tx [xf]
+  (let [stack (volatile! (list {:weight 1}))]
+    (fn ([] (xf))
+      ([acc] (xf acc))
+      ([acc n]
+       (let [out (process-style n stack)]
+         (if out
+           (reduce xf acc out)
+           acc))))))
+
 (defn read-stroke [style]
   (when-let [s (:stroke style)]
-    (let [[r g b] (colours/read-colour s)]
-      [(stroke r g b 255)])))
+    (let [[r g b a] (colours/read-colour s)]
+      [(Stroke. r g b (or a 255))])))
+
+(defn read-fill [style]
+  (when-let [f (:fill style)]
+    (let [[r g b a] (colours/read-colour f)]
+      [(Fill. r g b (or a 255))])))
+
+(defn read-alpha [style]
+  (when-let [alpha (:opacity style)]))
+
+(defn read-font [style]
+  nil)
 
 (defn wrap-style
   {:style/indent 1}
@@ -132,6 +167,9 @@
     (concat
      [push-style]
      (read-stroke style)
+     (read-fill style)
+     (read-alpha style)
+     (read-font style)
      cmds
      [pop-style])
     cmds))
@@ -142,6 +180,15 @@
 
 (defprotocol QuilRenderable
   (compile* [this]))
+
+(defprotocol IPathSegment
+  (vertex-draw [this]))
+
+(defn intern-region
+  "Style is lexically captured in processing when defining shapes, so we can't
+  actually intern shapes without global awareness of style."
+  [boundary]
+  )
 
 (defn walk-compile [shape]
   (let [c (compile* shape)]
@@ -197,9 +244,10 @@
 
   Region
   (compile* [{:keys [boundary style]}]
+    #_(assert (every? #(satisfies? IPathSegment %) boundary))
     {:style style
      :pre []
-     :recur-on boundary
+     :draw (intern-region boundary)
      :post []})
 
   Line
@@ -218,7 +266,10 @@
   RawText
   (compile* [{[x y] :corner t :text style :style}]
     {:style style
-     :draw [(text t x y )]})
+     :pre [push-style
+           (fill 0 0 0 255)]
+     :draw [(text t x y )]
+     :post [pop-style]})
 
 )
 
@@ -227,13 +278,13 @@
 (defn renderer
   "Returns a render function which when passed a context, renders the given
   shape."
-  [graphics shape]
+  [^quil.Applet applet shape]
   ;; Need to set default fill to 0 otherwise text won't render and you won't
   ;; know why...
-  (q/fill 0)
   (q/clear)
   (q/reset-matrix)
   (q/background 255)
+
   (loop [state {:weight 1}
          [cmd & cmds] (walk-compile shape)]
     (when cmd
@@ -244,7 +295,8 @@
             (invoke (stroke-weight w))
             (recur (assoc state :weight w) cmds)))
         (do
-          (invoke cmd)
+          (when (satisfies? Invocable cmd)
+            (invoke cmd))
           (recur state cmds))))))
 
 (defn debug [shape]

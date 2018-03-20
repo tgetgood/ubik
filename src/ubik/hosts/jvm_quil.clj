@@ -8,7 +8,7 @@
 (defn host [{:keys [size] :or {size [500 500]}}]
   (let [go?                 (ref false)
         f                   (ref (constantly nil))
-        ^quil.Applet applet (q/sketch :size size :renderer :java2d
+        ^quil.Applet applet (q/sketch :size size :renderer :p2d
                                       :features #{:resizable
                                                   :no-bind-output}
                                       :draw (fn [] (@f))
@@ -20,8 +20,6 @@
      :height    (fn [] (.height g))
      :applet    applet
      :render-fn (fn [shape]
-                  ;; FIXME: This is not the right place to respond to
-                  ;; resizing. The draw method needs to be reinvoked on resize.
                   (dosync
                    (ref-set go? true)
                    (ref-set f
@@ -53,6 +51,7 @@
        (l/rotate 20)
        (l/translate [300 40])
        (l/tag ::translate))
+   (assoc core/text :text "ASDsadasdasd")
    (assoc l/line :from [800 100] :to [900 100])
    (assoc l/arc :centre [0 0] :radius 200 :style {:stroke :red} :from 0 :to 1)
    (l/with-style {:fill :pink}
@@ -72,7 +71,7 @@
 (defn re []
   (when @the-host
     (.exit ^quil.Applet (:applet @the-host)))
-  (reset! the-host (host {}))
+  (reset! the-host (host {:size :fullscreen}))
   (core/draw! ex @the-host))
 
 (when @the-host

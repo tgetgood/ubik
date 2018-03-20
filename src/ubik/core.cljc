@@ -202,6 +202,10 @@
 ;;;;; Higher Order Shapes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; REVIEW:
+;; I think that I need to enforce regions be simply connected, and then
+;; implement an algebra of shapes to create multiply connected shapes from
+;; them. Everything I've been working with as of yet should be fine with that.
 (defrecord Region [style boundary]
   IShape
   (children-key [_] :boundary))
