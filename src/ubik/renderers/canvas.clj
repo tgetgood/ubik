@@ -71,17 +71,3 @@
                     (compile-style style (compile-node-inner pre recur-on post))
                     (compile-node-inner pre recur-on post))
                  conj! (transient []))))
-
-(def compile*-seq-method
-  `(~'compile* [seq#]
-    (reduce (fn [acc# x#]
-              (into acc# (ubik.renderers.canvas/compile x#)))
-            []  seq#)))
-
-(defmacro add-seq-compilers
-  {:style/indent 2
-   :doc "Generates boilerplate to implement a method the same way for a bunch of
-   seq types."}
-  [prot  & types]
-  `(extend-protocol ~prot
-     ~@(interleave types (repeat compile*-seq-method))))

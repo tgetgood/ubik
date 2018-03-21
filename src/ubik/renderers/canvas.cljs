@@ -8,7 +8,8 @@
   (:require [clojure.walk :as walk]
             [ubik.core :as core]
             [ubik.math :as math]
-            [ubik.renderers.util :as util]))
+            [ubik.renderers.util :as util]
+            [ubik.util :refer-macros [implement-sequentials]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Code Building
@@ -88,13 +89,14 @@
 
 (def compile (memoize compile*))
 
-(add-seq-compilers Canvas2DRenderable
-  PersistentVector
-  ArrayList
-  List
-  LazySeq
-  IndexedSeq
-  IndexedSeqIterator)
+(implement-sequentials
+ Canvas2DRenderable
+ (region-compile* [_]
+   nil)
+ (compile* [this]
+   (reduce (fn [acc x]
+             (into acc (compile x)))
+          []  this)))
 
 (extend-protocol Canvas2DRenderable
   default
@@ -114,7 +116,9 @@
   core/AffineTransformation
   (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
     (compile-node {:pre      [*save
-                              (call "transform" a b c d e f)
+                              ;; Everybody has their own custom matrix
+                              ;; format. Including me...
+                              (call "transform" a c b d e f)
                               (LineWidthHack. (util/magnitude a b c d))]
                    :recur-on base
                    :post     [*restore]}))
