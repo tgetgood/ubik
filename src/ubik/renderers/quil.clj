@@ -55,12 +55,14 @@
   pop-matrix
   (apply-matrix a b c d e f)
   (rotate a)
+  (translate x y)
 
   begin-shape
   end-shape
   begin-contour
   end-contour
   (vertex x y)
+  (bezier-vertex cx1 cy1 cx2 cy2 x y)
 
   push-style
   pop-style
@@ -252,6 +254,26 @@
   [boundary]
   )
 
+(defn circle-bezier
+  "Draws an approximation to a circle as 4 bezier curve segments."
+  ([r] (circle-bezier r false))
+  ([r clockwise?]
+   (let [c 0.551915024494
+         -r (- r)
+         rc (* r c)
+         -rc (* -1 r c)]
+     (if clockwise?
+       [(vertex r 0)
+        (bezier-vertex r -rc rc -r 0 -r)
+        (bezier-vertex -rc -r -r -rc -r 0)
+        (bezier-vertex -r rc -rc r 0 r)
+        (bezier-vertex rc r r rc r 0)]
+       [(vertex r 0)
+        (bezier-vertex r rc rc r 0 r)
+        (bezier-vertex -rc r -r rc -r 0)
+        (bezier-vertex -r -rc -rc -r 0 -r)
+        (bezier-vertex rc -r r -rc r 0)]))))
+
 (implement-sequentials QuilRenderable
   (compile* [this]
     {:draw (mapcat walk-compile this)}))
@@ -275,89 +297,88 @@
   ubik.core.AffineTransformation
   (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
     (let [mag (util/magnitude a b c d)]
-      {:pre [push-matrix
-             push-style
-             (apply-matrix a b e c d f)
-             (update-stroke-width mag)]
+      {:pre      [push-matrix
+                  push-style
+                  (apply-matrix a b e c d f)
+                  (update-stroke-width mag)]
        :recur-on base
-       :post [pop-matrix
-              pop-style]}))
+       :post     [pop-matrix
+                  pop-style]}))
 
   ubik.core.Composite
   (compile* [{:keys [style contents]}]
-    {:style style
+    {:style    style
      :recur-on contents})
 
   ubik.core.Frame
   (compile* [{w :width h :height [x y] :corner base :base-shape}]
-    {:pre [(clip x y w h)]
+    {:pre      [(clip x y w h)]
      :recur-on base
-     :post [no-clip]})
+     :post     [no-clip]})
 
   ubik.core.Region
   (compile* [{:keys [boundary style]}]
     #_(assert (every? #(satisfies? IPathSegment %) boundary))
-    {:style style
-     :pre []
+    {:style    style
+     :pre      []
      ;;:draw (intern-region boundary)
      :recur-on boundary
-     :post []})
+     :post     []})
 
   ;;; HACK: Override basic regions so that we don't have to solve this problem
   ;;; yet.
   ubik.core.Polyline
   (compile* [{:keys [style points]}]
     {:style style
-     :draw (concat
-            [begin-shape]
-            (map (fn [[x y]] (vertex x y)) points)
-            [end-shape])})
+     :draw  (concat
+             [begin-shape]
+             (map (fn [[x y]] (vertex x y)) points)
+             [end-shape])})
 
   ubik.core.Circle
   (compile* [{[x y] :centre r :radius style :style}]
     (let [d (+ r r)]
       {:style style
-       :draw [(ellipse x y d d)]}))
+       :draw  [(ellipse x y d d)]}))
 
   ubik.core.Annulus
   (compile* [{[x y] :centre r1 :inner-radius r2 :outer-radius style :style}]
-    (let [d (- r2 r1)
-          i 100
-          angle (/ (* 2 math/pi) i)]
-      {:style style
-       :draw (concat
-              [begin-shape]
-              (map (fn [a] (vertex (+ x (* r2 (math/cos a)))
-                                   (+ y (* r2 (math/sin a)))))
-                   (map #(* angle %) (range (inc i))))
-              [end-contour
-               begin-contour]
-              (map (fn [a] (vertex (+ x (* r1 (math/cos a)))
-                                   (+ y (* r1 (math/sin a)))))
-                   (reverse (map #(* angle %) (range (inc i)))))
-              [end-shape])}))
+    {:style style
+     :pre [push-matrix
+           (translate x y)]
+     :draw  (concat
+             [begin-shape]
+             (circle-bezier r2)
+             ;; To go on to shape subtraction, I'm going to need a first class
+             ;; notion of a spline so that I can reverse the path for the sake
+             ;; of the winding number algo embedded in processing.
+             [end-contour
+              begin-contour]
+             (circle-bezier r1 true)
+             [end-shape])
+     :post [pop-matrix]})
 
   ubik.core.Line
   (compile* [{[x1 y1] :from [x2 y2] :to style :style}]
     {:style style
-     :draw [(line x1 y1 x2 y2)]})
+     :draw  [(line x1 y1 x2 y2)]})
 
   ubik.core.Arc
   (compile* [{r :radius [x y] :centre :keys [from to style clockwise?] :as this}]
     (let [d (+ r r)]
       {:style style
-       :pre [push-style
-             no-fill]
+       :pre   [push-style
+               no-fill]
        :draw  [(arc x y d d from to)]
-       :post [pop-style]}))
+       :post  [pop-style]}))
 
   ubik.core.RawText
   (compile* [{[x y] :corner t :text style :style}]
     {:style style
-     :pre [push-style
-           (fill 0 0 0 255)]
-     :draw [(text t x y )]
-     :post [pop-style]}))
+     :pre   [push-style
+             (fill 0 0 0 255)]
+     :draw  [(text t x y )]
+     :post  [pop-style]}))
 
 (defonce t (atom nil))
 
