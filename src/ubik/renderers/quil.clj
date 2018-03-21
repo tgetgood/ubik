@@ -5,10 +5,8 @@
             [ubik.core :as core]
             [ubik.renderers.colours :as colours]
             [ubik.renderers.util :as util]
-            [ubik.util :refer [implement-sequentials]])
-  (:import
-   [ubik.core AffineTransformation Arc Composite Frame Line
-    RawText Region]))
+            [ubik.util :refer [implement-sequentials]]
+            [ubik.math :as math]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Quil Wrapper
@@ -32,7 +30,7 @@
   (let [single? (symbol? form)
         cmd (if single? form (first form))
         args (if single? [] (rest form))
-        record-name (symbol (str "P" (name (core/type-case cmd))))]
+        record-name (symbol (str "Quil" (name (core/type-case cmd))))]
     `(do
        (defrecord ~record-name [~@args]
          HumanReadable
@@ -56,6 +54,13 @@
   push-matrix
   pop-matrix
   (apply-matrix a b c d e f)
+  (rotate a)
+
+  begin-shape
+  end-shape
+  begin-contour
+  end-contour
+  (vertex x y)
 
   push-style
   pop-style
@@ -72,58 +77,140 @@
   (arc x y a b from to)
   (bezier x1 y1 c1x c1y c2x c2y x2 y2)
 
-  (text str x y))
+  (ellipse x y w h)
 
-(defrecord PUpdateStrokeWidth [w]
-  HumanReadable
-  (inspect [_]
-    (str "Adjust stroke width by " w)))
-
-(defn update-stroke-width [w]
-  (PUpdateStrokeWidth. w))
+  (text str x y)
+  (text-font f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Styling
+;;;;; Styling. Mostly hackery
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defrecord Stroke [r g b a])
-(defrecord Fill [r g b a])
-(defrecord Alpha [a])
-(defrecord Font [f])
 
 (defprotocol IStyle
-  (process-style [this state]))
+  (process-style [this state xf acc]))
+
+(defrecord UpdateStrokeWidth [w]
+  IStyle
+  (process-style [_ state xf acc]
+    (if (= w 1)
+      [state acc]
+      (let [w' (/ (:weight @state) w)]
+        (vswap! state assoc :weight w')
+        (xf acc (stroke-weight w'))))))
+
+(defn update-stroke-width [w]
+  (UpdateStrokeWidth. w))
+
+(defrecord Stroke [r g b]
+  IStyle
+  (process-style [_ state xf acc]
+    (if (:stroke @state)
+      acc
+      (let [a (get @state :opacity 255)]
+        (vswap! state assoc :stroke [r g b])
+        (xf acc (stroke r g b a))))))
+
+(defrecord NoStroke []
+    IStyle
+  (process-style [_ state xf acc]
+    (if (:stroke @state)
+      acc
+      (do
+        (vswap! state assoc :stroke :none)
+        (xf acc no-stroke)))))
+
+(defrecord Fill [r g b]
+  IStyle
+  (process-style [_ state xf acc]
+    (if (:fill @state)
+      acc
+      (let [a (get @state :opacity 255)]
+        (vswap! state assoc :fill [r g b])
+        (xf acc (fill r g b a))))))
+
+(defrecord NoFill []
+  IStyle
+  (process-style [_ state xf acc]
+    (if (:fill @state)
+      acc
+      (do
+        (vswap! state assoc :fill :none)
+        (xf acc no-fill)))))
+
+(defrecord Opacity [a]
+  ;; REVIEW: Should opacity stack or override? That is should nested setting of
+  ;; partial transparency lead to a more transparent image, or should the top
+  ;; setting win? Currently the latter because that's the general semantics of
+  ;; styling...
+  IStyle
+  (process-style [_ state xf acc]
+    (if (:opacity @state)
+      acc
+      (let [o (math/floor (* a 255))]
+        (vswap! state assoc :opacity o)
+        (let [acc (if (and (:stroke @state) (not= :none (:stroke @state)))
+                    (let [[r g b] (:stroke @state)]
+                      (xf acc (stroke r g b o)))
+                    acc)
+              acc (if (and (:fill @state) (not= :none (:fill @state)))
+                      (let [[r g b] (:fill @state)]
+                        (xf acc (fill r g b o)))
+                    acc)]
+          acc)))))
+
+(defrecord Font [f]
+  IStyle
+  (process-style [_ state xf acc]
+    (if (:font @state)
+      acc
+      (do
+        (vswap! state assoc :font f)
+        ;; TODO: stub
+        #_(xf acc (text-font f))))))
 
 (extend-protocol IStyle
   Object
-  (process-style [this stack]
-    nil))
+  (process-style [this state xf acc]
+    (xf acc this)))
 
-(defn styling-tx [xf]
-  (let [stack (volatile! (list {:weight 1}))]
+(defn style-stack-tx [xf]
+  (let [stack (volatile! (list ))
+        state (volatile! {:weight 1})]
     (fn ([] (xf))
       ([acc] (xf acc))
       ([acc n]
-       (let [out (process-style n stack)]
-         (if out
-           (reduce xf acc out)
-           acc))))))
+       (cond
+         (= n push-style) (vreset! stack (cons @state @stack))
+         (= n pop-style) (do (vreset! state (first @stack))
+                             (vreset! stack (rest @stack)))
+         :else nil)
+       ;; HACK: I can't say I'm a fan of passing a volatile off into a generic
+       ;; function to be mutated... We do have single threaded semantics, so
+       ;; races aren't a problem, but it just feels icky.
+       (process-style n state xf acc)))))
 
+;; REVIEW: So repetitive...
 (defn read-stroke [style]
   (when-let [s (:stroke style)]
-    (let [[r g b a] (colours/read-colour s)]
-      [(Stroke. r g b (or a 255))])))
+    (if (= s :none)
+      [(NoStroke.)]
+      (let [[r g b] (colours/read-colour s)]
+        [(Stroke. r g b)]))))
 
 (defn read-fill [style]
   (when-let [f (:fill style)]
-    (let [[r g b a] (colours/read-colour f)]
-      [(Fill. r g b (or a 255))])))
+    (if (= f :none)
+      [(NoFill.)]
+      (let [[r g b] (colours/read-colour f)]
+        [(Fill. r g b)]))))
 
 (defn read-alpha [style]
-  (when-let [alpha (:opacity style)]))
+  (when-let [alpha (:opacity style)]
+    [(Opacity. alpha)]))
 
 (defn read-font [style]
-  nil)
+  (when-let [font (:font style)]
+    [(Font. font)]))
 
 (defn wrap-style
   {:style/indent 1}
@@ -146,15 +233,6 @@
 (defprotocol QuilRenderable
   (compile* [this]))
 
-(defprotocol IPathSegment
-  (vertex-draw [this]))
-
-(defn intern-region
-  "Style is lexically captured in processing when defining shapes, so we can't
-  actually intern shapes without global awareness of style."
-  [boundary]
-  )
-
 (defn walk-compile [shape]
   (let [c (compile* shape)]
     (wrap-style (:style shape)
@@ -164,6 +242,15 @@
        (when (:recur-on c)
          (walk-compile (:recur-on c)))
        (:post c)))))
+
+(defprotocol IPathSegment
+  (vertex-draw [this]))
+
+(defn intern-shape
+  "Style is lexically captured in processing when defining shapes, so we can't
+  actually intern shapes without global awareness of style."
+  [boundary]
+  )
 
 (implement-sequentials QuilRenderable
   (compile* [this]
@@ -185,7 +272,7 @@
                       ". Doing nothing."))
        [])))
 
-  AffineTransformation
+  ubik.core.AffineTransformation
   (compile* [{{[a b c d] :matrix [e f] :translation} :atx base :base-shape}]
     (let [mag (util/magnitude a b c d)]
       {:pre [push-matrix
@@ -196,18 +283,18 @@
        :post [pop-matrix
               pop-style]}))
 
-  Composite
+  ubik.core.Composite
   (compile* [{:keys [style contents]}]
     {:style style
      :recur-on contents})
 
-  Frame
+  ubik.core.Frame
   (compile* [{w :width h :height [x y] :corner base :base-shape}]
     {:pre [(clip x y w h)]
      :recur-on base
      :post [no-clip]})
 
-  Region
+  ubik.core.Region
   (compile* [{:keys [boundary style]}]
     #_(assert (every? #(satisfies? IPathSegment %) boundary))
     {:style style
@@ -216,12 +303,46 @@
      :recur-on boundary
      :post []})
 
-  Line
+  ;;; HACK: Override basic regions so that we don't have to solve this problem
+  ;;; yet.
+  ubik.core.Polyline
+  (compile* [{:keys [style points]}]
+    {:style style
+     :draw (concat
+            [begin-shape]
+            (map (fn [[x y]] (vertex x y)) points)
+            [end-shape])})
+
+  ubik.core.Circle
+  (compile* [{[x y] :centre r :radius style :style}]
+    (let [d (+ r r)]
+      {:style style
+       :draw [(ellipse x y d d)]}))
+
+  ubik.core.Annulus
+  (compile* [{[x y] :centre r1 :inner-radius r2 :outer-radius style :style}]
+    (let [d (- r2 r1)
+          i 100
+          angle (/ (* 2 math/pi) i)]
+      {:style style
+       :draw (concat
+              [begin-shape]
+              (map (fn [a] (vertex (+ x (* r2 (math/cos a)))
+                                   (+ y (* r2 (math/sin a)))))
+                   (map #(* angle %) (range (inc i))))
+              [end-contour
+               begin-contour]
+              (map (fn [a] (vertex (+ x (* r1 (math/cos a)))
+                                   (+ y (* r1 (math/sin a)))))
+                   (reverse (map #(* angle %) (range (inc i)))))
+              [end-shape])}))
+
+  ubik.core.Line
   (compile* [{[x1 y1] :from [x2 y2] :to style :style}]
     {:style style
      :draw [(line x1 y1 x2 y2)]})
 
-  Arc
+  ubik.core.Arc
   (compile* [{r :radius [x y] :centre :keys [from to style clockwise?] :as this}]
     (let [d (+ r r)]
       {:style style
@@ -230,15 +351,13 @@
        :draw  [(arc x y d d from to)]
        :post [pop-style]}))
 
-  RawText
+  ubik.core.RawText
   (compile* [{[x y] :corner t :text style :style}]
     {:style style
      :pre [push-style
            (fill 0 0 0 255)]
      :draw [(text t x y )]
-     :post [pop-style]})
-
-)
+     :post [pop-style]}))
 
 (defonce t (atom nil))
 
@@ -251,22 +370,17 @@
   (q/clear)
   (q/reset-matrix)
   (q/background 255)
+  (q/stroke 0)
+  (q/no-fill)
   (loop [state {:weight 1}
-         [cmd & cmds] (walk-compile shape)]
+         [cmd & cmds] (eduction style-stack-tx (walk-compile shape))]
     (when cmd
-      (if (instance? PUpdateStrokeWidth cmd)
-        (if (= 1 (:w cmd))
-          (recur state cmds)
-          (let [w (/ (:weight state) (:w cmd))]
-            (invoke (stroke-weight w))
-            (recur (assoc state :weight w) cmds)))
-        (do
-          (when (satisfies? Invocable cmd)
-            (invoke cmd))
-          (recur state cmds))))))
+      (when (satisfies? Invocable cmd)
+        (invoke cmd))
+      (recur state cmds))))
 
 (defn debug [shape]
-  (map inspect (walk-compile shape)))
+  (into [] (eduction (comp style-stack-tx (map inspect)) (walk-compile shape))))
 
 (defn balanced-compile? [shape]
   (let [inst (walk-compile shape)]
