@@ -1,30 +1,14 @@
 (ns ubik.renderers.quil
-  #?@(:clj
-       [(:require
-         [clojure.string :as string]
-         [net.cgrand.macrovich :as macros]
-         [quil.core :as q]
-         [ubik.core :as core]
-         [ubik.renderers.colours :as colours]
-         [ubik.renderers.util :as util])
-        (:import
-         [ubik.core
-          AffineTransformation
-          Arc
-          Composite
-          Frame
-          Line
-          RawText
-          Region])]
-       :cljs
-       [(:require
-         [clojure.string :as string]
-         [net.cgrand.macrovich :as macros]
-         [quil.core :as q]
-         [ubik.core :as core]
-         [ubik.renderers.util :as util])
-        (:require-macros
-         [ubik.renderers.quil :refer [defcmds implement-sequentials]])]))
+  (:require [clojure.string :as string]
+            [net.cgrand.macrovich :as macros]
+            [quil.core :as q]
+            [ubik.core :as core]
+            [ubik.renderers.colours :as colours]
+            [ubik.renderers.util :as util]
+            [ubik.util :refer [implement-sequentials]])
+  (:import
+   [ubik.core AffineTransformation Arc Composite Frame Line
+    RawText Region]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Quil Wrapper
@@ -36,56 +20,37 @@
 (defprotocol Invocable
   (invoke [this]))
 
-(macros/deftime
+(defn tocmd [cmd]
+  @(get (ns-interns 'quil.core) cmd))
 
-  (defn tocmd [cmd]
-    @(get (ns-interns 'quil.core) cmd))
+(defn processing-name [cmd]
+  (let [parts (string/split (name cmd) #"-")]
+    (apply str (first parts)
+           (map string/capitalize (rest parts)))))
 
-  (defn processing-name [cmd]
-    (let [parts (string/split (name cmd) #"-")]
-      (apply str (first parts)
-             (map string/capitalize (rest parts)))))
-
-  (defn cmd-body [form]
-    (let [single? (symbol? form)
-          cmd (if single? form (first form))
-          args (if single? [] (rest form))
-          record-name (symbol (str "P" (name (core/type-case cmd))))]
-      `(do
-         (defrecord ~record-name [~@args]
-           HumanReadable
-           (inspect [_#]
-             (str (apply str ~(processing-name cmd) "("
-                         (interpose ", " [~@args]))
-                   ")"))
-           Invocable
-           (invoke [_#]
-             ~(apply list (tocmd cmd) args)))
-         ~(if single?
-            `(def ~cmd (~(symbol (str record-name "."))))
-            `(defn ~cmd [~@args]
-               (~(symbol (str record-name ".")) ~@args))))))
-
-  (defmacro defcmds [& forms]
+(defn cmd-body [form]
+  (let [single? (symbol? form)
+        cmd (if single? form (first form))
+        args (if single? [] (rest form))
+        record-name (symbol (str "P" (name (core/type-case cmd))))]
     `(do
-       ~@(map cmd-body forms)))
+       (defrecord ~record-name [~@args]
+         HumanReadable
+         (inspect [_#]
+           (str (apply str ~(processing-name cmd) "("
+                       (interpose ", " [~@args]))
+                ")"))
+         Invocable
+         (invoke [_#]
+           ~(apply list (tocmd cmd) args)))
+       ~(if single?
+          `(def ~cmd (~(symbol (str record-name "."))))
+          `(defn ~cmd [~@args]
+             (~(symbol (str record-name ".")) ~@args))))))
 
-  (defmacro implement-sequentials
-    {:style/indent [1 :form [1]]}
-    [prot & methods]
-    (let [types (macros/case :cljs '[List
-                                     LazySeq
-                                     PersistentVector
-                                     IndexedSeq
-                                     ArrayList]
-                             :clj '[clojure.lang.PersistentVector
-                                    clojure.lang.PersistentList
-                                    clojure.lang.ArraySeq
-                                    clojure.lang.IndexedSeq
-                                    clojure.lang.PersistentVector$ChunkedSeq
-                                    clojure.lang.LazySeq])]
-      `(extend-protocol ~prot
-         ~@(mapcat (fn [a b] `[~a ~@b]) types (repeat methods))))))
+(defmacro defcmds [& forms]
+  `(do
+     ~@(map cmd-body forms)))
 
 (defcmds
   push-matrix
@@ -130,7 +95,7 @@
   (process-style [this state]))
 
 (extend-protocol IStyle
-  #?(:clj Object :cljs default)
+  Object
   (process-style [this stack]
     nil))
 
@@ -207,10 +172,10 @@
 (extend-protocol QuilRenderable
   nil
   (compile* [_]
-    #_(println "Can't render nil.")
+    (println "Can't render nil.")
     [])
 
-  #?(:clj Object :cljs default)
+  Object
   (compile* [this]
     (if (core/template? this)
       (compile* (core/expand-template this))
@@ -247,7 +212,8 @@
     #_(assert (every? #(satisfies? IPathSegment %) boundary))
     {:style style
      :pre []
-     :draw (intern-region boundary)
+     ;;:draw (intern-region boundary)
+     :recur-on boundary
      :post []})
 
   Line
@@ -257,11 +223,12 @@
 
   Arc
   (compile* [{r :radius [x y] :centre :keys [from to style clockwise?] :as this}]
-    {:style style
-     :pre [push-style
-           no-fill]
-     :draw  [(arc x y r r from to)]
-     :post [pop-style]})
+    (let [d (+ r r)]
+      {:style style
+       :pre [push-style
+             no-fill]
+       :draw  [(arc x y d d from to)]
+       :post [pop-style]}))
 
   RawText
   (compile* [{[x y] :corner t :text style :style}]
@@ -284,7 +251,6 @@
   (q/clear)
   (q/reset-matrix)
   (q/background 255)
-
   (loop [state {:weight 1}
          [cmd & cmds] (walk-compile shape)]
     (when cmd
