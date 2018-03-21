@@ -62,6 +62,7 @@
 (defn tag
   "Tags shape with key so that it can be looked up later. Key can be either a
   single value or a vector. If a vector is provided the index will be nested."
+  ;; FIXME: Currently is not nested.
   ([shape key] (tag shape key {}))
   ([shape key metadata]
    (with-meta shape
@@ -428,25 +429,6 @@
   (-> raw-text
       (assoc :text text :style style :corner corner)
       (reflect corner [1 0])))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Shape Walking
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def sequential-types
-  "Reference. This needs to be included literally pretty much everywhere it's
-  used because macros always read the :clj form regardless of which runtime you
-  mean."
-  #?(:cljs [List
-            LazySeq
-            PersistentVector
-            IndexedSeq
-            ArrayList]
-     :clj [clojure.lang.PersistentVector
-           clojure.lang.PersistentList
-           clojure.lang.ArraySeq
-           clojure.lang.IndexedSeq
-           clojure.lang.LazySeq]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Drawing
