@@ -9,7 +9,9 @@
      (browser-canvas/host opts)))
 
 #?(:clj
-   (defn quil [opts]
+   (defn quil
+     "Creates a Processing applet and prepares to run Ubik in it."
+     [opts]
      (jvm-quil/host opts)))
 
 (defn default-host [opts]
