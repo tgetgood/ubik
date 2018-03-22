@@ -1,4 +1,4 @@
-(defproject macroexpanse/ubik "0.5.0"
+(defproject macroexpanse/ubik "0.5.1-SNAPSHOT"
   :description "High level language for graphical and UI programming. No markup."
   :url "https://github.com/tgetgood/ubik"
   :license {:name "Eclipse Public License"
