@@ -3,8 +3,7 @@
   ;; optimisation and lots of throwaway code.
   "HTML Canvas renderer. Technically an ad hoc compiler."
   (:require-macros [ubik.renderers.canvas
-                    :refer [unsafe-invoke call compile-node compile-leaf
-                            add-seq-compilers]])
+                    :refer [unsafe-invoke call compile-node compile-leaf]])
   (:require [clojure.walk :as walk]
             [ubik.core :as core]
             [ubik.math :as math]
