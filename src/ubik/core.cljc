@@ -146,9 +146,8 @@
 
 (defn closed-path?
   "Returns true if paths form the boundary of a connected surface.
-  Technically I'm requiring a connecting bridge of non-zero measure. Not sure if
-  that's a good call...
-  Simply connected not necessary, just no point connections."
+  I'm not checking that the path is not self intersecting. If it is, this will
+  fail, so I should be."
   [paths]
   (if (= 1 (count paths))
     (closed-segment? (first paths))
