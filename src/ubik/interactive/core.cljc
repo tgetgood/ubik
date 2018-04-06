@@ -231,7 +231,7 @@
             #?(:clj
                ;; Need some kind of abstraction around animation frames.
                ;; We can't be drawing in a busy loop like this
-               (core/draw! world)
+               (core/draw! world host)
                :cljs
                (js/window.requestAnimationFrame
                 (fn [now]
@@ -250,7 +250,7 @@
 ;; There's got to be a better way to get the desired dynamism
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
-  [{:keys [shape host subscriptions event-handlers effect-handlers]}]
+  [{:keys [root host subscriptions event-handlers effect-handlers]}]
   ;; Register effect / coeffect handlers
 
   ;; Build event handlers
@@ -270,4 +270,4 @@
       (core/draw! world host))
 
     (reset! reload true)
-    (draw-loop shape host subscriptions (reset! continue? (gensym)))))
+    (draw-loop root host subscriptions (reset! continue? (gensym)))))
