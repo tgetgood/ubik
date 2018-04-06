@@ -1,5 +1,6 @@
 (ns ubik.interactive.core
   (:require [clojure.walk :as walk]
+            [net.cgrand.macrovich :as macros :include-macros true]
             [ubik.core :as core]
             [ubik.geometry :as geo]
             [ubik.interactive.db :as db]
@@ -32,6 +33,10 @@
 ;; simply deref them to get it without sending them a message or subscribing to
 ;; them.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(macros/deftime
+  (defmacro defsig [name initial-state cont])
+  )
 
 (defprotocol Signal
   (-value [this signal-graph]))
