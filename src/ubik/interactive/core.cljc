@@ -35,8 +35,36 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (macros/deftime
-  (defmacro defsig [name initial-state cont])
-  )
+  (defmacro stx
+    "Syntactic sugar for declaring stateful, undying, uninterruptible
+  transducers.
+
+  Local state is managed by the wrapper so that client code seems pure. This
+  will enable replayability down the line. Not now though."
+    [init & body]
+    (let [init (if body init {})
+          body (if body (first body) init)]
+      `(fn [xf#]
+         (let [state# (volatile! ~init)
+               bfn# ~body]
+           (fn
+             ([] (xf#))
+             ([acc#] (xf# acc#))
+             ([acc# value#]
+              (let [out# (~body @state# value#)]
+                (when-let [ns# (:state out#)]
+                  (vreset! state# ns#))
+                (if-let [emit# (:emit out#)]
+                  (xf# acc# emit#)
+                  (if-let [emit-n# (:emit-n out#)]
+                    (reduce xf# acc# emit-n#)
+                    acc#))))))))))
+
+
+
+(defn signal
+  "Returns signal resulting from applying transducer to input signal"
+  [tx input])
 
 (defprotocol Signal
   (-value [this signal-graph]))
