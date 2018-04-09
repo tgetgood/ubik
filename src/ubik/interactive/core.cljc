@@ -35,7 +35,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (macros/deftime
-  (defmacro stx
+  (defmacro simple-tx
     "Syntactic sugar for declaring stateful, undying, uninterruptible
   transducers.
 
@@ -60,11 +60,17 @@
                     (reduce xf# acc# emit-n#)
                     acc#))))))))))
 
-
-
-(defn signal
-  "Returns signal resulting from applying transducer to input signal"
-  [tx input])
+(defn signal [tx input]
+  (let [out (atom nil)
+        no-res (gensym)
+        rx  (fn ([] no-res) ([_ x] x))
+        tx-cont (fn [x] (tx nil rx))]
+    (add-watch input (keyword no-res)
+               (fn [_ _ _ new-val]
+                 (let [new-sig (tx-cont new-val)]
+                   (when-not (= new-sig no-res)
+                     (reset! out new-sig)))))
+    out))
 
 (defprotocol Signal
   (-value [this signal-graph]))
