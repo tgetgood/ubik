@@ -7,6 +7,38 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
+(defn emit
+  ([v]
+   (fn [rf acc]
+     (rf acc v)))
+  ([v & args]
+   (fn [rf acc]
+     (let [v' (rf acc v)]
+       (if (reduced? v')
+         v'
+         (reduce rf v' args))))))
+
+(defn emit-state
+  ([s v])
+  ([s v & args]))
+
+(defn transducer
+  ([next-fn]
+   (fn [rf]
+     (fn
+       ([] (rf))
+       ([acc] (rf acc))
+       ([acc x]
+        ;; Use macro to open up emit and emit-state.
+        ;; The boxing/unboxing cost doubles the runtime of some operations.
+        (let [p (next-fn x)]
+          (if (fn? p)
+            (p rf acc)
+            acc))))))
+  ([init-state next-fn])
+  ([init-state next-fn flush-fn]))
+
+
 (defonce the-world (atom nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
