@@ -35,13 +35,6 @@
          v'
          (reduce rf v' args))))))
 
-(defn mutable [x]
-  {:mutable? true
-   :v x})
-
-(defn mutable? [x]
-  (:mutable? x))
-
 (defn transducer
   ([next-fn]
    (fn [rf]
@@ -57,18 +50,16 @@
    (transducer init-state next-fn (constantly nil)))
   ([init-state next-fn flush-fn]
    (fn [rf]
-     (let [mutable? (mutable? init-state)
-           state (if mutable? (:v init-state) (volatile! init-state))
-           current-state (fn [] (if mutable? state @state))]
+     (let [state (volatile! init-state)]
        (fn
          ([] (rf))
          ([acc]
-          (let [emission (flush-fn (current-state))]
+          (let [emission (flush-fn @state)]
             (if (fn? emission)
-              (rf (unreduced (emission nil rf acc)))
+              (rf (unreduced (emission state rf acc)))
               (rf acc))))
          ([acc x]
-          (let [emission (next-fn (current-state) x)]
+          (let [emission (next-fn @state x)]
             (if (fn? emission)
               (emission state rf acc)
               acc))))))))
@@ -93,18 +84,17 @@
 
 (defn partition-all** [n]
   (transducer
-   (mutable (java.util.ArrayList. n))
+   (java.util.ArrayList. n)
    (fn [buffer next]
      (.add buffer next)
      (when (= n (.size buffer))
-       (let [v (vec (.toArray buffer))]
-         (.clear buffer)
-         (emit v))))
+              (let [v (vec (.toArray buffer))]
+                (.clear buffer)
+                (emit v))))
    (fn [buffer]
      (when-not (.isEmpty buffer)
        (let [v (vec (.toArray buffer))]
-         ;; core clears the buffer here, so I am too. Why do they do it I
-         ;; wonder?
+         ;;clear first!
          (.clear buffer)
          (emit v))))))
 
