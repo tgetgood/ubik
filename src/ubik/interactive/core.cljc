@@ -7,20 +7,37 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
-(defn emit
-  ([v]
-   (fn [rf acc]
-     (rf acc v)))
-  ([v & args]
-   (fn [rf acc]
-     (let [v' (rf acc v)]
-       (if (reduced? v')
-         v'
-         (reduce rf v' args))))))
+(defprotocol Emission)
+
+(def emit*
+  (reify
+    clojure.lang.IFn
+    (applyTo [_ arglist]
+      (fn [_ rf acc]
+        (reduce rf acc arglist)))
+    (invoke [_]
+      (fn [_ rf acc] acc))
+    (invoke [_ v]
+      (fn [_ rf acc]
+        (rf acc v)))))
+
+(defn emit [& args]
+  (.applyTo emit* args))
 
 (defn emit-state
-  ([s v])
-  ([s v & args]))
+  ([s & args]
+   (fn [sv rf acc]
+     (vreset! sv s)
+     (if (seq args)
+       ((.applyTo emit* args) nil rf acc)
+       acc))))
+
+(defn mutable [x]
+  {:mutable? true
+   :v x})
+
+(defn mutable? [x]
+  (:mutable? x))
 
 (defn transducer
   ([next-fn]
@@ -29,15 +46,67 @@
        ([] (rf))
        ([acc] (rf acc))
        ([acc x]
-        ;; Use macro to open up emit and emit-state.
-        ;; The boxing/unboxing cost doubles the runtime of some operations.
-        (let [p (next-fn x)]
-          (if (fn? p)
-            (p rf acc)
+        (let [emission (next-fn x)]
+          (if (fn? emission)
+            (emission nil rf acc)
             acc))))))
-  ([init-state next-fn])
-  ([init-state next-fn flush-fn]))
+  ([init-state next-fn]
+   (transducer init-state next-fn (constantly nil)))
+  ([init-state next-fn flush-fn]
+   (fn [rf]
+     (let [mutable? (mutable? init-state)
+           state (if mutable? (:v init-state) (volatile! init-state))
+           current-state (fn [] (if mutable? state @state))]
+       (fn
+         ([] (rf))
+         ([acc]
+          (let [emission (flush-fn (current-state))]
+            (if (fn? emission)
+              (rf (unreduced (emission nil rf acc)))
+              (rf acc))))
+         ([acc x]
+          (let [emission (next-fn (current-state) x)]
+            (if (fn? emission)
+              (emission state rf acc)
+              acc))))))))
 
+(defn map* [f]
+  (transducer (fn [x] (emit* (f x)))))
+
+(defn filter* [p]
+  (transducer (fn [x] (when (p x) (emit x)))))
+
+(defn partition-all* [n]
+  (transducer
+   []
+   (fn [buffer next]
+     (let [buffer' (conj buffer next)]
+       (if (= (count buffer') n)
+         (emit-state [] buffer')
+         ;; Poor name choice. We're not emitting anything.
+         (emit-state buffer'))))
+   (fn [buffer]
+     (emit* buffer))))
+
+(defn partition-all** [n]
+  (transducer
+   (mutable (java.util.ArrayList. n))
+   (fn [buffer next]
+     (.add buffer next)
+     (when (= n (.size buffer))
+       (let [v (vec (.toArray buffer))]
+         (.clear buffer)
+         (emit v))))
+   (fn [buffer]
+     (when-not (.isEmpty buffer)
+       (let [v (vec (.toArray buffer))]
+         ;; core clears the buffer here, so I am too. Why do they do it I
+         ;; wonder?
+         (.clear buffer)
+         (emit v))))))
+
+(defn mapcat* [f]
+  (transducer (fn [x] (apply emit (f x)))))
 
 (defonce the-world (atom nil))
 
