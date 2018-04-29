@@ -7,30 +7,33 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
-(defprotocol Emission)
-
-(def emit*
-  (reify
-    clojure.lang.IFn
-    (applyTo [_ arglist]
-      (fn [_ rf acc]
-        (reduce rf acc arglist)))
-    (invoke [_]
-      (fn [_ rf acc] acc))
-    (invoke [_ v]
-      (fn [_ rf acc]
-        (rf acc v)))))
-
-(defn emit [& args]
-  (.applyTo emit* args))
+(defn emit
+  ([v]
+   (fn [_ rf acc]
+     (rf acc v)))
+  ([v & args]
+   (fn [_ rf acc]
+     (let [v' (rf acc v)]
+       (if (reduced? v')
+         v'
+         (reduce rf v' args))))))
 
 (defn emit-state
-  ([s & args]
+  ([s]
    (fn [sv rf acc]
      (vreset! sv s)
-     (if (seq args)
-       ((.applyTo emit* args) nil rf acc)
-       acc))))
+     acc))
+  ([s v]
+   (fn [sv rf acc]
+     (vreset! sv s)
+     (rf acc v)))
+  ([s v & args]
+   (fn [sv rf acc]
+     (vreset! sv s)
+     (let [v' (rf acc v)]
+       (if (reduced? v')
+         v'
+         (reduce rf v' args))))))
 
 (defn mutable [x]
   {:mutable? true
@@ -71,7 +74,7 @@
               acc))))))))
 
 (defn map* [f]
-  (transducer (fn [x] (emit* (f x)))))
+  (transducer (fn [x] (emit (f x)))))
 
 (defn filter* [p]
   (transducer (fn [x] (when (p x) (emit x)))))
@@ -86,7 +89,7 @@
          ;; Poor name choice. We're not emitting anything.
          (emit-state buffer'))))
    (fn [buffer]
-     (emit* buffer))))
+     (emit buffer))))
 
 (defn partition-all** [n]
   (transducer
