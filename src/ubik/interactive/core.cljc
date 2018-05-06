@@ -7,6 +7,34 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
+;; What makes a signal a signal is that you can watch its value and react to it.
+(defprotocol ISignal
+  (watch [this]))
+
+#?(:cljs
+   (deftype ReductiveSignal [^:mutable val watches update-fn]
+     IDeref
+     (deref [_] val)
+     ISignal
+     (watch [_ cb]
+
+       ;; TODO: Somehow notify caller. Maybe return a channel multiplexed off
+       ;; something global?
+       )
+     (update-val [_ input]
+       (set! val (update-fn val input)))
+     IReduce
+     (-reduce
+         ([this rf]
+          (-reduce this rf (rf))
+          ([this rf initial]
+           (ReductiveSignal. initial [this] rf))))))
+
+#?(:cljs
+   (defn reduction-signal [init watches rf]
+
+     ))
+
 (defn emit
   ([v]
    (fn [_ rf acc]
@@ -82,16 +110,16 @@
    (fn [buffer]
      (emit buffer))))
 
-(defn partition-all** [n]
+(defn partition-all** [^long n]
   (transducer
    (java.util.ArrayList. n)
-   (fn [buffer next]
+   (fn [^java.util.ArrayList buffer next]
      (.add buffer next)
      (when (= n (.size buffer))
               (let [v (vec (.toArray buffer))]
                 (.clear buffer)
                 (emit v))))
-   (fn [buffer]
+   (fn [^java.util.ArrayList buffer]
      (when-not (.isEmpty buffer)
        (let [v (vec (.toArray buffer))]
          ;;clear first!
@@ -168,10 +196,6 @@
 
 (defprotocol Signal
   (-value [this signal-graph]))
-
-;; Token protocol
-;; FIXME: Terrible name
-(defprotocol ISignal)
 
 (extend-protocol Signal
   ;; I'm not sure I like this...
