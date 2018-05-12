@@ -177,15 +177,10 @@
   nil
   (-value [_ _] nil))
 
-;; TODO: Eventually we'll want more aggressive caching.
-(deftype MemoizedSubscription []
-  ISignal)
-
 (deftype SimpleSubscription [dependencies reaction
                              ;; FIXME: Not synchronised
                              ^:volatile-mutable _last-args
                              ^:volatile-mutable _last-val]
-  ISignal
   Signal
   (-value [_ sg]
     (let [subs (map (fn [s] (if (keyword? s) (get sg s) s)) dependencies)
@@ -199,14 +194,13 @@
           next-val)))))
 
 (defrecord RefSub [ref]
-  ISignal
   Signal
   (-value [_ _] @ref))
 
 (def db (RefSub. db/app-db))
 
 (defn subscription? [sig]
-  (satisfies? ISignal sig))
+  (satisfies? Signal sig))
 
 (defn subscription
   {:style/indent [1]}
