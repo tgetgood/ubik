@@ -17,10 +17,13 @@
   (watch [this])
   (process-input [this input]))
 
+(defn signal? [x]
+  (satisfies? ISignal x))
+
 (declare reduction-signal)
 
 #?(:clj
-   (deftype ReductiveSignal [^:volatile-mutable val ch mult update-fn]
+   (deftype Signal [^:volatile-mutable val ch mult update-fn]
      ISignal
      (watch [_]
        (tapit mult))
@@ -41,7 +44,7 @@
        (reduction-signal init [this] rf)))
 
    :cljs
-   (deftype ReductiveSignal [^:mutable val ch mult update-fn]
+   (deftype Signal [^:mutable val ch mult update-fn]
      ISignal
      (watch [_]
        (tapit mult))
@@ -62,15 +65,15 @@
 (defn basic-signal
   "Returns a signal initialised to init. If no reducing function is supplied,
   defaults to reset! to last input semanatics."
-  ([init]
-   (basic-signal init last-rf))
+  ([] (basic-signal nil last-rf))
+  ([init] (basic-signal init last-rf))
   ([init rf]
    ;; Send backpressure all the way to the roots of the DAG. This will result in
    ;; event dropping if the app can't keep up. Is that reasonable? Is anything
    ;; reasonable at that point?
    (let [ch (async/chan 10)
         mult (async/mult ch)]
-     (ReductiveSignal. init ch mult rf))))
+     (Signal. init ch mult rf))))
 
 (defn reduction-signal [init watches rf]
   (let [input (async/merge (map watch watches))
