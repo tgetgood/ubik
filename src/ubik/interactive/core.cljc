@@ -14,7 +14,7 @@
   animation frame if @state-ref has changed."
   [world host sg check-sym]
   (let [the-world (atom nil)
-        recurrent (fn [counter last-run]
+        recurrent (fn recurrent [counter last-run]
                     #?(:clj
                        ;; Need some kind of abstraction around animation frames.
                        ;; We can't be drawing in a busy loop like this
@@ -45,9 +45,5 @@
 
   ;; Preprocess render tree.
   (let [host (or host (hosts/default-host {}))]
-    ;; HACK: When hot reloading, you need to draw even if nothing has changed
-    ;; because the canvas gets cleared.
-    (when-let [world @the-world]
-      (core/draw! world host))
 
     (draw-loop root host subscriptions (reset! continue? (gensym)))))

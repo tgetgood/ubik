@@ -6,7 +6,8 @@
     <canvas id='canvas'></canvas>
   </div>"
   (:require [goog.object :as obj]
-            [ubik.renderers.canvas :as canvas-renderer]))
+            [ubik.renderers.canvas :as canvas-renderer]
+            [ubik.interactive.events.browser :as events]))
 
 (defn canvas-elem []
   (js/document.getElementById "canvas"))
@@ -48,4 +49,5 @@
       :else                                   nil)
     {:width     (fn [] (obj/get elem "width"))
      :height    (fn [] (obj/get elem "height"))
+     :events    (events/event-signal elem)
      :render-fn (partial canvas-renderer/draw! elem)}))
