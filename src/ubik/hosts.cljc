@@ -1,12 +1,22 @@
 (ns ubik.hosts
-  #?(:cljs (:require [ubik.hosts.browser-canvas :as browser-canvas])
+  #?(:cljs (:require [ubik.hosts.browser-canvas :as browser-canvas]
+                     ubik.core)
      :clj (:require [ubik.hosts.jvm-quil :as jvm-quil])))
+
+#?(:cljs
+   (defrecord HTMLCanvasHost [opts]
+     ubik.core/Host
+     (width [_] ((:width opts)))
+     (height [_] ((:height opts)))
+     (base [_] (:elem opts))
+     (render-fn [_] (:render-fn opts))))
 
 #?(:cljs
    (defn html-canvas
      "Runs ubik in a the given <canvas> element in the browser."
      [opts]
-     (browser-canvas/host opts)))
+     (let [b (browser-canvas/host opts)]
+       (HTMLCanvasHost. b))))
 
 #?(:clj
    (defn quil

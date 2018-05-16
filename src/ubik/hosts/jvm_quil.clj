@@ -1,5 +1,5 @@
 (ns ubik.hosts.jvm-quil
-  (:require [ubik.core :as core]
+  (:require
             [ubik.renderers.quil :as renderer]
             [quil.core :as q]))
 

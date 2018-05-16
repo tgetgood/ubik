@@ -49,5 +49,5 @@
       :else                                   nil)
     {:width     (fn [] (obj/get elem "width"))
      :height    (fn [] (obj/get elem "height"))
-     :events    (events/event-signal elem)
+     :elem      elem
      :render-fn (partial canvas-renderer/draw! elem)}))

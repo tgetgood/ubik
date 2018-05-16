@@ -433,11 +433,17 @@
 ;;;;; Drawing
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defprotocol Host
+  (base [this] "Returns underlying object.")
+  (width [this] "Returns width of window.")
+  (height [this] "Returns current height of frame".)
+  (render-fn [this] "Returns outlet (fn) for drawing to screen."))
+
 (defn draw!
   "Draws shape to host. The host determines what drawing means. Return value
   isn't generally meaningful."
   [shape host]
-  ((:render-fn host)
+  ((render-fn host)
    (with-meta
-     (transform shape (math/atx [1 0 0 -1] [0 ((:height host))]))
+     (transform shape (math/atx [1 0 0 -1] [0 (height host)]))
      {:atx-type ::coordinate-inversion})))

@@ -49,7 +49,7 @@
      (watch [_]
        (tapit mult))
      (process-input [_ input]
-       (let [v' (update-fn val input)]
+       (when-let [v' (update-fn val input)]
          (set! val v')
          (async/put! ch v')))
 
