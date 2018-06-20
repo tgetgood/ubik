@@ -15,52 +15,41 @@
 
 (defprotocol ISignal
   (watch [this])
-  (process-input [this input]))
+  (initialise [this])
+  (step [this branch-fn input-value]))
 
 (defn signal? [x]
   (satisfies? ISignal x))
 
 (declare reduction-signal)
 
-#?(:clj
-   (deftype Signal [^:volatile-mutable val ch mult update-fn]
-     ISignal
-     (watch [_]
-       (tapit mult))
-     (process-input [_ input]
-       (let [v' (update-fn val input)]
-         (set! val v')
-         (async/put! ch v')))
+(deftype Signal [^:volatile-mutable val ch mult update-fn]
+  ISignal
+  (watch [_]
+    (tapit mult))
+  (process-input [_ input]
+    (let [v' (update-fn val input)]
+      (set! val v')
+      (async/put! ch v')))
 
-     clojure.lang.IDeref
-     (deref [_] val)
+  clojure.lang.IDeref
+  (deref [_] val)
 
-     clojure.lang.IReduce
-     (reduce [this rf]
-       (.reduce this rf val))
+  clojure.lang.IReduce
+  (reduce [this rf]
+    (.reduce this rf val))
 
-     clojure.lang.IReduceInit
-     (reduce [this rf init]
-       (reduction-signal init [this] rf)))
+  clojure.lang.IReduceInit
+  (reduce [this rf init]
+    (reduction-signal init [this] rf)))
 
-   :cljs
-   (deftype Signal [^:mutable val ch mult update-fn]
-     ISignal
-     (watch [_]
-       (tapit mult))
-     (process-input [_ input]
-       (when-let [v' (update-fn val input)]
-         (set! val v')
-         (async/put! ch v')))
-
-     IDeref
-     (-deref [_] val)
-
-     IReduce
-     (-reduce [this rf]
-       (-reduce this rf val))
-     (-reduce [this rf initial]
-       (reduction-signal initial [this] rf))))
+(defn signal [opts inputs]
+  (assert (= (keys (:inputs opts)) inputs))
+  (let [ch (async/chan 10)
+        mult (async/mult ch)
+        sig (Signal. )
+        sigmap (into {} (map (fn [x] [(watch x) x])))]
+    ))
 
 (defn basic-signal
   "Returns a signal initialised to init. If no reducing function is supplied,
@@ -79,8 +68,8 @@
   (let [input (async/merge (map watch watches))
         sig (basic-signal init rf)]
     (async/go-loop []
-      (when-let [i (async/<! input)]
-        (process-input sig i)
+      (when-let [ (async/<! input)]
+        (process-input sig input i)
         (recur)))
     sig))
 
@@ -95,9 +84,3 @@
 (defn combine [sigs]
   (when (seq sigs)
     (reduction-signal @(first sigs) sigs last-rf)))
-
-(defn signal
-  ([xform input]
-   (transduce xform last-rf input))
-  ([xform input & inputs]
-   (transduce xform last-rf (combine (conj inputs input)))))

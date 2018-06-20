@@ -1,5 +1,11 @@
 (ns ubik.interactive.transducers)
 
+(defprotocol Interleavable
+  (interleave* [this x]))
+
+(defn interleave [s & more]
+  (reduce interleave* s more))
+
 (defn emit
   ([v]
    (fn [_ rf acc]
