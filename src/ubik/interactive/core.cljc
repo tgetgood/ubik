@@ -7,6 +7,13 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
+#?(:clj
+   (defmacro defsubs [m]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Game Loop
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defonce ^:private continue? (atom nil))
 
 (defn draw-loop
@@ -36,7 +43,7 @@
 ;; There's got to be a better way to get the desired dynamism
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
-  [{:keys [root host subscriptions event-handlers effect-handlers]}]
+  [{:keys [root host subs handlers init-db]}]
   ;; Register effect / coeffect handlers
 
   ;; Build event handlers
@@ -46,4 +53,4 @@
   ;; Preprocess render tree.
   (let [host (or host (hosts/default-host {}))]
 
-    (draw-loop root host subscriptions (reset! continue? (gensym)))))
+    (draw-loop root host subs (reset! continue? (gensym)))))

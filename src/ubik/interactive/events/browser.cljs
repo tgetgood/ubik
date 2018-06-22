@@ -1,6 +1,6 @@
 (ns ubik.interactive.events.browser
   (:require [clojure.string :as string]
-            [ubik.interactive.signal :as signal]))
+            ))
 
 (defn canvas-elem []
   (js/document.getElementById "canvas"))
@@ -111,10 +111,3 @@
     (reset! registered-listeners handlers)
     (doseq [[event cb] handlers]
       (.addEventListener elem (kw->js event) cb))))
-
-(defn event-signal
-  "Returns a signal takes on all browser events on elem as they are dispatched."
-  [elem]
-  (let [sig (signal/basic-signal)]
-    (setup elem #(signal/process-input sig %))
-    sig))
