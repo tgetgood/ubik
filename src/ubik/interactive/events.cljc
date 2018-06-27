@@ -4,16 +4,20 @@
                      ubik.hosts)))
 
 (defprotocol HostEvents
-  (event-signal [this] "Returns a signal which takes on all events."))
+  (wire-events [this queue])
+  (cleanup [this]))
 
 
 #?(:cljs
    (extend-type ubik.hosts/HTMLCanvasHost
      HostEvents
-     (event-signal [this]
-       (ev/event-signal (ubik.core/base this)))))
+     (wire-events [this queue]
+       (ev/setup (ubik.core/base this) #(swap! queue conj %)))
+     (cleanup [this]
+       (ev/teardown this))))
 
 #?(:clj
    (extend-type clojure.lang.PersistentArrayMap
      HostEvents
-     (event-signal [_])))
+     (wire-events [_ _])
+     (cleanup [_])))

@@ -1,6 +1,6 @@
 (ns ubik.interactive.events.browser
   (:require [clojure.string :as string]
-            ))
+            [ubik.interactive.db :refer [the-world]]))
 
 (defn canvas-elem []
   (js/document.getElementById "canvas"))
@@ -98,6 +98,8 @@
                                  :key (.-key e)
                                  :key-code (.-keyCode e)}))})
 
+;; FIXME: This is going to break down if we want to embed multiple interactive
+;; canvases in the same page.
 (defonce ^:private registered-listeners (atom {}))
 
 (defn teardown [elem]

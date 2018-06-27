@@ -7,8 +7,7 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
-#?(:clj
-   (defmacro defsubs [m]))
+(defn event-queue [] (atom []))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Game Loop
@@ -20,8 +19,7 @@
   "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
   animation frame if @state-ref has changed."
   [world host sg check-sym]
-  (let [the-world (atom nil)
-        recurrent (fn recurrent [counter last-run]
+  (let [recurrent (fn recurrent [counter last-run]
                     #?(:clj
                        ;; Need some kind of abstraction around animation frames.
                        ;; We can't be drawing in a busy loop like this
@@ -30,9 +28,9 @@
                        (js/window.requestAnimationFrame
                         (fn [now]
                           (when (= check-sym @continue?)
-                            (when-not (= @the-world world)
+                            (when-not (= @db/the-world world)
                               (core/draw! world host)
-                              (reset! the-world world))
+                              (reset! db/the-world world))
                             (recurrent (inc counter) last-run))))))]
     (recurrent 0 0)))
 
@@ -44,13 +42,16 @@
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [{:keys [root host subs handlers init-db]}]
-  ;; Register effect / coeffect handlers
+  (let [host (or host (hosts/default-host {}))
+        eq (event-queue)]
 
-  ;; Build event handlers
+    (events/wire-events host eq)
 
-  ;; TODO: Initialise event system
+    ;; Register effect / coeffect handlers
 
-  ;; Preprocess render tree.
-  (let [host (or host (hosts/default-host {}))]
+    ;; Build event handlers
 
-    (draw-loop root host subs (reset! continue? (gensym)))))
+    ;; TODO: Initialise event system
+
+    ;; Preprocess render tree.
+    (draw-loop root host (reset! continue? (gensym)))))
