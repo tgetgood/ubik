@@ -106,10 +106,11 @@
   (doseq [[event cb] @registered-listeners]
     (.removeEventListener elem (kw->js event) cb)))
 
-(defn setup [elem dispatch-fn]
-  (when (seq @registered-listeners)
-    (teardown elem))
-  (let [handlers (event-map elem dispatch-fn)]
-    (reset! registered-listeners handlers)
-    (doseq [[event cb] handlers]
-      (.addEventListener elem (kw->js event) cb))))
+(defn setup [elem f]
+  (let [dispatch-fn #(f (assoc % ::world @db/the-world))]
+    (when (seq @registered-listeners)
+      (teardown elem))
+    (let [handlers (event-map elem dispatch-fn)]
+      (reset! registered-listeners handlers)
+      (doseq [[event cb] handlers]
+        (.addEventListener elem (kw->js event) cb)))))
