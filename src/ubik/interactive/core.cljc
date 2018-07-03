@@ -12,7 +12,9 @@
 (defn start-event-processing [eq handlers effectors])
 
 ;; Token protocol
-(defprotocol Signal)
+(defprotocol Signal
+  (deps [_])
+  (debug [_]))
 
 ;; REVIEW: Is this really any better than two repetitive definitions? More
 ;; concise but way less readable...
@@ -26,6 +28,8 @@
               ^:mutable _last-args
               ^:mutable _last-val])
   Signal
+  (deps [_] dependencies)
+  (debug [_] [_last-db _last-args _last-val])
   #?(:clj clojure.lang.IDeref :cljs IDeref)
   (#?(:clj deref :cljs -deref) [_]
     (let [app-db @db/app-db]
@@ -34,7 +38,7 @@
         (let [inputs (map deref dependencies)]
           (if (= inputs _last-args)
             _last-val
-            (let [next (reaction inputs)]
+            (let [next (apply reaction inputs)]
               (set! _last-db app-db)
               (set! _last-args inputs)
               (set! _last-val next)
@@ -105,8 +109,8 @@
         sym-seq (seq @symbols)]
     (if (empty? sym-seq)
       form
-      `(subscription [~@(map key sym-seq)]
-         (fn [~@(map val sym-seq)]
+      `(subscription  [~@(map key sym-seq)]
+        (fn [~@(map val sym-seq)]
            ~body)))))
 
 (defmacro defsub [name form]
@@ -137,9 +141,10 @@
                        (js/window.requestAnimationFrame
                         (fn [now]
                           (when (= check-sym @continue?)
-                            (when-not (= @db/the-world world)
-                              (core/draw! world host)
-                              (reset! db/the-world world))
+                            (let [w @world]
+                              (when-not (= @db/the-world w)
+                                (core/draw! w host)
+                                (reset! db/the-world w)))
                             (recurrent (inc counter) last-run))))))]
     (recurrent 0 0)))
 
@@ -153,6 +158,8 @@
   [{:keys [root host subs handlers init-db effects]}]
   (let [host (or host (hosts/default-host {}))
         eq (event-queue)]
+
+    (reset! db/app-db init-db)
 
     (events/wire-events host eq)
 
