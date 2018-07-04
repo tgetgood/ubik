@@ -159,7 +159,8 @@
   (let [host (or host (hosts/default-host {}))
         eq (event-queue)]
 
-    (reset! db/app-db init-db)
+    (when (= @db/app-db ::db/uninitialised)
+      (reset! db/app-db init-db))
 
     (events/wire-events host eq)
 
