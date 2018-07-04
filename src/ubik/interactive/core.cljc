@@ -27,7 +27,7 @@
               ^:mutable _last-db
               ^:mutable _last-args
               ^:mutable _last-val])
-  Signal
+  Subscription
   (deps [_] dependencies)
   (debug [_] [_last-db _last-args _last-val])
   #?(:clj clojure.lang.IDeref :cljs IDeref)
@@ -45,20 +45,21 @@
               next)))))))
 
 #?(:clj
-   (defrecord RefSub [ref]
-     Signal
+   (deftype RefSub [ref]
+     Subscription
      clojure.lang.IDeref
      (deref [_] @ref))
+
    :cljs
-   (defrecord RefSub [ref]
-     Signal
+   (deftype RefSub [ref]
+     Subscription
      IDeref
      (-deref [_] @ref)))
 
 (def db (RefSub. db/app-db))
 
 (defn subscription? [sig]
-  (satisfies? Signal sig))
+  (satisfies? Subscription sig))
 
 (defn subscription
   {:style/indent [1]}
@@ -87,13 +88,9 @@
            (subscription? @(resolve (second form))))
     (second form)))
 
-(defmacro sub-form
-  {:style/indent [1]
-   :doc          "Returns a subscribed version of form.
-  This subscription is a function which given a signal graph returns a value.
-  The signal graph is just a map from keys to subscriptions.
-  A subscription does not need to be part of the signal graph it receives (but
-  probably will be). Recursive calls will end in disaster."}
+(defmacro build-subscription
+  "Given a form --- which presumably derefs other subscriptions --- return a new
+  subscription that reacts to its dependencies."
   [form]
   (let [symbols (atom {})
 
@@ -113,16 +110,16 @@
         (fn [~@(map val sym-seq)]
            ~body)))))
 
-(defmacro defsub [name form]
-  `(def ~name ~(sub-form form)))
+(defmacro defsub
+  "Creates a subscription for form and binds it to a var with name. Sets the
+  docstring approriately if provided."
+  {:style/indent [1]}
+  [name docstr? & [form]]
+  (let [doc (when (string? docstr?) [docstr?])
+        form (if doc form docstr?)]
+    `(def ~name ~@doc (build-subscription ~form))))
 
-(defmacro defsubs [sub-map]
-  `(do
-     ~@(map (fn [s#] `(declare ~s#)) (keys sub-map))
-     ~@(map (fn [[k# v#]] `(def ~k# (sub-form ~v#)))
-           sub-map))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+);;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Game Loop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
