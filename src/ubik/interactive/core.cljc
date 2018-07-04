@@ -1,5 +1,6 @@
 (ns ubik.interactive.core
-  (:require [clojure.walk :as walk]
+  (:require [clojure.core.async :as async :include-macros true]
+            [clojure.walk :as walk]
             [net.cgrand.macrovich :as macros :include-macros true]
             [ubik.core :as core]
             [ubik.geometry :as geo]
@@ -11,8 +12,48 @@
 
 (defn start-event-processing [eq handlers effectors])
 
-;; Token protocol
-(defprotocol Signal
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Signals
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defrecord Handler [watch key multi])
+
+(macros/deftime
+
+(defmacro defhandler
+  {:style/indent [3]}
+  [name k args methods]
+  (let [multi (gensym)]
+    `(do
+       (defmulti ~multi (fn ~args (:type ~(second args))))
+       ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~args ~v#))
+              methods)
+       (def ~name (Handler. ~(into #{} (keys methods)) ~k ~multi))))))
+
+(defprotocol IEventQueue
+  (enqueue [this v]))
+
+(deftype EventQueue [queue handlers]
+   IEventQueue
+   (enqueue [_ v]
+     (async/put! queue v)))
+
+(defn create-queue [handlers process-fn]
+  (let [queue (async/chan 1000)
+        eq (EventQueue. queue handlers)]
+    (async/go-loop []
+      (when-let [ev (async/<! queue)]
+        (process-fn handlers @db/app-db ev)
+        ))
+    ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Subscriptions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Distinction: subscriptions are reactive, signals are active. This is more
+;; important than it may seem.
+(defprotocol Subscription
   (deps [_])
   (debug [_]))
 
