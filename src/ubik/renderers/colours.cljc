@@ -1,4 +1,5 @@
-(ns ubik.renderers.colours)
+(ns ubik.renderers.colours
+  #?(:cljs (:require [cljs.reader :refer [read-string]])))
 
 (def colour-map
   "Map from colour names to RGB codes. As per W3C."

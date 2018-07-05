@@ -1,6 +1,5 @@
 (ns ubik.hosts.jvm-quil
-  (:require
-            [ubik.renderers.quil :as renderer]
+  (:require [ubik.renderers.quil :as renderer]
             [quil.core :as q]))
 
 (defonce quil-errors (atom []))

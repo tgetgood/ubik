@@ -9,7 +9,7 @@
 
 
 #?(:cljs
-   (extend-type ubik.hosts/HTMLCanvasHost
+   (extend-type ubik.hosts/Host
      HostEvents
      (wire-events [this queue]
        (ev/setup (ubik.core/base this) #(swap! queue conj %)))
