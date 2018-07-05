@@ -16,3 +16,6 @@
    :mouse-clicked  no-fn
    :focus-gained   no-fn
    :focus-lost     no-fn})
+
+(defn setup [a b])
+(defn teardown [this])

@@ -1,20 +1,20 @@
 (ns ubik.interactive.events
-  #?(:cljs (:require [ubik.interactive.events.browser :as ev]
-                     ubik.core
-                     ubik.hosts)))
+  (:require ubik.core
+            #?(:clj [ubik.interactive.events.quil :as ev]
+               :cljs [ubik.interactive.events.browser :as ev])
+            ubik.hosts))
 
 (defprotocol HostEvents
   (wire-events [this queue])
   (cleanup [this]))
 
 
-#?(:cljs
-   (extend-type ubik.hosts/Host
-     HostEvents
-     (wire-events [this queue]
-       (ev/setup (ubik.core/base this) #(swap! queue conj %)))
-     (cleanup [this]
-       (ev/teardown this))))
+(extend-type #?(:clj ubik.hosts.Host :cljs ubik.hosts/Host)
+   HostEvents
+   (wire-events [this queue]
+     (ev/setup (ubik.core/base this) #(swap! queue conj %)))
+   (cleanup [this]
+     (ev/teardown this)))
 
 #?(:clj
    (extend-type clojure.lang.PersistentArrayMap
