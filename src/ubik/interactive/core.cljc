@@ -16,10 +16,17 @@
 ;;;;; Signals
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defrecord RHandler [in rf])
 (defrecord Handler [in out xform])
 
-(defn handler [watch f emit]
-  (Handler. (if (set? watch) watch #{watch}) emit f))
+(defn error [m]
+  (throw (#?(:clj Exception. :cljs js/Error) m)))
+
+(defn keyword-or-set [kos]
+  (cond
+    (keyword? kos) #{kos}
+    (set? kos) kos
+    :else (error "Handlers can only watch single events or sets of events.")))
 
 (defn temp-key [name]
   [::temp-state name])
@@ -55,6 +62,15 @@
    (if (::event-register (meta db))
      (with-meta db (update (meta db)  ::events conj ev))
      (with-meta db {::events [ev] ::event-register true}))))
+
+(defn handler
+  ;; TODO: This should be a macro that looks at rf and decides whether or not it
+  ;; is already a transducer. If I can hide this from the user then that should
+  ;; substantially improve the interface.
+  ([watch rf]
+   (RHandler. (keyword-or-set watch) (transducer rf)))
+  ([watch f emit]
+   (Handler. (keyword-or-set watch) emit f)))
 
 (macros/deftime
 
