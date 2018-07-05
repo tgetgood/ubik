@@ -16,7 +16,45 @@
 ;;;;; Signals
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defrecord Handler [watch key multi])
+(defrecord Handler [in out xform])
+
+(defn handler [watch f emit]
+  (Handler. (if (set? watch) watch #{watch}) emit f))
+
+(defn temp-key [name]
+  [::temp-state name])
+
+(defn emit [db ev]
+  (with-meta (fn [rf]
+               (rf db ev))
+    {::emission true}))
+
+(defn emission? [x]
+  (::emission (meta x)))
+
+(defn transducer
+  "Create a (non-interruptable) transducer from xform, which is an fn of 2
+  arguments which can all `emit` to pass values down the chain."
+  [xform]
+  (fn [rf]
+    (fn
+      ([] (rf))
+      ([acc] (rf acc))
+      ([acc x]
+       (let [step (xform acc x)]
+         (if (emission? step)
+           (step rf)
+           step))))))
+
+(defn internal-reduce
+  "This reducing function separates out the current db value from events emitted
+  by transducing processes."
+  ([] {})
+  ([db] db)
+  ([db ev]
+   (if (::event-register (meta db))
+     (with-meta db (update (meta db)  ::events conj ev))
+     (with-meta db {::events [ev] ::event-register true}))))
 
 (macros/deftime
 
@@ -28,21 +66,21 @@
        (defmulti ~multi (fn ~args (:type ~(second args))))
        ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~args ~v#))
               methods)
-       (def ~name (Handler. ~(into #{} (keys methods)) ~k ~multi))))))
+       (def ~name (handler ~(into #{} (keys methods)) (transducer ~multi) ~k))))))
 
 (defprotocol IEventQueue
   (enqueue [this v]))
 
-(deftype EventQueue [queue handlers]
+(deftype EventQueue [queue]
    IEventQueue
    (enqueue [_ v]
      (async/put! queue v)))
 
 (defn create-queue [handlers process-fn]
-  (let [queue (async/chan 1000)
-        eq (EventQueue. queue handlers)]
+  (let [chan (async/chan 1000)
+        queue (EventQueue. chan)]
     (async/go-loop []
-      (when-let [ev (async/<! queue)]
+      (when-let [ev (async/<! chan)]
         (process-fn handlers @db/app-db ev)
         ))
     ))
@@ -146,7 +184,7 @@
 
         sym-seq (seq @symbols)]
     (if (empty? sym-seq)
-      form
+      `(atom ~form)
       `(subscription  [~@(map key sym-seq)]
         (fn [~@(map val sym-seq)]
            ~body)))))
@@ -155,12 +193,10 @@
   "Creates a subscription for form and binds it to a var with name. Sets the
   docstring approriately if provided."
   {:style/indent [1]}
-  [name docstr? & [form]]
-  (let [doc (when (string? docstr?) [docstr?])
-        form (if doc form docstr?)]
-    `(def ~name ~@doc (build-subscription ~form))))
+  [name form]
+  `(def ~name (build-subscription ~form))))
 
-);;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Game Loop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -174,7 +210,7 @@
                     #?(:clj
                        ;; Need some kind of abstraction around animation frames.
                        ;; We can't be drawing in a busy loop like this
-                       (core/draw! world host)
+                       (core/draw! @world host)
                        :cljs
                        (js/window.requestAnimationFrame
                         (fn [now]
