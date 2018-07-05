@@ -11,8 +11,8 @@
 
 (extend-type #?(:clj ubik.hosts.Host :cljs ubik.hosts/Host)
    HostEvents
-   (wire-events [this queue]
-     (ev/setup (ubik.core/base this) #(swap! queue conj %)))
+   (wire-events [this enqueue]
+     (ev/setup (ubik.core/base this) enqueue))
    (cleanup [this]
      (ev/teardown this)))
 

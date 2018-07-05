@@ -8,15 +8,11 @@
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]))
 
-(defn event-queue [] (atom []))
-
-(defn start-event-processing [eq handlers effectors])
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Signals
+;;;;; Event Handling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defrecord RHandler [in rf])
+(defrecord RHandler [in xform])
 (defrecord Handler [in out xform])
 
 (defn error [m]
@@ -60,7 +56,7 @@
   ([db] db)
   ([db ev]
    (if (::event-register (meta db))
-     (with-meta db (update (meta db)  ::events conj ev))
+     (with-meta db (update (meta db) ::events conj ev))
      (with-meta db {::events [ev] ::event-register true}))))
 
 (defn handler
@@ -82,24 +78,69 @@
        (defmulti ~multi (fn ~args (:type ~(second args))))
        ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~args ~v#))
               methods)
-       (def ~name (handler ~(into #{} (keys methods)) (transducer ~multi) ~k))))))
+       (def ~name
+         (handler ~(into #{} (keys methods)) (transducer ~multi) ~k))))))
+
+(defn organise-handlers [handlers]
+  (reduce (fn [hg h]
+            (reduce (fn [hg w]
+                      (if (contains? hg w)
+                        (update hg w conj h)
+                        (assoc hg w [h])))
+                    hg (:in h)))
+          {} handlers))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Event Queue
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol IEventQueue
   (enqueue [this v]))
 
-(deftype EventQueue [queue]
+(defrecord EventQueue [queue buf-count buf-size]
    IEventQueue
-   (enqueue [_ v]
-     (async/put! queue v)))
+   (enqueue [this v]
+     (swap! buf-count inc)
+     (if (<= buf-size buf-count)
+       (error "Too many backlogged events. Cannot recover. Aborting.")
+       (async/put! queue v))
+     this))
 
-(defn create-queue [handlers process-fn]
+(defn set-if-nil [ms k v]
+  (map (fn [m]
+         (if (contains? m k)
+           m
+           (assoc m k v)))
+       ms))
+
+(defn run-queue [handlers db event]
+  (let [relevant (get handlers (:type event))]
+    (loop [db db
+           hs relevant]
+      (if (seq hs)
+        (let [h (first hs)
+              next-db (transduce (:xform h) internal-reduce db [event])
+              next-db-events (with-meta
+                               next-db
+                               (update (meta next-db) ::events
+                                       #(set-if-nil % :type (:out h))))]
+          (recur next-db-events (rest hs)))
+        db))))
+
+(defn create-queue [handlers]
   (let [chan (async/chan 1000)
-        queue (EventQueue. chan)]
+        queue (EventQueue. chan (atom 0) 1000)]
     (async/go-loop []
       (when-let [ev (async/<! chan)]
-        (process-fn handlers @db/app-db ev)
-        ))
-    ))
+        (swap! (:buf-count queue) dec)
+        (let [db @db/app-db
+              next-db (run-queue handlers db ev)
+              new-events (::events (meta next-db))]
+          (when (::event-register (meta next-db))
+            (reduce enqueue queue new-events))
+          (reset! db/app-db (with-meta next-db nil))
+          (recur))))
+    queue))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Subscriptions
@@ -246,13 +287,11 @@
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [{:keys [root host subs handlers init-db effects]}]
+  (when (= @db/app-db ::db/uninitialised)
+    (reset! db/app-db init-db))
   (let [host (or host (hosts/default-host {}))
-        eq (event-queue)]
+        hs (organise-handlers handlers)
+        queue (create-queue hs)]
+    (events/wire-events host #(enqueue queue %))
 
-    (when (= @db/app-db ::db/uninitialised)
-      (reset! db/app-db init-db))
-
-    (events/wire-events host eq)
-
-    (start-event-processing eq handlers effects)
     (draw-loop root host (reset! continue? (gensym)))))
