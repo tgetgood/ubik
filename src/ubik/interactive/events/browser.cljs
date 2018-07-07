@@ -107,7 +107,7 @@
     (.removeEventListener elem (kw->js event) cb)))
 
 (defn setup [elem f]
-  (let [dispatch-fn #(f (assoc % ::world @the-world))]
+  (let [dispatch-fn #(f (assoc % :ubik.interactive.events/world @the-world))]
     (when (seq @registered-listeners)
       (teardown elem))
     (let [handlers (event-map elem dispatch-fn)]
