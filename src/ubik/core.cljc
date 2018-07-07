@@ -95,16 +95,27 @@
 (defn update-children [shape f]
   (update shape (children-key shape) f))
 
+(defn reduce-shape [rf acc shape]
+  (cond
+    (sequential? shape)
+    (rf (reduce (partial reduce-shape rf) acc shape) shape)
+
+    (has-children? shape)
+    (rf (reduce-shape rf acc (children shape)) shape)
+
+    :else
+    (rf acc shape)))
+
 (defn walk-down [shape f]
   (let [f (fn [s] (with-meta (f s) (meta s)))]
     (cond
       (sequential? shape)
       (with-meta
-        (into (empty shape) (map f shape))
+        (into (empty shape) (map #(walk-down % f) (f shape)))
         (meta shape))
 
       (has-children? shape)
-      (f (update shape (children-key shape) f))
+      (f (update shape (children-key shape) #(walk-down % f)))
 
       :else
       (f shape))))
@@ -116,6 +127,14 @@
   #?(:cljs default :clj Object)
   (children-key [_]
     nil))
+
+(defn tag-rf [acc s]
+  (reduce conj acc (get-tags s)))
+
+(defn get-all-tags
+  "Returns a set of all tags nested in shape."
+  [shape]
+  (reduce-shape tag-rf #{} shape))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; 1D Geometry
