@@ -60,6 +60,7 @@
      (with-meta db {::events [ev] ::event-register true}))))
 
 (defn handler
+  {:style/indent [1]}
   ;; TODO: This should be a macro that looks at rf and decides whether or not it
   ;; is already a transducer. If I can hide this from the user then that should
   ;; substantially improve the interface.
@@ -132,14 +133,17 @@
         queue (EventQueue. chan (atom 0) 1000)]
     (async/go-loop []
       (when-let [ev (async/<! chan)]
-        (swap! (:buf-count queue) dec)
-        (let [db @db/app-db
-              next-db (run-queue handlers db ev)
-              new-events (::events (meta next-db))]
-          (when (::event-register (meta next-db))
-            (reduce enqueue queue new-events))
-          (reset! db/app-db (with-meta next-db nil))
-          (recur))))
+        (try
+          (swap! (:buf-count queue) dec)
+          (let [db @db/app-db
+                next-db (run-queue handlers db ev)
+                new-events (::events (meta next-db))]
+            (when (::event-register (meta next-db))
+              (reduce enqueue queue new-events))
+            (reset! db/app-db (with-meta next-db nil)))
+          (catch #?(:clj Exception :cljs js/Error) e
+            (println "We have a problem: " e)))
+        (recur)))
     queue))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
