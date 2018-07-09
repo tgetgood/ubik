@@ -117,16 +117,16 @@
 (defn run-queue [handlers db event]
   (let [relevant (get handlers (:type event))]
     (loop [db db
+           evs []
            hs relevant]
       (if (seq hs)
         (let [h (first hs)
+              db (with-meta db (assoc (meta db) ::events []))
               next-db (transduce (:xform h) internal-reduce db [event])
-              next-db-events (with-meta
-                               next-db
-                               (update (meta next-db) ::events
-                                       #(set-if-nil % :type (:out h))))]
-          (recur next-db-events (rest hs)))
-        db))))
+              evs (into evs (map #(assoc % :type (:out h))
+                                 (::events (meta next-db))))]
+          (recur next-db evs (rest hs)))
+        (with-meta db (assoc (meta db) ::events evs))))))
 
 (defn create-queue [handlers]
   (let [chan (async/chan 1000)
