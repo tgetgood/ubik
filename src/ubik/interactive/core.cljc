@@ -237,9 +237,11 @@
         body (walk/prewalk
               (fn [f]
                 (if-let [sub (sub-checker f)]
-                  (let [sym (gensym)]
-                    (swap! symbols assoc sub sym)
-                    sym)
+                  (if (contains? @symbols sub)
+                    (get @symbols sub)
+                    (let [sym (gensym)]
+                      (swap! symbols assoc sub sym)
+                      sym))
                   f))
               form)
 
