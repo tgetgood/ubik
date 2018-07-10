@@ -131,19 +131,14 @@
                  true (assoc :current db)))))))
 
 (defn undo! []
-  (let [check (:current @undo-graph)
-        db    @db/app-db]
-    (if (= db check)
-      (when-let [prev (-> @undo-graph :checkpoints (get check) :previous)]
-        (swap! undo-graph assoc :current prev)
-        (reset! db/app-db prev))
-      (do
-        (checkpoint!)
-        (undo!)))))
+  (let [check (:current @undo-graph)]
+    (when-let [prev (-> @undo-graph :checkpoints (get check) :previous)]
+      (swap! undo-graph assoc :current prev)
+      (reset! db/app-db prev))))
 
 (defn redo! []
-  (let [db @db/app-db
-        next (-> @undo-graph :checkpoints (get db) :next)]
+  (let [check (:current @undo-graph)
+        next (-> @undo-graph :checkpoints (get check) :next)]
     (when next
       (swap! undo-graph assoc :current next)
       (reset! db/app-db next))))
@@ -174,8 +169,7 @@
                 new-events (::events (meta next-db))]
             (when (::event-register (meta next-db))
               (reduce enqueue queue new-events))
-            (when-not (= next-db @db/app-db)
-              (reset! db/app-db (with-meta next-db nil))))
+            (reset! db/app-db (with-meta next-db nil)))
           (catch #?(:clj Exception :cljs js/Error) e
             (println "We have a problem: " e)))
         (recur)))
