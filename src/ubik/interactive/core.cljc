@@ -114,6 +114,40 @@
            (assoc m k v)))
        ms))
 
+;; REVIEW: I want undo-tree, which in this case is really undo-graph. But I need
+;; to write a UI to make it remotely useful, so let's just stick to a line for
+;; now
+(defonce ^:private undo-graph (atom {:current nil
+                                     :checkpoints {}}))
+
+(defn checkpoint! []
+  (let [db @db/app-db]
+    (swap! undo-graph
+           (fn [g]
+             (let [current (:current g)]
+               (cond-> g
+                 current (update :checkpoints update current assoc :next db)
+                 current (update :checkpoints assoc db {:previous current})
+                 true (assoc :current db)))))))
+
+(defn undo! []
+  (let [check (:current @undo-graph)
+        db    @db/app-db]
+    (if (= db check)
+      (when-let [prev (-> @undo-graph :checkpoints (get check) :previous)]
+        (swap! undo-graph assoc :current prev)
+        (reset! db/app-db prev))
+      (do
+        (checkpoint!)
+        (undo!)))))
+
+(defn redo! []
+  (let [db @db/app-db
+        next (-> @undo-graph :checkpoints (get db) :next)]
+    (when next
+      (swap! undo-graph assoc :current next)
+      (reset! db/app-db next))))
+
 (defn run-queue [handlers db event]
   (let [relevant (get handlers (:type event))]
     (loop [db db
@@ -140,7 +174,8 @@
                 new-events (::events (meta next-db))]
             (when (::event-register (meta next-db))
               (reduce enqueue queue new-events))
-            (reset! db/app-db (with-meta next-db nil)))
+            (when-not (= next-db @db/app-db)
+              (reset! db/app-db (with-meta next-db nil))))
           (catch #?(:clj Exception :cljs js/Error) e
             (println "We have a problem: " e)))
         (recur)))
@@ -294,7 +329,8 @@
   "Initialises the system, whatever that means right now."
   [{:keys [root host subs handlers init-db effects]}]
   (when (= @db/app-db ::db/uninitialised)
-    (reset! db/app-db init-db))
+    (reset! db/app-db init-db)
+    (checkpoint!))
   (let [host (or host (hosts/default-host {}))
         hs (organise-handlers handlers)
         queue (create-queue hs)]
