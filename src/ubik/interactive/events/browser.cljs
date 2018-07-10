@@ -38,6 +38,10 @@
                    (.preventDefault e)
                    (.focus elem))
 
+   :mouse-out   (fn [e]
+                  (.preventDefault e)
+                  (dispatch-fn {:type :mouse-out}))
+
    :mouse-down   (fn [e]
                    (.preventDefault e)
                    (let [b (.-button e)
