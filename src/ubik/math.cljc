@@ -68,6 +68,9 @@
 (defn norm [[x y]]
   (sqrt (+ (* x x) (* y y))))
 
+(defn dist [[x1 y1] [x2 y2]]
+  (norm [(- x1 x2) (- y1 y2)]))
+
 ;;;;; Linear and Affine
 
 (def ^:private **
