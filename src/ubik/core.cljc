@@ -128,7 +128,7 @@
   (children-key [_]
     nil))
 
-(defn tag-rf [acc s]
+(defn- tag-rf [acc s]
   (reduce conj acc (get-tags s)))
 
 (defn get-all-tags
@@ -145,6 +145,9 @@
     "Returns the endpoints of this segment in order (segments are directed
     paths.")
   (contiguous [this] "Returns true iff this segment is connected."))
+
+(defn segment? [x]
+  (satisfies? ISegment x))
 
 ;;;;;; Path topology
 
@@ -252,7 +255,7 @@
   (children-key [_] :base-shape))
 
 (def frame
-  "A frame is a visual which restricts image to fall within a rectangle.
+  "A frame is a visual which restricts :base-shape to fall within a rectangle.
   Keys as per ubik.core/rectangle plus the :base-shape which is framed."
   (map->Frame
    {:corner [0 0]
