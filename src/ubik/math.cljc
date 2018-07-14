@@ -68,6 +68,10 @@
 (defn norm [[x y]]
   (sqrt (+ (* x x) (* y y))))
 
+(defn unit [[x y :as v]]
+  (let [n (norm v)]
+    [(/ x n) (/ y n)]))
+
 (defn dist [[x1 y1] [x2 y2]]
   (norm [(- x1 x2) (- y1 y2)]))
 
