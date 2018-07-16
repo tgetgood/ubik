@@ -1,7 +1,25 @@
 (ns ubik.core
-  #?(:cljs (:require-macros [ubik.core :refer [deftemplate]]))
   (:require [clojure.string :as string]
-            [ubik.math :as math]))
+            [ubik.lang :as lang :refer [Vectorial]]
+            [ubik.math :as math])
+  #?(:cljs (:require-macros [ubik.core :refer [deftemplate]])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Polymorphic Opeators
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn dot [u v]
+  (lang/dot (lang/vectorise u) v))
+
+(defn length [v]
+  (lang/length (lang/vectorise v)))
+
+(defn unit [v]
+  (lang/unit (lang/vectorise v)))
+
+(defn v- [v u]
+  (lang/- (lang/vectorise v) u))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Templates
@@ -84,6 +102,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol IShape
+  (origin [this])
   (children-key [shape]))
 
 (defn has-children? [shape]
@@ -180,6 +199,14 @@
 ;;;;; Path Segments
 
 (defrecord Line [style from to]
+  Vectorial
+  (base-vector [_]
+    (v- to from))
+
+  IShape
+  (children-key [_] nil)
+  (origin [_] from)
+
   ISegment
   (endpoints [_] [from to])
   (contiguous [_] true))

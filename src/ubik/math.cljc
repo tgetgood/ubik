@@ -23,7 +23,7 @@
 (defn rad->deg
   "Convert radians into degrees."
   [r]
-  (/ (* r 180) pi))
+  (/ (* r 180) π))
 
 (defn sin [x]
   (#?(:cljs js/Math.sin :clj Math/sin) x))
