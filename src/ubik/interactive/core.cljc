@@ -13,7 +13,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defrecord RHandler [in xform])
-(defrecord Handler [in out xform])
+(defrecord Handler [in out xform name])
 
 (defn error [m]
   (throw (#?(:clj Exception. :cljs js/Error) m)))
@@ -27,13 +27,16 @@
 (defn temp-key [name]
   [::temp-state name])
 
-(defn emit [db ev]
-  (with-meta (fn [rf]
-               (rf db ev))
-    {::emission true}))
-
-(defn emission? [x]
-  (::emission (meta x)))
+(defn emit
+  ([db]
+   (fn [rf]
+     (rf db)))
+  ([db ev]
+   (fn [rf]
+     (rf db ev)))
+  ([db ev & evs]
+   (fn [rf]
+     (reduce rf (rf db ev) evs))))
 
 (defn transducer
   "Create a (non-interruptable) transducer from xform, which is an fn of 2
@@ -45,29 +48,22 @@
       ([acc] (rf acc))
       ([acc x]
        (let [step (xform acc x)]
-         (if (emission? step)
+         (if (fn? step)
            (step rf)
            step))))))
-
-(defn internal-reduce
-  "This reducing function separates out the current db value from events emitted
-  by transducing processes."
-  ([] {})
-  ([db] db)
-  ([db ev]
-   (if (::event-register (meta db))
-     (with-meta db (update (meta db) ::events conj ev))
-     (with-meta db {::events [ev] ::event-register true}))))
 
 (defn handler
   {:style/indent [1]}
   ;; TODO: This should be a macro that looks at rf and decides whether or not it
   ;; is already a transducer. If I can hide this from the user then that should
   ;; substantially improve the interface.
-  ([watch rf]
-   (RHandler. (keyword-or-set watch) (transducer rf)))
   ([watch f emit]
-   (Handler. (keyword-or-set watch) emit f)))
+   (Handler. (keyword-or-set watch) emit f "anon$"))
+  ([watch f emit name]
+   (Handler. (keyword-or-set watch) emit f name)))
+
+(defn db-handler [watch rf]
+   (RHandler. (keyword-or-set watch) (transducer rf)) )
 
 (macros/deftime
 
@@ -80,7 +76,7 @@
        ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~args ~v#))
               methods)
        (def ~name
-         (handler ~(into #{} (keys methods)) (transducer ~multi) ~k))))))
+         (Handler. ~(into #{} (keys methods)) ~k (transducer ~multi) ~name))))))
 
 (defn organise-handlers [handlers]
   (reduce (fn [hg h]
@@ -114,6 +110,53 @@
            (assoc m k v)))
        ms))
 
+(defn shunt-rf
+  ([db]
+   (if (::shunted db)
+     db
+     {::shunted true ::db db}))
+  ([db ev]
+   (if (::shunted db)
+     (update db ::events conj ev)
+     {::shunted true ::db db ::events [ev]})))
+
+(defn transduce-1 [xform db ev]
+  (let [f (xform shunt-rf)]
+    (f (f db ev))))
+
+(defn run-queue [handlers db event]
+  (let [relevant (get handlers (:type event))]
+    (loop [db db
+           evs []
+           hs relevant]
+      (if (seq hs)
+        (let [h (first hs)
+              res (transduce-1 (:xform h) db event)
+              evs (into evs (map #(assoc % :type (:out h)) (::events res)))]
+          (recur (::db res) evs (rest hs)))
+        [db evs]))))
+
+(defn create-queue [handlers]
+  (let [chan (async/chan 1000)
+        queue (EventQueue. chan (atom 0) 1000)]
+    (async/go-loop []
+      (when-let [ev (async/<! chan)]
+        (try
+          (swap! (:buf-count queue) dec)
+          (let [db (db/get-current-value)
+                [next-db evs] (run-queue handlers db ev)]
+            (when (seq evs)
+              (reduce enqueue queue evs))
+            (db/reset-db! next-db))
+          (catch #?(:clj Exception :cljs js/Error) e
+            (println "We have a problem: " e)))
+        (recur)))
+    queue))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Undo
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;; REVIEW: I want undo-tree, which in this case is really undo-graph. But I need
 ;; to write a UI to make it remotely useful, so let's just stick to a line for
 ;; now
@@ -142,38 +185,6 @@
     (when next
       (swap! undo-graph assoc :current next)
       (reset! db/app-db next))))
-
-(defn run-queue [handlers db event]
-  (let [relevant (get handlers (:type event))]
-    (loop [db db
-           evs []
-           hs relevant]
-      (if (seq hs)
-        (let [h (first hs)
-              db (with-meta db (assoc (meta db) ::events []))
-              next-db (transduce (:xform h) internal-reduce db [event])
-              evs (into evs (map #(assoc % :type (:out h))
-                                 (::events (meta next-db))))]
-          (recur next-db evs (rest hs)))
-        (with-meta db (assoc (meta db) ::events evs))))))
-
-(defn create-queue [handlers]
-  (let [chan (async/chan 1000)
-        queue (EventQueue. chan (atom 0) 1000)]
-    (async/go-loop []
-      (when-let [ev (async/<! chan)]
-        (try
-          (swap! (:buf-count queue) dec)
-          (let [db @db/app-db
-                next-db (run-queue handlers db ev)
-                new-events (::events (meta next-db))]
-            (when (::event-register (meta next-db))
-              (reduce enqueue queue new-events))
-            (reset! db/app-db (with-meta next-db nil)))
-          (catch #?(:clj Exception :cljs js/Error) e
-            (println "We have a problem: " e)))
-        (recur)))
-    queue))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Subscriptions
@@ -311,7 +322,7 @@
                               (when-not (= @db/the-world w)
                                 (core/draw! w host)
                                 (reset! db/the-world w)))
-                            (recurrent (inc counter) last-run))))))]
+                            (recurrent (inc counter) now))))))]
     (recurrent 0 0)))
 
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
@@ -322,9 +333,7 @@
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [{:keys [root host subs handlers init-db effects]}]
-  (when (= @db/app-db ::db/uninitialised)
-    (reset! db/app-db init-db)
-    (checkpoint!))
+  (db/set-once! init-db)
   (let [host (or host (hosts/default-host {}))
         hs (organise-handlers handlers)
         queue (create-queue hs)]
