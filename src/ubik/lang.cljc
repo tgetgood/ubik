@@ -1,5 +1,5 @@
 (ns ubik.lang
-  (:refer-clojure :exclude [+ - * vector Vector])
+  (:refer-clojure :exclude [+ - * vector Vector IVector])
   (:require [#?(:clj clojure.core :cljs cljs.core) :as cc]
             [ubik.math :as math]))
 
@@ -12,6 +12,13 @@
 (defprotocol Vectorial
   (base-vector [this]))
 
+(extend-protocol Vectorial
+  #?(:clj Object :cljs default)
+  (base-vector [_] nil))
+
+(defn vector? [x]
+  (boolean (base-vector x)))
+
 (defprotocol IVector
  (unit [this])
  (dot [this o])
@@ -19,74 +26,77 @@
 
 (defprotocol LinearAlgebra
   (dimension [this])
-  (+ [this o])
-  (- [this] [this o])
-  (* [this o]))
-
-(defn vectorial? [x]
-  (satisfies? Vectorial x))
+  (v+ [this o])
+  (neg [this])
+  (v- [this o])
+  (left-mult [this o]))
 
 (defn vectorise [x]
-  (base-vector x))
+  (if-let [v (base-vector x)]
+    v
+    (error (str x " has not vector nature"))))
 
-(declare vector)
-
-(defrecord Vector [elements]
-  #?(:clj clojure.lang.Indexed)
-  #?(:clj (nth [this i]
-               (nth elements i)))
-  #?(:clj (nth [_ i not-found]
-               (nth elements i not-found)))
-
-  #?(:cljs IIndexed)
-  #?(:cljs (-nth [this i]
-                 (nth elements i)))
-  #?(:cljs (-nth [this i not-found]
-                (nth elements i not-found)))
-  Vectorial
-  (base-vector [this] this)
-
+(extend-type #?(:clj clojure.lang.IPersistentVector
+                :cljs cljs.core/PersistentVector)
   IVector
   (unit [this]
     (let [l (length this)]
-      (vector (mapv #(/ % l) elements))))
-  (length [_]
-    (math/sqrt (reduce cc/+ (map #(cc/* % %) elements))))
-  (dot [_ o]
-    (reduce cc/+ (map cc/* elements (:elements (vectorise o)))))
+      (mapv #(/ % l) this)))
+  (length [this]
+    (math/sqrt (reduce cc/+ (map #(cc/* % %) this))))
+  (dot [this o]
+    (reduce cc/+ (map cc/* this (vectorise o))))
 
   LinearAlgebra
   ;; TODO: Make sure dimensions are always equal
-  (dimension [_] (count elements))
-  (+ [this o]
-    (vector (mapv cc/+ elements (:elements (vectorise o)))))
-  (- [_]
-    (vector (mapv cc/- elements)))
-  (- [this o]
-    (+ this (- (vectorise o))))
-  (* [_ o] nil))
+  (dimension [this] [1 (count this)])
+  (v+ [this o]
+    (mapv cc/+ this (vectorise o)))
+  (neg [this]
+    (mapv cc/- this))
+  (v- [this o]
+    (v+ this (neg (vectorise o))))
+  (left-mult [this s]
+    (assert (number? s))
+    (mapv #(cc/* s %) this))
 
-(defn vector [es]
-  (Vector. es))
-
-(extend-type clojure.lang.IPersistentVector
   Vectorial
   (base-vector [this]
     (when (every? number? this)
-      (vector this))))
+      this)))
 
-(extend-type #?(:clj Number :cljs js/Number)
-  LinearAlgebra
-  (dimension [_] 0)
-  (* [this v]
-    (cond
-      (number? v)    (cc/* this v)
-      (vectorial? v) (vector (mapv #(cc/* this %) (:elements (vectorise v))))
-      :else nil))
-  (+ [this v]
-    (when (number? v)
-      (cc/+ this v)))
-  (- [this] (cc/- this))
-  (- [this o]
-    (when (number? o)
-      (cc/- this o))))
+(defn +
+  ([] 0)
+  ([x] x)
+  ([x y]
+   (cond
+     (number? x) (cc/+ x y)
+     (vector? x) (v+ (vectorise x) y)
+     :else nil))
+  ([x y & more]
+   (reduce + (+ x y) more)))
+
+(defn -
+  ([x]
+   (cond
+     (vector? x) (neg (vectorise x))
+     :else (- x)))
+  ([x y]
+   (cond
+     (number? x) (cc/- x y)
+     (vector? x) (v+ (vectorise x) (neg (vectorise y)))
+     :else nil))
+
+  ([x y & more]
+   (reduce - (- x y) more)))
+
+(defn *
+  ([] 1)
+  ([x] x)
+  ([x y]
+   (cond
+     (number? y) (cc/* x y)
+     (vector? y) (left-mult (vectorise y) x)
+     :else nil))
+  ([x y & more]
+   (reduce * (* x y) more)))

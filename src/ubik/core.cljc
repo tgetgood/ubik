@@ -17,9 +17,7 @@
 (defn unit [v]
   (lang/unit (lang/vectorise v)))
 
-(defn v- [v u]
-  (lang/- (lang/vectorise v) u))
-
+(def base-vector lang/base-vector)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Templates
@@ -201,7 +199,7 @@
 (defrecord Line [style from to]
   Vectorial
   (base-vector [_]
-    (v- to from))
+    (lang/- to from))
 
   IShape
   (children-key [_] nil)
