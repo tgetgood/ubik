@@ -6,7 +6,8 @@
             [ubik.geometry :as geo]
             [ubik.interactive.db :as db]
             [ubik.interactive.events :as events]
-            [ubik.hosts :as hosts]))
+            [ubik.hosts :as hosts]
+            [ubik.interactive.subs :as subs :include-macros true]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Event Handling
@@ -136,7 +137,10 @@
           (recur (::db res) evs (rest hs)))
         [db evs]))))
 
-(defn create-queue [handlers]
+(defn handle-effects [effects event]
+  (run! #(% event) (get effects (:type event))))
+
+(defn create-queue [handlers effects]
   (let [chan (async/chan 1000)
         queue (EventQueue. chan (atom 0) 1000)]
     (async/go-loop []
@@ -148,43 +152,11 @@
             (when (seq evs)
               (reduce enqueue queue evs))
             (db/reset-db! next-db))
+          (handle-effects effects ev)
           (catch #?(:clj Exception :cljs js/Error) e
             (println "We have a problem: " e)))
         (recur)))
     queue))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Undo
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; REVIEW: I want undo-tree, which in this case is really undo-graph. But I need
-;; to write a UI to make it remotely useful, so let's just stick to a line for
-;; now
-(defonce ^:private undo-graph (atom {:current nil
-                                     :checkpoints {}}))
-
-(defn checkpoint! []
-  (let [db @db/app-db]
-    (swap! undo-graph
-           (fn [g]
-             (let [current (:current g)]
-               (cond-> g
-                 current (update :checkpoints update current assoc :next db)
-                 current (update :checkpoints assoc db {:previous current})
-                 true (assoc :current db)))))))
-
-(defn undo! []
-  (let [check (:current @undo-graph)]
-    (when-let [prev (-> @undo-graph :checkpoints (get check) :previous)]
-      (swap! undo-graph assoc :current prev)
-      (reset! db/app-db prev))))
-
-(defn redo! []
-  (let [check (:current @undo-graph)
-        next (-> @undo-graph :checkpoints (get check) :next)]
-    (when next
-      (swap! undo-graph assoc :current next)
-      (reset! db/app-db next))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Subscriptions
@@ -192,112 +164,16 @@
 
 ;; Distinction: subscriptions are reactive, signals are active. This is more
 ;; important than it may seem.
-(defprotocol Subscription
-  (deps [_])
-  (debug [_]))
 
-;; REVIEW: Is this really any better than two repetitive definitions? More
-;; concise but way less readable...
-(deftype SimpleSubscription
-    #?(:clj [dependencies reaction
-             ^:volatile-mutable _last-db
-             ^:volatile-mutable _last-args
-             ^:volatile-mutable _last-val]
-       :cljs [dependencies reaction
-              ^:mutable _last-db
-              ^:mutable _last-args
-              ^:mutable _last-val])
-  Subscription
-  (deps [_] dependencies)
-  (debug [_] [_last-db _last-args _last-val])
-  #?(:clj clojure.lang.IDeref :cljs IDeref)
-  (#?(:clj deref :cljs -deref) [_]
-    (let [app-db @db/app-db]
-      (if (= _last-db app-db)
-        _last-val
-        (let [inputs (map deref dependencies)]
-          (if (= inputs _last-args)
-            _last-val
-            (let [next (apply reaction inputs)]
-              (set! _last-db app-db)
-              (set! _last-args inputs)
-              (set! _last-val next)
-              next)))))))
-
-#?(:clj
-   (deftype RefSub [ref]
-     Subscription
-     clojure.lang.IDeref
-     (deref [_] @ref))
-
-   :cljs
-   (deftype RefSub [ref]
-     Subscription
-     IDeref
-     (-deref [_] @ref)))
-
-(def db (RefSub. db/app-db))
-
-(defn subscription? [sig]
-  (satisfies? Subscription sig))
-
-(defn subscription
-  {:style/indent [1]}
-  [deps reaction]
-  (SimpleSubscription. deps reaction (gensym "NOMATCH") (gensym "NOMATCH") nil))
+(def db db/db-sig)
 
 (macros/deftime
-
-;; Macros
-
-(defn intern-subscription [form table]
-  (let [k  (second form)
-        tv @table]
-    (if (contains? tv k)
-      (get tv k)
-      (let [sym (gensym)]
-        (if (compare-and-set! table tv (assoc tv k sym))
-          sym
-          (recur form table))))))
-
-(defn sub-checker [form]
-  (when (and (or (list? form) (instance? clojure.lang.Cons form))
-           (= (count form) 2)
-           (every? symbol? form)
-           (= (resolve (first form)) #'clojure.core/deref)
-           (subscription? @(resolve (second form))))
-    (second form)))
-
-(defmacro build-subscription
-  "Given a form --- which presumably derefs other subscriptions --- return a new
-  subscription that reacts to its dependencies."
-  [form]
-  (let [symbols (atom {})
-
-        body (walk/prewalk
-              (fn [f]
-                (if-let [sub (sub-checker f)]
-                  (if (contains? @symbols sub)
-                    (get @symbols sub)
-                    (let [sym (gensym)]
-                      (swap! symbols assoc sub sym)
-                      sym))
-                  f))
-              form)
-
-        sym-seq (seq @symbols)]
-    (if (empty? sym-seq)
-      `(atom ~form)
-      `(subscription  [~@(map key sym-seq)]
-        (fn [~@(map val sym-seq)]
-           ~body)))))
-
-(defmacro defsub
+  (defmacro defsub
   "Creates a subscription for form and binds it to a var with name. Sets the
   docstring approriately if provided."
   {:style/indent [1]}
   [name form]
-  `(def ~name (build-subscription ~form))))
+    `(subs/defsub ~name ~form)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Game Loop
@@ -334,9 +210,10 @@
   "Initialises the system, whatever that means right now."
   [{:keys [root host subs handlers init-db effects]}]
   (db/set-once! init-db)
+  (db/checkpoint!)
   (let [host (or host (hosts/default-host {}))
         hs (organise-handlers handlers)
-        queue (create-queue hs)]
+        queue (create-queue hs effects)]
     (events/wire-events host #(enqueue queue %))
 
     (draw-loop root host (reset! continue? (gensym)))))
