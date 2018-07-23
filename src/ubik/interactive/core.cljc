@@ -201,6 +201,11 @@
                             (recurrent (inc counter) now))))))]
     (recurrent 0 0)))
 
+
+(defn listify-keys [m]
+  (into {}
+        (map (fn [[k v]] [k (if (sequential? v) v (list v))]) m)))
+
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
 ;; state atoms, etc.
@@ -208,12 +213,21 @@
 ;; There's got to be a better way to get the desired dynamism
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
-  [{:keys [root host subs handlers init-db effects]}]
+  [{:keys [root host subs handlers init-db effects plugins]}]
   (db/set-once! init-db)
-  (db/checkpoint!)
   (let [host (or host (hosts/default-host {}))
+        handlers (into (mapcat :handlers plugins) handlers)
+        plug-effects (map (fn [x] (listify-keys (:effects x))) plugins)
+        _  (println plug-effects)
+        effects (apply merge-with concat (listify-keys effects) plug-effects)
         hs (organise-handlers handlers)
         queue (create-queue hs effects)]
     (events/wire-events host #(enqueue queue %))
 
     (draw-loop root host (reset! continue? (gensym)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Aggregated API
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def undo-plugin db/undo-plugin)
