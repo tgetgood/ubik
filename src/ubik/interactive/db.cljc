@@ -35,69 +35,86 @@
 (def db-sig (DBSig.))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Internal machinery
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- swap-db-raw! [f]
+  (swap! internal-db f))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Undo
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def max-undo 50)
+(def ^{:dynamic true
+       :private true}
+  *max-undo* 50)
 
-(defn restore-db [db-val snapshot]
-  (assoc db-val :shapes snapshot))
-
-(defn save-db [db-val]
-  (:shapes db-val))
-
-(defn enforce-queue-max [queue index]
-  (if (< (count queue) max-undo)
+(defn- enforce-queue-max [queue index]
+  (if (<= (count queue) (inc *max-undo*))
     {:index index
      :queue queue}
     {:index (dec index)
      :queue (into [] (rest queue))}))
 
-(defn push-current-snap [db save-fn]
+(defn- prefix
+  [q i]
+  (if (= i (count q))
+    q
+    (into [] (take i q))))
+
+(defn- push-current-snap [db save-fn]
   (let [{:keys [queue index]} (get db undo)
         snapshot     (save-fn (get db app))
         i++          (inc index)]
-    (if (= i++ (count queue))
-      (enforce-queue-max (conj queue snapshot) i++)
-      (enforce-queue-max (conj (into [] (take i++ queue)) snapshot) i++))))
+    (enforce-queue-max (conj (prefix queue i++) snapshot) i++)))
 
-(defn checkpoint* [save-fn]
-  (swap! internal-db
-         (fn [db]
-           (assoc db undo (push-current-snap db save-fn)))))
+(defn- checkpoint* [save-fn]
+  (fn [db]
+    (assoc db undo (push-current-snap db save-fn))))
 
-(def checkpoint! (partial checkpoint* save-db))
+(defn- undo* [save-fn restore-fn]
+  (fn [db]
+    (let [app-db                (get db app)
+          {:keys [index queue]} (get db undo)]
+      (if (< 0 index)
+        (let [prev (nth queue index)]
+          (if (= prev (save-fn app-db))
+            (let [i--  (dec index)
+                  prev (nth queue i--)]
+              (-> db
+                  (update undo assoc :index i--)
+                  (assoc app (restore-fn app-db prev))))
+            (-> db
+                (assoc undo (push-current-snap db save-fn))
+                (update app restore-fn prev))))
+        db))))
 
-(defn undo* [save-fn restore-fn]
-  (swap! internal-db
-         (fn [db]
-           (let [app-db                (get db app)
-                 {:keys [index queue]} (get db undo)]
-             (if (< 0 index)
-               (let [prev (nth queue index)]
-                 (if (= prev (save-fn app-db))
-                   (let [i--  (dec index)
-                         prev (nth queue i--)]
-                     (-> db
-                         (update undo assoc :index i--)
-                         (assoc app (restore-fn app-db prev))))
-                   (-> db
-                       (assoc undo (push-current-snap db save-fn))
-                       (update app restore-fn prev))))
-               db)))))
+(defn- redo* [restore-fn]
+  (fn [db]
+    (let [{:keys [queue index]} (get db undo)
+          i++                   (inc index)]
+      (if (< i++ (count queue))
+        (let [next (nth queue i++)]
+          (-> db
+              (assoc app (restore-fn (get db app) next))
+              (update undo assoc :index i++)))
+        db))))
 
-(def undo! (partial undo* save-db restore-db))
+(defn- swapper
+  [max-undo f]
+  (fn []
+    (binding [*max-undo* max-undo]
+      (swap-db-raw! f))))
 
-(defn redo* [restore-fn]
-  (swap! internal-db
-         (fn [db]
-           (let [{:keys [queue index]} (get db undo)
-                 i++                   (inc index)]
-             (if (< i++ (count queue))
-               (let [next (nth queue i++)]
-                 (-> db
-                     (assoc app (restore-fn (get db app) next))
-                     (update undo assoc :index i++)))
-               db)))))
-
-(def redo! (partial redo* restore-db))
+(defn undo-plugin
+  "Returns a "
+  [& [{:keys [events save-fn restore-fn max-undo]
+       :or   {max-undo   50
+              save-fn    identity
+              restore-fn (fn [db snapshot] snapshot)
+              events     {:undo       :ubik.interactive.core/undo
+                          :redo       :ubik.interactive.core/redo
+                          :checkpoint :ubik.interactive.core/checkpoint}}}]]
+  {:effects {(:undo events)       (swapper max-undo (undo* save-fn restore-fn))
+             (:redo events)       (swapper max-undo (redo* restore-fn))
+             (:checkpoint events) (swapper max-undo (checkpoint* save-fn))}})
