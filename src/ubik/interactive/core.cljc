@@ -13,8 +13,40 @@
 ;;;;; Event Handling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn transducer
+  "Create a (non-interruptable) transducer from xform, which is an fn of 2
+  arguments which can call `emit` to pass values down the chain."
+  [xform]
+  (fn [rf]
+    (fn
+      ([] (rf))
+      ([acc] (rf acc))
+      ([acc x]
+       (let [step (xform acc x)]
+         (if (fn? step)
+           (step rf)
+           step))))))
+
 (defrecord RHandler [in xform])
-(defrecord Handler [in out xform name])
+
+(defrecord SignalTransducer [source listen transducing-fn])
+(defrecord Transducer [])
+
+(defprotocol Multiplexer
+  (code [this])
+  (tx [this])
+  (-add-method [this code watch method]))
+
+(defprotocol Stateful
+  (get-state [this db])
+  (save-state [this db]))
+
+(defrecord SimpleTransducer [code watch method-map]
+  Multiplexer
+  (code [_] code)
+  (tx [_] (transducer (fn [x]))
+    ))
+
 
 (defn error [m]
   (throw (#?(:clj Exception. :cljs js/Error) m)))
@@ -39,21 +71,11 @@
    (fn [rf]
      (reduce rf (rf db ev) evs))))
 
-(defn transducer
-  "Create a (non-interruptable) transducer from xform, which is an fn of 2
-  arguments which can all `emit` to pass values down the chain."
-  [xform]
-  (fn [rf]
-    (fn
-      ([] (rf))
-      ([acc] (rf acc))
-      ([acc x]
-       (let [step (xform acc x)]
-         (if (fn? step)
-           (step rf)
-           step))))))
+(defn emit-state [s e])
 
-(defn handler
+
+
+#_(defn handler
   {:style/indent [1]}
   ;; TODO: This should be a macro that looks at rf and decides whether or not it
   ;; is already a transducer. If I can hide this from the user then that should
@@ -68,16 +90,52 @@
 
 (macros/deftime
 
-(defmacro defhandler
-  {:style/indent [3]}
-  [name k args methods]
-  (let [multi (gensym)]
-    `(do
-       (defmulti ~multi (fn ~args (:type ~(second args))))
-       ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~args ~v#))
-              methods)
-       (def ~name
-         (Handler. ~(into #{} (keys methods)) ~k (transducer ~multi) ~name))))))
+  (defmacro handler
+    ([multi-tx]
+     (let [code (str &form)]
+       `(SignalTransducer. code ~(keys multi-tx) )))
+    ([listen tx]
+     `(handler {~listen ~tx})))
+
+  (defmacro stateful-multiplex
+    {:style/indent [1]}
+    [bindings body]
+    (let [multi (gensym)
+          code (str &form)]
+      `(do
+         (defmulti ~multi (fn ~bindings (:type ~(second bindings))))
+         ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~bindings ~v#))
+                body)
+         (SignalTransducer. code
+                            (into #{} (keys (methods ~multi)))
+                            (transducer ~multi)))))
+
+  (defmacro multiplex
+    {:style/indent [1]}
+    [bindings body]
+    (let [multi (gensym)
+          code (str &form)]
+      `(do
+         (defmulti ~multi (fn ~bindings (:type ~(first bindings))))
+         ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~bindings ~v#))
+                body)
+         (SignalTransducer. code
+                            (into #{} (keys (methods ~multi)))
+                            (transducer ~multi)))))
+
+
+  (defn trans-type [n]
+    (case n
+      1 `multiplex
+      2 `stateful-multiplex
+      (error "Unknown handler signature")))
+
+  (defmacro defhandler
+    {:style/indent [1]}
+    [name bindings methods]
+    (let [type (trans-type (count bindings))]
+      `(def ~name
+         (~type ~bindings ~methods)))))
 
 (defn organise-handlers [handlers]
   (reduce (fn [hg h]
