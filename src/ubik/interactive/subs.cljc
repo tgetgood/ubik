@@ -35,14 +35,16 @@
 (defn subscription? [sig]
   (satisfies? ubik.interactive.impl/Subscription sig))
 
-(defn subscription
+(defn build-subscription
   {:style/indent [1]}
   [deps reaction]
   (SimpleSubscription. deps reaction (gensym "NOMATCH") (gensym "NOMATCH") nil))
 
-(macros/deftime
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Macros
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Macros
+(macros/deftime
 
 (defn intern-subscription [form table]
   (let [k  (second form)
@@ -62,9 +64,10 @@
            (subscription? @(resolve (second form))))
     (second form)))
 
-(defmacro build-subscription
-  "Given a form --- which presumably derefs other subscriptions --- return a new
-  subscription that reacts to its dependencies."
+(defmacro subscription
+  "Given a form which derefs other subscriptions returns a new subscription that
+  reacts to its dependencies. If form does not depend on any subscriptions then
+  it is evaluated and it's (static) value returned."
   [form]
   (let [symbols (atom {})
 
@@ -82,13 +85,6 @@
         sym-seq (seq @symbols)]
     (if (empty? sym-seq)
       `(atom ~form)
-      `(subscription  [~@(map key sym-seq)]
+      `(build-subscription  [~@(map key sym-seq)]
         (fn [~@(map val sym-seq)]
-           ~body)))))
-
-(defmacro defsub
-  "Creates a subscription for form and binds it to a var with name. Sets the
-  docstring approriately if provided."
-  {:style/indent [1]}
-  [name form]
-  `(def ~name (build-subscription ~form))))
+           ~body))))))

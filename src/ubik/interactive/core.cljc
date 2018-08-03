@@ -168,12 +168,14 @@
 (def db db/db-sig)
 
 (macros/deftime
-  (defmacro defsub
-  "Creates a subscription for form and binds it to a var with name. Sets the
-  docstring approriately if provided."
-  {:style/indent [1]}
-  [name form]
-    `(subs/defsub ~name ~form)))
+  ;; FIXME: Copied over from subs.cljc. Should use import-var from Tellman's
+  ;; whatchacallit.
+  (defmacro subscription
+    "Given a form which derefs other subscriptions returns a new subscription
+  that reacts to its dependencies. If form does not depend on any subscriptions
+  then it is evaluated and it's (static) value returned."
+    [form]
+    `(subs/subscription ~form)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Game Loop
