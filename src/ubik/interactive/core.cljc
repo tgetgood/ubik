@@ -13,80 +13,111 @@
 ;;;;; Event Handling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defprotocol Multiplexer
+  (multi-fn [this])
+  (inputs [this])
+  (emitter [this])
+  (add-method [this source key method]))
+
+(defprotocol Stateful
+  (get-state [this])
+  (save-state [this state]))
+
+(def ^:dynamic emit)
+
+(defn emit-state
+  ([state]
+   (fn [mp rf acc]
+     (save-state mp state)
+     (rf acc)))
+  ([state ev]
+   (fn [mp rf acc]
+     (save-state mp state)
+     (rf acc ev)))
+  ([state ev & evs]
+   (fn [mp rf acc]
+     (save-state mp state)
+     (reduce rf (rf acc ev) evs))))
+
+(defn emit-stateless
+  ([]
+   (fn [rf acc]
+     (rf acc)))
+  ([ev]
+   (fn [rf acc]
+     (rf acc ev)))
+  ([ev & evs]
+   (fn [rf acc]
+     (reduce rf (rf acc ev) evs))))
+
 (defn transducer
   "Create a (non-interruptable) transducer from xform, which is an fn of 2
   arguments which can call `emit` to pass values down the chain."
-  [xform]
-  (fn [rf]
-    (fn
-      ([] (rf))
-      ([acc] (rf acc))
-      ([acc x]
-       (let [step (xform acc x)]
-         (if (fn? step)
-           (step rf)
-           step))))))
+  [plex]
+  (let [xform (multi-fn plex)]
+    (fn [rf]
+      (fn
+        ([] (rf))
+        ([acc] (rf acc))
+        ([acc x]
+         (let [step (xform x)]
+           (if (fn? step)
+             (step rf acc)
+             step)))))))
 
-(defrecord RHandler [in xform])
+(defn stateful-transducer
+  "Create a (non-interruptable) transducer from xform, which is an fn of 2
+  arguments which can call `emit` to pass values down the chain."
+  [plex]
+  (let [xform (multi-fn plex)]
+    (fn [rf]
+      (fn
+        ([] (rf))
+        ([acc] (rf acc))
+        ([acc x]
+         (let [state (get-state plex)
+               step (xform state x)]
+           (if (fn? step)
+             (step plex rf acc)
+             (save-state plex step))))))))
 
-(defrecord SignalTransducer [source listen transducing-fn])
-(defrecord Transducer [])
+(defrecord StatefulTransducer [source listen methods]
+  Stateful
+  (get-state [this]
+    (db/retrieve-temp-state source))
+  (save-state [this state]
+    (db/reset-temp-state! source state))
 
-(defprotocol Multiplexer
-  (code [this])
-  (tx [this])
-  (-add-method [this code watch method]))
-
-(defprotocol Stateful
-  (get-state [this db])
-  (save-state [this db]))
-
-(defrecord SimpleTransducer [code watch method-map]
   Multiplexer
-  (code [_] code)
-  (tx [_] (transducer (fn [x]))
-    ))
+  (multi-fn [_]
+    (binding [emit emit-state]
+      (stateful-transducer
+       (fn [state ev]
+         ((get methods (:source ev)) state ev)))))
+  (inputs [_] listen))
 
+(deftype Transducer
+    #?(:clj [source methods ^:volatile-mutable last-emission]
+       :cljs [source methods ^:mutable last-emission])
+
+  ;; Deref
+  #?(:clj clojure.lang.IDeref :cljs IDeref)
+  (#?(:clj deref :cljs -deref) [_]
+    last-emission)
+
+  Multiplexer
+  (inputs [_] (into #{} (keys methods)))
+  (add-method [_ msource k method]
+    (Transducer. (conj source msource) (assoc methods k method) ::uninitialised))
+  (multi-fn [this]
+    (binding [emit emit-stateless]
+      (transducer this))))
 
 (defn error [m]
   (throw (#?(:clj Exception. :cljs js/Error) m)))
 
-(defn keyword-or-set [kos]
-  (cond
-    (keyword? kos) #{kos}
-    (set? kos) kos
-    :else (error "Handlers can only watch single events or sets of events.")))
-
-(defn temp-key [name]
-  [::temp-state name])
-
-(defn emit
-  ([db]
-   (fn [rf]
-     (rf db)))
-  ([db ev]
-   (fn [rf]
-     (rf db ev)))
-  ([db ev & evs]
-   (fn [rf]
-     (reduce rf (rf db ev) evs))))
-
-(defn emit-state [s e])
-
-
-
-#_(defn handler
-  {:style/indent [1]}
-  ;; TODO: This should be a macro that looks at rf and decides whether or not it
-  ;; is already a transducer. If I can hide this from the user then that should
-  ;; substantially improve the interface.
-  ([watch f emit]
-   (Handler. (keyword-or-set watch) emit f "anon$"))
-  ([watch f emit name]
-   (Handler. (keyword-or-set watch) emit f name)))
-
 (defn db-handler [watch rf]
-   (RHandler. (keyword-or-set watch) (transducer rf)) )
+   #_(RHandler. (keyword-or-set watch) (transducer rf)) )
 
 (macros/deftime
 
@@ -101,27 +132,27 @@
     {:style/indent [1]}
     [bindings body]
     (let [multi (gensym)
-          code (str &form)]
+          code  (str &form)]
       `(do
          (defmulti ~multi (fn ~bindings (:type ~(second bindings))))
          ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~bindings ~v#))
                 body)
-         (SignalTransducer. code
-                            (into #{} (keys (methods ~multi)))
-                            (transducer ~multi)))))
+         (StatefulTransducer. code
+                              (into #{} (keys (methods ~multi)))
+                              (transducer ~multi)))))
 
   (defmacro multiplex
     {:style/indent [1]}
     [bindings body]
     (let [multi (gensym)
-          code (str &form)]
+          code  (str &form)]
       `(do
          (defmulti ~multi (fn ~bindings (:type ~(first bindings))))
          ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~bindings ~v#))
                 body)
-         (SignalTransducer. code
-                            (into #{} (keys (methods ~multi)))
-                            (transducer ~multi)))))
+         (Transducer. code
+                      (into #{} (keys (methods ~multi)))
+                      (transducer ~multi)))))
 
 
   (defn trans-type [n]
