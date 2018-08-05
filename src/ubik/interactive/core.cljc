@@ -23,7 +23,7 @@
   (get-state [this])
   (save-state [this state]))
 
-(def ^:dynamic emit)
+#_(def ^:dynamic emit)
 
 (defn emit-state
   ([state]
@@ -81,7 +81,9 @@
              (step plex rf acc)
              (save-state plex step))))))))
 
-(defrecord StatefulTransducer [source listen methods]
+(deftype StatefulTransducer
+    #?(:clj [source methods ^:volatile-mutable last-emission]
+       :cljs [source methods ^:mutable last-emission])
   Stateful
   (get-state [this]
     (db/retrieve-temp-state source))
@@ -90,11 +92,10 @@
 
   Multiplexer
   (multi-fn [_]
-    (binding [emit emit-state]
-      (stateful-transducer
-       (fn [state ev]
-         ((get methods (:source ev)) state ev)))))
-  (inputs [_] listen))
+    (stateful-transducer
+     (fn [state ev]
+       ((get methods (:source ev)) state ev))))
+  (inputs [_] (keys methods)))
 
 (deftype Transducer
     #?(:clj [source methods ^:volatile-mutable last-emission]
@@ -110,8 +111,14 @@
   (add-method [_ msource k method]
     (Transducer. (conj source msource) (assoc methods k method) ::uninitialised))
   (multi-fn [this]
-    (binding [emit emit-stateless]
-      (transducer this))))
+    (transducer this)))
+
+(deftype TTransducer [source in out]
+  Multiplexer
+  (inputs [_] in)
+  (multi-fn [_]
+    out)
+  (add-method [_ _ _ _] nil))
 
 (defn error [m]
   (throw (#?(:clj Exception. :cljs js/Error) m)))
@@ -121,12 +128,10 @@
 
 (macros/deftime
 
-  (defmacro handler
-    ([multi-tx]
-     (let [code (str &form)]
-       `(SignalTransducer. code ~(keys multi-tx) )))
-    ([listen tx]
-     `(handler {~listen ~tx})))
+  (defmacro emit [& body]
+    (println &env)
+
+    )
 
   (defmacro stateful-multiplex
     {:style/indent [1]}
@@ -137,7 +142,7 @@
          (defmulti ~multi (fn ~bindings (:type ~(second bindings))))
          ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~bindings ~v#))
                 body)
-         (StatefulTransducer. code
+         (StatefulTransducer. ~code
                               (into #{} (keys (methods ~multi)))
                               (transducer ~multi)))))
 
@@ -150,7 +155,7 @@
          (defmulti ~multi (fn ~bindings (:type ~(first bindings))))
          ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~bindings ~v#))
                 body)
-         (Transducer. code
+         (Transducer. ~code
                       (into #{} (keys (methods ~multi)))
                       (transducer ~multi)))))
 
@@ -161,12 +166,25 @@
       2 `stateful-multiplex
       (error "Unknown handler signature")))
 
+  (defmacro handler
+    [listen tx]
+    `(TTransducer. ~(str &form) ~listen ~tx))
+
+  (defmacro stateful-handler
+    ([multi-tx]
+     (let [code (str &form)]
+       `(StatefulTransducer. ~code ~multi-tx ::uninitialised)))
+    )
+
   (defmacro defhandler
     {:style/indent [1]}
     [name bindings methods]
-    (let [type (trans-type (count bindings))]
-      `(def ~name
-         (~type ~bindings ~methods)))))
+    (let [source (str &form)
+          mm (into {} (map (fn [[k v]] [k `(fn ~bindings ~v)]) methods))]
+      (if (= 2 (count bindings))
+        `(def ~name (StatefulTransducer. ~source ~mm ::uninitialised))
+        `(def ~name (Transducer. ~source ~mm ::uninitialised))))
+    ))
 
 (defn organise-handlers [handlers]
   (reduce (fn [hg h]
