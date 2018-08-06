@@ -14,9 +14,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol Multiplexer
-  (multi-fn [this])
   (inputs [this])
   (emitter [this])
+  (multi-fn [this])
+  (emission [this val])
   (add-method [this source key method]))
 
 (defprotocol Stateful
@@ -53,33 +54,16 @@
 (defn transducer
   "Create a (non-interruptable) transducer from xform, which is an fn of 2
   arguments which can call `emit` to pass values down the chain."
-  [plex]
-  (let [xform (multi-fn plex)]
-    (fn [rf]
-      (fn
-        ([] (rf))
-        ([acc] (rf acc))
-        ([acc x]
-         (let [step (xform x)]
-           (if (fn? step)
-             (step rf acc)
-             step)))))))
-
-(defn stateful-transducer
-  "Create a (non-interruptable) transducer from xform, which is an fn of 2
-  arguments which can call `emit` to pass values down the chain."
-  [plex]
-  (let [xform (multi-fn plex)]
-    (fn [rf]
-      (fn
-        ([] (rf))
-        ([acc] (rf acc))
-        ([acc x]
-         (let [state (get-state plex)
-               step (xform state x)]
-           (if (fn? step)
-             (step plex rf acc)
-             (save-state plex step))))))))
+  [xform]
+  (fn [rf]
+    (fn
+      ([] (rf))
+      ([acc] (rf acc))
+      ([acc x]
+       (let [step (xform acc x)]
+         (if (fn? step)
+           (step rf acc)
+           step))))))
 
 (deftype StatefulTransducer
     #?(:clj [source methods ^:volatile-mutable last-emission]
@@ -91,15 +75,21 @@
     (db/reset-temp-state! source state))
 
   Multiplexer
+  (emitter [_] nil)
   (multi-fn [_]
-    (stateful-transducer
-     (fn [state ev]
-       ((get methods (:source ev)) state ev))))
+    (fn [s e]
+      ((get methods (:type e)) s e)))
+  (emission [_ v]
+    (set! last-emission v))
+  (add-method [_ msource k method]
+    (StatefulTransducer.
+     (conj source msource) (assoc methods k method) ::uninitialised))
   (inputs [_] (keys methods)))
 
+
 (deftype Transducer
-    #?(:clj [source methods ^:volatile-mutable last-emission]
-       :cljs [source methods ^:mutable last-emission])
+    #?(:clj [methods ^:volatile-mutable last-emission]
+       :cljs [methods ^:mutable last-emission])
 
   ;; Deref
   #?(:clj clojure.lang.IDeref :cljs IDeref)
@@ -107,18 +97,15 @@
     last-emission)
 
   Multiplexer
+  (emitter [_] nil)
+  (multi-fn [_]
+    (fn [e]
+      ((get methods (:type e)) e)))
+  (emission [_ v]
+    (set! last-emission v))
   (inputs [_] (into #{} (keys methods)))
   (add-method [_ msource k method]
-    (Transducer. (conj source msource) (assoc methods k method) ::uninitialised))
-  (multi-fn [this]
-    (transducer this)))
-
-(deftype TTransducer [source in out]
-  Multiplexer
-  (inputs [_] in)
-  (multi-fn [_]
-    out)
-  (add-method [_ _ _ _] nil))
+    (Transducer. (conj source msource) (assoc methods k method) ::uninitialised)))
 
 (defn error [m]
   (throw (#?(:clj Exception. :cljs js/Error) m)))
@@ -126,65 +113,48 @@
 (defn db-handler [watch rf]
    #_(RHandler. (keyword-or-set watch) (transducer rf)) )
 
+;; Stateful processes need a uuid to key the storage.
+
 (macros/deftime
 
   (defmacro emit [& body]
-    (println &env)
+    #_(println (keys &env))
+
+
 
     )
 
-  (defmacro stateful-multiplex
-    {:style/indent [1]}
-    [bindings body]
-    (let [multi (gensym)
-          code  (str &form)]
-      `(do
-         (defmulti ~multi (fn ~bindings (:type ~(second bindings))))
-         ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~bindings ~v#))
-                body)
-         (StatefulTransducer. ~code
-                              (into #{} (keys (methods ~multi)))
-                              (transducer ~multi)))))
-
-  (defmacro multiplex
-    {:style/indent [1]}
-    [bindings body]
-    (let [multi (gensym)
-          code  (str &form)]
-      `(do
-         (defmulti ~multi (fn ~bindings (:type ~(first bindings))))
-         ~@(map (fn [[k# v#]] `(defmethod ~multi ~k# ~bindings ~v#))
-                body)
-         (Transducer. ~code
-                      (into #{} (keys (methods ~multi)))
-                      (transducer ~multi)))))
-
-
-  (defn trans-type [n]
-    (case n
-      1 `multiplex
-      2 `stateful-multiplex
-      (error "Unknown handler signature")))
+  (defmacro process [state? multiplex]
+    (let [source (str &form)]
+      `(new ~(if state? `StatefulTransducer `Transducer)
+            ~source
+            ~multiplex
+            ::uninitialised)))
 
   (defmacro handler
     [listen tx]
-    `(TTransducer. ~(str &form) ~listen ~tx))
+    `(process false {~listen ~tx}))
 
-  (defmacro stateful-handler
-    ([multi-tx]
-     (let [code (str &form)]
-       `(StatefulTransducer. ~code ~multi-tx ::uninitialised)))
+  (defmacro stateless-process [bindings methods]
+    (let [type     (count bindings)
+          mt       (into {} (map (fn [[k v]]
+                                   [k `(transducer* inc (fn ~bindings ~v))])
+                                 methods))]
+      `(process ~(= 2 type) ~mt)))
+
+  (defmacro stateful-process [uuid bindings methods]
+    (println uuid)
     )
 
-  (defmacro defhandler
+  (defmacro defprocess
     {:style/indent [1]}
-    [name bindings methods]
-    (let [source (str &form)
-          mm (into {} (map (fn [[k v]] [k `(fn ~bindings ~v)]) methods))]
-      (if (= 2 (count bindings))
-        `(def ~name (StatefulTransducer. ~source ~mm ::uninitialised))
-        `(def ~name (Transducer. ~source ~mm ::uninitialised))))
-    ))
+    [n bindings methods]
+    `(def ~n
+       ~(if (= 2 (count bindings))
+          `(stateful-process ~(keyword (str (the-ns *ns*)) (name n))
+                                    ~bindings ~methods)
+          `(stateless-process ~bindings ~methods)))))
+
 
 (defn organise-handlers [handlers]
   (reduce (fn [hg h]
@@ -327,7 +297,6 @@
   (let [host (or host (hosts/default-host {}))
         handlers (into (mapcat :handlers plugins) handlers)
         plug-effects (map (fn [x] (listify-keys (:effects x))) plugins)
-        _  (println plug-effects)
         effects (apply merge-with concat (listify-keys effects) plug-effects)
         hs (organise-handlers handlers)
         queue (create-queue hs effects)]
