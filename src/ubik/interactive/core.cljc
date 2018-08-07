@@ -85,7 +85,7 @@
          (fn [e] (method state e))))))
 
   (add-method [_ k method]
-    (StatefulTransducer. (assoc methods k method) ::uninitialised nil))
+    (StatefulProcess. (assoc methods k method) ::uninitialised nil))
 
   (inputs [_]
     (into #{} (keys methods))))
@@ -133,7 +133,7 @@
     (into #{} (keys methods)))
 
   (add-method [_ k method]
-    (Transducer. (assoc methods k method) ::uninitialised)))
+    (StatelessProcess. (assoc methods k method) ::uninitialised)))
 
 (defrecord TransducerProcess [methods]
   Multiplexer
@@ -144,33 +144,38 @@
   (add-method [_ input method]
     (TransducerProcess. (assoc methods input method))))
 
-(defn watches? [process input]
+(defn watches?
+  "Returns true iff process reacts to events emitted by input."
+  [process input]
   (contains? (inputs process) input))
 
 (defn db-handler [watch rf]
    #_(RHandler. (keyword-or-set watch) (transducer rf)) )
 
-;; Stateful processes need a uuid to key the storage.
+(defn stateful-process
+  ([multiplexer] (stateful-process nil multiplexer))
+  ([init-state multiplexer]
+   (StatefulProcess. multiplexer ::uninitialised init-state)))
+
+(defn process [multiplexer]
+  (StatelessProcess. multiplexer ::uninitialised))
+
+(defn tprocess
+  ([evmap]
+   (TransducerProcess. evmap))
+  ([listen xform]
+   (tprocess {listen xform})))
 
 (macros/deftime
 
-  (defmacro process [state? multiplex]
-    (if state?
-      `(StatefulProcess. ~multiplex ::uninitialised nil)
-      `(StatelessProcess. ~multiplex ::uninitialised)))
-
-  (defmacro handler
-    [listen tx]
-    `(TransducerProcess. {~listen ~tx}))
-
   (defmacro defprocess
     {:style/indent [1]}
-    [n bindings methods]
-    `(def ~n
-       (process ~(= 2 (count bindings))
-                ~(into {} (map (fn [[k v]]
-                                 [k `(fn ~bindings ~v)])
-                               methods))))))
+    [n bindings body-map]
+    (let [methods (into {} (map (fn [[k v]]
+                                  [k `(fn ~bindings ~v)])
+                                body-map))]
+      `(def ~n
+         (~(if (= 2 (count bindings)) stateful-process process) methods)))))
 
 (defn organise-handlers [handlers]
   (reduce (fn [hg h]
@@ -309,7 +314,6 @@
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [{:keys [root host subs handlers init-db effects plugins]}]
-  (db/set-once! init-db)
   (let [host (or host (hosts/default-host {}))
         handlers (into (mapcat :handlers plugins) handlers)
         plug-effects (map (fn [x] (listify-keys (:effects x))) plugins)
