@@ -32,7 +32,7 @@
     (let [app-db (db/get-current-value)]
       (if (= _last-db app-db)
         _last-val
-        (let [inputs (map deref dependencies)]
+        (let [inputs (map #(if (var? %) @@% @%) dependencies)]
           (if (= inputs _last-args)
             _last-val
             (let [next (apply reaction inputs)]
@@ -62,9 +62,10 @@
   (when (and (or (list? form) (instance? clojure.lang.Cons form))
            (= (count form) 2)
            (every? symbol? form)
-           (= (resolve (first form)) #'clojure.core/deref)
-           (var? (resolve (second form))))
-    (second form)))
+           (= (resolve (first form)) #'clojure.core/deref))
+    (if  (var? (resolve (second form)))
+      `(var ~(second form))
+      (second form))))
 
 (defmacro subscription
   "Given a form which derefs other refs, returns a new subscription that reacts

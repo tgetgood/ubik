@@ -122,7 +122,7 @@
   (add-method [_ k method]
     (StatelessProcess. (assoc method-map k method) ::uninitialised)))
 
-(defrecord TransducerProcess [method-map]
+(deftype TransducerProcess [method-map]
   base/Listener
   (inputs [_]
     (into #{} (keys method-map)))
@@ -138,7 +138,9 @@
   internal state. Initial state is set to init-state if provided."
   ([multiplexer] (stateful-process nil multiplexer))
   ([init-state multiplexer]
-   (StatefulProcess. multiplexer init-state nil)))
+   (stateful-process ::uninitialised init-state multiplexer))
+  ([init-ev init-state multiplexer]
+   (StatefulProcess. multiplexer init-ev init-state)))
 
 (defn process
   "Returns a new process which operates on each input in the multiplexer map."
