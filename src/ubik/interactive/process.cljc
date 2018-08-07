@@ -1,6 +1,6 @@
 (ns ubik.interactive.process
   (:require [net.cgrand.macrovich :as macros :include-macros true]
-            [ubik.interactive.impl]))
+            [ubik.interactive.subs :as subs]))
 
 (defprotocol Multiplexer
   (inputs [this])
@@ -20,7 +20,7 @@
     #?(:clj [methods ^:volatile-mutable last-emission ^:volatile-mutable state]
        :cljs [methods ^:mutable last-emission ^:mutable state])
 
-  ubik.interactive.impl/Subscription
+  subs/Subscription
 
     ;; Deref
   #?(:clj clojure.lang.IDeref :cljs IDeref)
@@ -80,7 +80,7 @@
     #?(:clj [methods ^:volatile-mutable last-emission]
        :cljs [methods ^:mutable last-emission])
 
-  ubik.interactive.impl/Subscription
+  subs/Subscription
 
   ;; Deref
   #?(:clj clojure.lang.IDeref :cljs IDeref)

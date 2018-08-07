@@ -1,8 +1,11 @@
 (ns ubik.interactive.subs
   (:require [net.cgrand.macrovich :as macros :include-macros true]
             [ubik.interactive.db :as db]
-            [ubik.interactive.impl]
             [clojure.walk :as walk]))
+
+(defprotocol Subscription
+  (deps [_])
+  (debug [_]))
 
 ;; REVIEW: Is this really any better than two repetitive definitions? More
 ;; concise but way less readable...
@@ -15,7 +18,7 @@
               ^:mutable _last-db
               ^:mutable _last-args
               ^:mutable _last-val])
-  ubik.interactive.impl/Subscription
+  Subscription
   (deps [_] dependencies)
   (debug [_] [_last-db _last-args _last-val])
   #?(:clj clojure.lang.IDeref :cljs IDeref)
@@ -33,7 +36,7 @@
               next)))))))
 
 (defn subscription? [sig]
-  (satisfies? ubik.interactive.impl/Subscription sig))
+  (satisfies? Subscription sig))
 
 (defn build-subscription
   {:style/indent [1]}

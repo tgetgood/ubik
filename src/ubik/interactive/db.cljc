@@ -1,4 +1,4 @@
-(ns ubik.interactive.db (:require [ubik.interactive.impl ]))
+(ns ubik.interactive.db (:require ))
 
 (def ^:private app ::app-db)
 (def ^:private undo ::undo-graph)
@@ -25,14 +25,6 @@
     (reset-db! val)))
 
 (def the-world (atom nil))
-
-(deftype DBSig []
-  ubik.interactive.impl/Subscription
-  #?(:clj clojure.lang.IDeref :cljs IDeref)
-  (#?(:clj deref :cljs -deref) [_]
-    (get-current-value)))
-
-(def db-sig (DBSig.))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
