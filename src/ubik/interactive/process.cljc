@@ -75,7 +75,6 @@
   (add-method [_ k method]
     (StatefulProcess. (assoc method-map k method) ::uninitialised nil)))
 
-
 (deftype StatelessProcess
     #?(:clj [method-map ^:volatile-mutable last-emission]
        :cljs [method-map ^:mutable last-emission])
@@ -134,20 +133,20 @@
   (add-method [_ input method]
     (TransducerProcess. (assoc method-map input method))))
 
-
-
-(defn db-handler [watch rf]
-   #_(RHandler. (keyword-or-set watch) (transducer rf)) )
-
 (defn stateful-process
+  "Returns a process which operates on inputs in multiplexer and maintains
+  internal state. Initial state is set to init-state if provided."
   ([multiplexer] (stateful-process nil multiplexer))
   ([init-state multiplexer]
    (StatefulProcess. multiplexer init-state nil)))
 
-(defn process [multiplexer]
+(defn process
+  "Returns a new process which operates on each input in the multiplexer map."
+  [multiplexer]
   (StatelessProcess. multiplexer ::uninitialised))
 
 (defn tprocess
+  "Returns a process which applies normal clojure transducers to input signals."
   ([evmap]
    (TransducerProcess. evmap))
   ([listen xform]
