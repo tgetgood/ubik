@@ -1,9 +1,9 @@
 (ns ubik.interactive.process
   (:require [net.cgrand.macrovich :as macros :include-macros true]
-            [ubik.interactive.subs :as subs]))
+            [ubik.interactive.subs :as subs]
+            [ubik.interactive.base :as base]))
 
 (defprotocol Multiplexer
-  (inputs [this])
   (method [this input])
   (add-method [this key method]))
 
@@ -17,12 +17,15 @@
 (def ^:dynamic emit)
 
 (deftype StatefulProcess
-    #?(:clj [methods ^:volatile-mutable last-emission ^:volatile-mutable state]
-       :cljs [methods ^:mutable last-emission ^:mutable state])
+    #?(:clj [method-map ^:volatile-mutable last-emission ^:volatile-mutable state]
+       :cljs [method-map ^:mutable last-emission ^:mutable state])
 
   subs/Subscription
 
-    ;; Deref
+  base/Listener
+  (inputs [_]
+    (into #{} (keys method-map)))
+
   #?(:clj clojure.lang.IDeref :cljs IDeref)
   (#?(:clj deref :cljs -deref) [_]
     last-emission)
@@ -39,7 +42,7 @@
 
   Multiplexer
   (method [this input]
-    (when-let [method (get methods input)]
+    (when-let [method (get method-map input)]
       (let [emitter (fn ([s]
                          (fn [rf acc]
                            (set-state! this s)
@@ -70,19 +73,20 @@
          (fn [e] (method state e))))))
 
   (add-method [_ k method]
-    (StatefulProcess. (assoc methods k method) ::uninitialised nil))
-
-  (inputs [_]
-    (into #{} (keys methods))))
+    (println method-map k method)
+    (StatefulProcess. (assoc method-map k method) ::uninitialised nil)))
 
 
 (deftype StatelessProcess
-    #?(:clj [methods ^:volatile-mutable last-emission]
-       :cljs [methods ^:mutable last-emission])
+    #?(:clj [method-map ^:volatile-mutable last-emission]
+       :cljs [method-map ^:mutable last-emission])
 
   subs/Subscription
 
-  ;; Deref
+  base/Listener
+  (inputs [_]
+    (into #{} (keys method-map)))
+
   #?(:clj clojure.lang.IDeref :cljs IDeref)
   (#?(:clj deref :cljs -deref) [_]
     last-emission)
@@ -93,7 +97,7 @@
 
   Multiplexer
   (method [this input]
-    (when-let [method (get methods input)]
+    (when-let [method (get method-map input)]
       (let [emitter (fn ([s]
                          (fn [rf acc]
                            (rf acc)))
@@ -116,25 +120,22 @@
                                (step rf acc)
                                step))))))]
         (trans method))))
-  (inputs [_]
-    (into #{} (keys methods)))
 
   (add-method [_ k method]
-    (StatelessProcess. (assoc methods k method) ::uninitialised)))
+    (StatelessProcess. (assoc method-map k method) ::uninitialised)))
 
-(defrecord TransducerProcess [methods]
-  Multiplexer
+(defrecord TransducerProcess [method-map]
+  base/Listener
   (inputs [_]
-    (into #{} (keys methods)))
-  (method [_ input]
-    (get methods input))
-  (add-method [_ input method]
-    (TransducerProcess. (assoc methods input method))))
+    (into #{} (keys method-map)))
 
-(defn watches?
-  "Returns true iff process reacts to events emitted by input."
-  [process input]
-  (contains? (inputs process) input))
+  Multiplexer
+  (method [_ input]
+    (get method-map input))
+  (add-method [_ input method]
+    (TransducerProcess. (assoc method-map input method))))
+
+
 
 (defn db-handler [watch rf]
    #_(RHandler. (keyword-or-set watch) (transducer rf)) )
@@ -161,8 +162,8 @@
   (defmacro defprocess
     {:style/indent [1]}
     [n bindings body-map]
-    (let [methods (into {} (map (fn [[k v]]
+    (let [method-map (into {} (map (fn [[k v]]
                                   `[~k (fn ~bindings ~v)])
                                 body-map))]
-      `(def ~n
-         (~(if (= 2 (count bindings)) `stateful-process `process) ~methods)))))
+      `(defonce ~n
+         (~(if (= 2 (count bindings)) `stateful-process `process) ~method-map)))))
