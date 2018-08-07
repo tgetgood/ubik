@@ -1,5 +1,6 @@
 (ns ubik.interactive.process
-  (:require [net.cgrand.macrovich :as macros :include-macros true]))
+  (:require [net.cgrand.macrovich :as macros :include-macros true]
+            [ubik.interactive.impl]))
 
 (defprotocol Multiplexer
   (inputs [this])
@@ -18,6 +19,9 @@
 (deftype StatefulProcess
     #?(:clj [methods ^:volatile-mutable last-emission ^:volatile-mutable state]
        :cljs [methods ^:mutable last-emission ^:mutable state])
+
+  ubik.interactive.impl/Subscription
+
     ;; Deref
   #?(:clj clojure.lang.IDeref :cljs IDeref)
   (#?(:clj deref :cljs -deref) [_]
@@ -75,6 +79,8 @@
 (deftype StatelessProcess
     #?(:clj [methods ^:volatile-mutable last-emission]
        :cljs [methods ^:mutable last-emission])
+
+  ubik.interactive.impl/Subscription
 
   ;; Deref
   #?(:clj clojure.lang.IDeref :cljs IDeref)
@@ -136,7 +142,7 @@
 (defn stateful-process
   ([multiplexer] (stateful-process nil multiplexer))
   ([init-state multiplexer]
-   (StatefulProcess. multiplexer ::uninitialised init-state)))
+   (StatefulProcess. multiplexer init-state nil)))
 
 (defn process [multiplexer]
   (StatelessProcess. multiplexer ::uninitialised))

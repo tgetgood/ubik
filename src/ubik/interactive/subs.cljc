@@ -46,16 +46,6 @@
 
 (macros/deftime
 
-(defn intern-subscription [form table]
-  (let [k  (second form)
-        tv @table]
-    (if (contains? tv k)
-      (get tv k)
-      (let [sym (gensym)]
-        (if (compare-and-set! table tv (assoc tv k sym))
-          sym
-          (recur form table))))))
-
 (defn sub-checker [form]
   (when (and (or (list? form) (instance? clojure.lang.Cons form))
            (= (count form) 2)

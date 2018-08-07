@@ -107,8 +107,6 @@
 ;; Distinction: subscriptions are reactive, signals are active. This is more
 ;; important than it may seem.
 
-(def db db/db-sig)
-
 (macros/deftime
   ;; FIXME: Copied over from subs.cljc. Should use import-var from Tellman's
   ;; whatchacallit.
@@ -133,6 +131,8 @@
 (def process process/process)
 
 (def emit process/emit)
+
+(def add-method process/add-method)
 
 (defn db-handler [& args])
 
