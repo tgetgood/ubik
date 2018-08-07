@@ -1,4 +1,4 @@
-(ns ubik.interactive.db (:require ))
+(ns ubik.interactive.db )
 
 (def ^:private app ::app-db)
 (def ^:private undo ::undo-graph)
