@@ -89,8 +89,6 @@
     {host (hosts/default-host {})
      edge {:sinks {} :sources {} :events-system events/wire-events}}}]
 
-  (println (rt/trace render-root))
-
   (draw-loop render-root host (reset! continue? (gensym))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

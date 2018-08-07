@@ -73,7 +73,6 @@
          (fn [e] (method state e))))))
 
   (add-method [_ k method]
-    (println method-map k method)
     (StatefulProcess. (assoc method-map k method) ::uninitialised nil)))
 
 
