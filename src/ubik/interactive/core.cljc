@@ -10,84 +10,88 @@
             [ubik.interactive.subs :as subs :include-macros true]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Utils
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn error [m]
+  (throw (#?(:clj Exception. :cljs js/Error) m)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Event Handling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol Multiplexer
   (inputs [this])
-  (emitter [this])
-  (multi-fn [this])
-  (emission [this val])
-  (add-method [this source key method]))
+  (method [this input])
+  (add-method [this key method]))
+
+(defprotocol EmissionTracking
+  (^:private set-emission! [this val]))
 
 (defprotocol Stateful
   (get-state [this])
-  (save-state [this state]))
+  (^:private set-state! [this state]))
 
-#_(def ^:dynamic emit)
+(def ^:dynamic emit)
 
-(defn emit-state
-  ([state]
-   (fn [mp rf acc]
-     (save-state mp state)
-     (rf acc)))
-  ([state ev]
-   (fn [mp rf acc]
-     (save-state mp state)
-     (rf acc ev)))
-  ([state ev & evs]
-   (fn [mp rf acc]
-     (save-state mp state)
-     (reduce rf (rf acc ev) evs))))
+(deftype StatefulProcess
+    #?(:clj [methods ^:volatile-mutable last-emission ^:volatile-mutable state]
+       :cljs [methods ^:mutable last-emission ^:mutable state])
+    ;; Deref
+  #?(:clj clojure.lang.IDeref :cljs IDeref)
+  (#?(:clj deref :cljs -deref) [_]
+    last-emission)
 
-(defn emit-stateless
-  ([]
-   (fn [rf acc]
-     (rf acc)))
-  ([ev]
-   (fn [rf acc]
-     (rf acc ev)))
-  ([ev & evs]
-   (fn [rf acc]
-     (reduce rf (rf acc ev) evs))))
-
-(defn transducer
-  "Create a (non-interruptable) transducer from xform, which is an fn of 2
-  arguments which can call `emit` to pass values down the chain."
-  [xform]
-  (fn [rf]
-    (fn
-      ([] (rf))
-      ([acc] (rf acc))
-      ([acc x]
-       (let [step (xform acc x)]
-         (if (fn? step)
-           (step rf acc)
-           step))))))
-
-(deftype StatefulTransducer
-    #?(:clj [source methods ^:volatile-mutable last-emission]
-       :cljs [source methods ^:mutable last-emission])
   Stateful
   (get-state [this]
-    (db/retrieve-temp-state source))
-  (save-state [this state]
-    (db/reset-temp-state! source state))
+    state)
+  (set-state! [this s']
+    (set! state s'))
+
+  EmissionTracking
+  (set-emission! [_ v]
+    (set! last-emission v))
 
   Multiplexer
-  (emitter [_] nil)
-  (multi-fn [_]
-    (fn [s e]
-      ((get methods (:type e)) s e)))
-  (emission [_ v]
-    (set! last-emission v))
-  (add-method [_ msource k method]
-    (StatefulTransducer.
-     (conj source msource) (assoc methods k method) ::uninitialised))
-  (inputs [_] (keys methods)))
+  (method [this input]
+    (when-let [method (get methods input)]
+      (let [emitter (fn ([s]
+                         (fn [rf acc]
+                           (set-state! this s)
+                           (rf acc)))
+                      ([s ev]
+                       (fn [rf acc]
+                         (set-state! this s)
+                         (set-emission! this ev)
+                         (rf acc ev)))
+                      ([s ev & evs]
+                       (fn [rf acc]
+                         (set-state! this s)
+                         (set-emission! this (last evs))
+                         (reduce rf (rf acc ev) evs))))
+            trans   (fn [xform]
+                      (fn [rf]
+                        (fn
+                          ([] (rf))
+                          ([acc] (rf acc))
+                          ([acc x]
+                           (let [step (binding [emit emitter] (xform x))]
+                             (if (fn? step)
+                               (step rf acc)
+                               (do
+                                 (set-state! this step)
+                                 step)))))))]
+        (trans
+         (fn [e] (method state e))))))
+
+  (add-method [_ k method]
+    (StatefulTransducer. (assoc methods k method) ::uninitialised nil))
+
+  (inputs [_]
+    (into #{} (keys methods))))
 
 
-(deftype Transducer
+(deftype StatelessProcess
     #?(:clj [methods ^:volatile-mutable last-emission]
        :cljs [methods ^:mutable last-emission])
 
@@ -96,19 +100,52 @@
   (#?(:clj deref :cljs -deref) [_]
     last-emission)
 
-  Multiplexer
-  (emitter [_] nil)
-  (multi-fn [_]
-    (fn [e]
-      ((get methods (:type e)) e)))
-  (emission [_ v]
+  EmissionTracking
+  (set-emission! [_ v]
     (set! last-emission v))
-  (inputs [_] (into #{} (keys methods)))
-  (add-method [_ msource k method]
-    (Transducer. (conj source msource) (assoc methods k method) ::uninitialised)))
 
-(defn error [m]
-  (throw (#?(:clj Exception. :cljs js/Error) m)))
+  Multiplexer
+  (method [this input]
+    (when-let [method (get methods input)]
+      (let [emitter (fn ([s]
+                         (fn [rf acc]
+                           (rf acc)))
+                      ([s ev]
+                       (fn [rf acc]
+                         (set-emission! this ev)
+                         (rf acc ev)))
+                      ([s ev & evs]
+                       (fn [rf acc]
+                         (set-emission! this (last evs))
+                         (reduce rf (rf acc ev) evs))))
+            trans   (fn [xform]
+                      (fn [rf]
+                        (fn
+                          ([] (rf))
+                          ([acc] (rf acc))
+                          ([acc x]
+                           (let [step (binding [emit emitter] (xform x))]
+                             (if (fn? step)
+                               (step rf acc)
+                               step))))))]
+        (trans method))))
+  (inputs [_]
+    (into #{} (keys methods)))
+
+  (add-method [_ k method]
+    (Transducer. (assoc methods k method) ::uninitialised)))
+
+(defrecord TransducerProcess [methods]
+  Multiplexer
+  (inputs [_]
+    (into #{} (keys methods)))
+  (method [_ input]
+    (get methods input))
+  (add-method [_ input method]
+    (TransducerProcess. (assoc methods input method))))
+
+(defn watches? [process input]
+  (contains? (inputs process) input))
 
 (defn db-handler [watch rf]
    #_(RHandler. (keyword-or-set watch) (transducer rf)) )
@@ -117,44 +154,23 @@
 
 (macros/deftime
 
-  (defmacro emit [& body]
-    #_(println (keys &env))
-
-
-
-    )
-
   (defmacro process [state? multiplex]
-    (let [source (str &form)]
-      `(new ~(if state? `StatefulTransducer `Transducer)
-            ~source
-            ~multiplex
-            ::uninitialised)))
+    (if state?
+      `(StatefulProcess. ~multiplex ::uninitialised nil)
+      `(StatelessProcess. ~multiplex ::uninitialised)))
 
   (defmacro handler
     [listen tx]
-    `(process false {~listen ~tx}))
-
-  (defmacro stateless-process [bindings methods]
-    (let [type     (count bindings)
-          mt       (into {} (map (fn [[k v]]
-                                   [k `(transducer* inc (fn ~bindings ~v))])
-                                 methods))]
-      `(process ~(= 2 type) ~mt)))
-
-  (defmacro stateful-process [uuid bindings methods]
-    (println uuid)
-    )
+    `(TransducerProcess. {~listen ~tx}))
 
   (defmacro defprocess
     {:style/indent [1]}
     [n bindings methods]
     `(def ~n
-       ~(if (= 2 (count bindings))
-          `(stateful-process ~(keyword (str (the-ns *ns*)) (name n))
-                                    ~bindings ~methods)
-          `(stateless-process ~bindings ~methods)))))
-
+       (process ~(= 2 (count bindings))
+                ~(into {} (map (fn [[k v]]
+                                 [k `(fn ~bindings ~v)])
+                               methods))))))
 
 (defn organise-handlers [handlers]
   (reduce (fn [hg h]
