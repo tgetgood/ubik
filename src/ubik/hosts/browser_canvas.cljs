@@ -6,27 +6,26 @@
     <canvas id='canvas'></canvas>
   </div>"
   (:require [goog.object :as obj]
-            [ubik.renderers.canvas :as canvas-renderer]
-            [ubik.interactive.events.browser :as events]))
+            [ubik.renderers.canvas :as canvas-renderer]))
 
-(defn canvas-elem []
-  (js/document.getElementById "canvas"))
+(defn canvas-elem [id]
+  (js/document.getElementById  id))
 
-(defn canvas-container []
-  (js/document.getElementById "canvas-container"))
+(defn canvas-container [id]
+  (let [container-id (str id "-container")]
+    (js/document.getElementById container-id)))
 
-(defn canvas-container-dimensions []
-  (let [cc (canvas-container)]
+(defn canvas-container-dimensions [id]
+  (let [cc (canvas-container id)]
     [(obj/get cc "clientWidth") (obj/get cc "clientHeight")]))
 
 (defn set-canvas-size! [canvas [width height]]
   (obj/set canvas "width" width)
   (obj/set canvas "height" height))
 
-
-(defn fullscreen! [elem]
-  (let [[w h :as dim] (canvas-container-dimensions)]
-    (set-canvas-size! elem dim)))
+(defn fill-container! [host]
+  (let [[w h :as dim] (canvas-container-dimensions (:id host))]
+    (set-canvas-size! (:elem host) dim)))
 
 (defn watch-resize [cb]
   (let [running (atom false)]
@@ -40,14 +39,16 @@
                200))))))
 
 
-(defn host [{:keys [size] :or {size :fullscreen}}]
-  (let [elem (canvas-elem)]
+(defn host [{:keys [size id] :or {size :fullscreen id "canvas"}}]
+  (let [elem (canvas-elem id)
+        this {:width     (fn [] (obj/get elem "width"))
+              :height    (fn [] (obj/get elem "height"))
+              :elem      elem
+              :id        id
+              :render-fn (partial canvas-renderer/draw! elem)}]
     (cond
-      (= :fullscreen size)                    (fullscreen! elem)
+      (= :fullscreen size)                    (fill-container! this)
       (and (vector? size) (= 2 (count size))) (set-canvas-size! elem size)
       ;; TODO: Log bad size arg
       :else                                   nil)
-    {:width     (fn [] (obj/get elem "width"))
-     :height    (fn [] (obj/get elem "height"))
-     :elem      elem
-     :render-fn (partial canvas-renderer/draw! elem)}))
+    this))

@@ -4,20 +4,20 @@
                :cljs [ubik.interactive.events.browser :as ev])
             ubik.hosts))
 
-(defprotocol HostEvents
-  (wire-events [this queue])
-  (cleanup [this]))
+(defprotocol EventSystem
+  (setup [this host listen dispatch])
+  (teardown [this host]))
 
-
-(extend-type #?(:clj ubik.hosts.Host :cljs ubik.hosts/Host)
-   HostEvents
-   (wire-events [this enqueue]
-     (ev/setup (ubik.core/base this) enqueue))
-   (cleanup [this]
-     (ev/teardown this)))
-
-#?(:clj
-   (extend-type clojure.lang.PersistentArrayMap
-     HostEvents
-     (wire-events [_ _])
-     (cleanup [_])))
+(def default-event-system
+  #?(:cljs
+     (reify
+       EventSystem
+       (setup [_ host listen dispatch]
+         (ev/connect-events host listen dispatch))
+       (teardown [_ host]
+         (ev/disconnect-events host)))
+     :clj
+     (reify
+       EventSystem
+       (setup [_ _ _ _])
+       (teardown [_ _]))))
