@@ -39,9 +39,59 @@
 (defn internal-events [w]
   (:push-map (walk-signal-graph w)))
 
-(defn trace [s]
-  (base/inputs s)
-  )
+(defn rooted-fibres [pm]
+  (let [valset (into #{} cat (vals pm))]
+    (apply dissoc pm valset)))
+
+(defn linearise-fibres [fibres]
+  (into [] (comp (map (fn [[k v]] (map (fn [v] [k v]) v))) cat) fibres))
+
+(defn expand-set [s pm]
+  (into {} (map (fn [x] [x (get pm x)])) s))
+
+(defn fibres [pm]
+  (let [roots (rooted-fibres pm)]
+    (walk/prewalk (fn [x]
+                    (if (set? x)
+                      (expand-set x pm)
+                      x))
+                  roots)))
+
+(defn debranch [tree]
+  (into {} (map (fn [[k v]]
+                  (loop [run [k]
+                         sub v]
+                    (if (= 1 (count sub))
+                      (let [[k v] (first sub)]
+                        (recur (conj run k) v))
+                      [run (debranch sub)]))))
+        tree))
+
+(defn build-transduction-pipeline [source tree]
+  (into [] (mapcat (fn [[pipe subtree]]
+                     (let [res (last pipe)]
+                       (into [{:in source :xform pipe :out res}]
+                             (build-transduction-pipeline res subtree)))))
+        tree))
+
+(defn correct-source-pipe [{:keys [in out xform] :as p}]
+  (if (= ::source in)
+    {:in (first xform) :xform (rest xform) :out out}
+    p))
+
+(defn system-parameters [root]
+  (let [{:keys [push-map all-procs]} (walk-signal-graph root)
+        pipelines (build-transduction-pipeline ::source
+                                               (debranch (fibres push-map)))]
+    {:processes all-procs
+     :event-sources (into #{} (comp (filter (fn [x] (= ::source (:in x))))
+                                    (map :xform)
+                                    (map first))
+                          pipelines)
+     :event-pipes (into #{} (comp (map correct-source-pipe)
+                                  (remove (comp empty? :xform)))
+                        pipelines)}))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Event Queue

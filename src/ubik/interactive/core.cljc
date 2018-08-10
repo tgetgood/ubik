@@ -90,9 +90,9 @@
      edge {:sinks {} :sources {} :event-system events/default-event-system}}}]
   (let [queue (rt/create-queue)
         es (:event-system edge)
-        external (rt/external-events render-root)
-        internal (rt/internal-events render-root)]
-    (events/setup es host external (fn [k v] (rt/enqueue queue [k v])))
+        runtime (rt/system-parameters render-root)]
+    (events/setup es host (:event-sources runtime)
+                  (fn [k v] (rt/enqueue queue [k v])))
     (rt/start-queue-loop-process! queue internal)
 
     (draw-loop render-root host (reset! continue? (gensym)))))
