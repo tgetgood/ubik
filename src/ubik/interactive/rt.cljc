@@ -43,9 +43,6 @@
   (let [valset (into #{} cat (vals pm))]
     (apply dissoc pm valset)))
 
-(defn linearise-fibres [fibres]
-  (into [] (comp (map (fn [[k v]] (map (fn [v] [k v]) v))) cat) fibres))
-
 (defn expand-set [s pm]
   (into {} (map (fn [x] [x (get pm x)])) s))
 
@@ -74,10 +71,17 @@
                              (build-transduction-pipeline res subtree)))))
         tree))
 
+(defn process? [x]
+  (let [x (if (var? x) @x x)]
+    (satisfies? process/Multiplexer x)))
+
 (defn correct-source-pipe [{:keys [in out xform] :as p}]
   (if (= ::source in)
     {:in (first xform) :xform (rest xform) :out out}
     p))
+
+(defn drop-lazy-subs [p]
+  (update p :xform #(filter process? %)))
 
 (defn system-parameters [root]
   (let [{:keys [push-map all-procs]} (walk-signal-graph root)
@@ -89,9 +93,62 @@
                                     (map first))
                           pipelines)
      :event-pipes (into #{} (comp (map correct-source-pipe)
+                                  (map drop-lazy-subs)
                                   (remove (comp empty? :xform)))
                         pipelines)}))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;; Runtime logic
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-method-chain [{:keys [in xform]}]
+  (loop [s in
+         [x & xs] xform
+         ms []]
+    (if x
+      (let [dx (if (var? x) @x x)]
+        (recur x xs (conj ms (process/method dx s))))
+      ms)))
+
+(defn shunt-rf
+  ([]
+   {::shunted true})
+  ([db]
+   (if (::shunted db)
+     db
+     {::shunted true}))
+  ([db ev]
+   (if (::shunted db)
+     (update db ::events conj ev)
+     {::shunted true ::events [ev]})))
+
+(defn transduce-1 [xform ev]
+  (let [f (xform shunt-rf)]
+    (f (f ev))))
+
+(defn go-machine [p ch-map]
+  (let [f (apply comp (get-method-chain p))
+        in-ch (::ch p)
+        out-chs (get ch-map (:out p))]
+    (async/go-loop []
+      (when-let [events (async/<! in-ch)]
+        (try
+          (let [events (::events (transduce f shunt-rf events))]
+            (run! (fn [ch] (async/>! ch events)) out-chs))
+          (catch #?(:clj Exception :cljs js/Error) e
+            (println "Error in signal process " p ": " e)))
+        (recur)))))
+
+(defn initialise-processes
+  "Initialise a go machine for each process which connects the signal
+  transduction with its inputs and outputs. Returns a map from processes to
+  their input channels"
+  [pipes]
+  (let [pipes (map #(assoc % ::ch (async/chan 100)) pipes)
+        ch-map (apply merge-with concat
+                      (map (fn [k v] {k [v]}) (map :in pipes) (map ::ch pipes)))]
+    (run! (fn [p] (go-machine p ch-map)) pipes)
+    ch-map))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Event Queue
@@ -111,27 +168,6 @@
        (error "Too many backlogged events. Cannot recover. Aborting.")
        (async/put! chan ev))
      this))
-
-(defn set-if-nil [ms k v]
-  (map (fn [m]
-         (if (contains? m k)
-           m
-           (assoc m k v)))
-       ms))
-
-(defn shunt-rf
-  ([db]
-   (if (::shunted db)
-     db
-     {::shunted true}))
-  ([db ev]
-   (if (::shunted db)
-     (update db ::events conj ev)
-     {::shunted true ::events [ev]})))
-
-(defn transduce-1 [xform ev]
-  (let [f (xform shunt-rf)]
-    (f (f ev))))
 
 (defn run-queue [handlers [etype event]]
   (let [relevant (get handlers etype)]

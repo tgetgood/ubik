@@ -14,7 +14,14 @@
   (get-state [this])
   (^:private set-state! [this state]))
 
-(def ^:dynamic emit)
+(def ^:dynamic *current-emitter* nil)
+
+(defn emitter []
+  *current-emitter*)
+
+#?(:clj
+   (defmacro emit [& args]
+     `(*current-emitter* ~@args)))
 
 (deftype StatefulProcess
     #?(:clj [method-map ^:volatile-mutable last-emission ^:volatile-mutable state]
@@ -63,14 +70,16 @@
                           ([] (rf))
                           ([acc] (rf acc))
                           ([acc x]
-                           (let [step (binding [emit emitter] (xform x))]
+                           (let [step (binding [*current-emitter* emitter]
+                                        (xform x))]
                              (if (fn? step)
                                (step rf acc)
                                (do
                                  (set-state! this step)
                                  step)))))))]
         (trans
-         (fn [e] (method state e))))))
+         (fn [e]
+           (method state e))))))
 
   (add-method [_ k method]
     (StatefulProcess. (assoc method-map k method) ::uninitialised nil)))
@@ -113,10 +122,12 @@
                           ([] (rf))
                           ([acc] (rf acc))
                           ([acc x]
-                           (let [step (binding [emit emitter] (xform x))]
+                           (let [step (binding [*current-emitter* emitter]
+                                        (xform x))]
                              (if (fn? step)
                                (step rf acc)
                                step))))))]
+
         (trans method))))
 
   (add-method [_ k method]
@@ -165,5 +176,5 @@
     (let [method-map (into {} (map (fn [[k v]]
                                   `[~k (fn ~bindings ~v)])
                                 body-map))]
-      `(defonce ~n
+      `(def ~n
          (~(if (= 2 (count bindings)) `stateful-process `process) ~method-map)))))

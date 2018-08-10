@@ -117,7 +117,7 @@
         evh      (event-map elem)
         handlers (into {} (map (fn [[k v]]
                                  [k (if (contains? events k)
-                                      (comp #(dispatch-fn k) v)
+                                      (wrap-dispatch k v dispatch-fn)
                                       v)])
                                evh))]
     (doseq [[event cb] handlers]

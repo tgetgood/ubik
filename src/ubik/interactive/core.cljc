@@ -1,11 +1,12 @@
 (ns ubik.interactive.core
-  (:require [net.cgrand.macrovich :as macros :include-macros true]
+  (:require [clojure.core.async :as async :include-macros true]
+            [net.cgrand.macrovich :as macros :include-macros true]
             [ubik.core :as core]
             [ubik.interactive.db :as db]
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]
             [ubik.interactive.subs :as subs :include-macros true]
-            [ubik.interactive.process :as process]
+            [ubik.interactive.process :as process :include-macros true]
             [ubik.interactive.rt :as rt]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -41,7 +42,8 @@
 
 (def process process/process)
 
-(def emit process/emit)
+(defmacro emit [& args]
+  `(process/emit ~@args))
 
 (def add-method process/add-method)
 
@@ -74,10 +76,6 @@
     (recurrent 0 0)))
 
 
-(defn listify-keys [m]
-  (into {}
-        (map (fn [[k v]] [k (if (sequential? v) v (list v))]) m)))
-
 ;; REVIEW: I've made this dynamic so that it can be swapped out by code
 ;; introspection programs which need to evaluate code and grab their handlers,
 ;; state atoms, etc.
@@ -88,12 +86,13 @@
   [{:keys [render-root edge host] :or
     {host (hosts/default-host {})
      edge {:sinks {} :sources {} :event-system events/default-event-system}}}]
-  (let [queue (rt/create-queue)
-        es (:event-system edge)
-        runtime (rt/system-parameters render-root)]
+  (let [es (:event-system edge)
+        runtime (rt/system-parameters render-root)
+        channels (rt/initialise-processes (:event-pipes runtime))]
     (events/setup es host (:event-sources runtime)
-                  (fn [k v] (rt/enqueue queue [k v])))
-    (rt/start-queue-loop-process! queue internal)
+                  (fn [k v]
+                    (let [chs (get channels k)]
+                      (run! (fn [c] (async/put! c v)) chs))))
 
     (draw-loop render-root host (reset! continue? (gensym)))))
 
