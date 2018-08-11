@@ -1,6 +1,5 @@
 (ns ubik.interactive.process
   (:require [net.cgrand.macrovich :as macros :include-macros true]
-            [ubik.interactive.subs :as subs]
             [ubik.interactive.base :as base]))
 
 (defprotocol Multiplexer
@@ -23,8 +22,6 @@
 (deftype StatefulProcess
     #?(:clj [method-map ^:volatile-mutable last-emission ^:volatile-mutable state]
        :cljs [method-map ^:mutable last-emission ^:mutable state])
-
-  subs/Subscription
 
   base/Listener
   (inputs [_]
@@ -84,8 +81,6 @@
 (deftype StatelessProcess
     #?(:clj [method-map ^:volatile-mutable last-emission]
        :cljs [method-map ^:mutable last-emission])
-
-  subs/Subscription
 
   base/Listener
   (inputs [_]

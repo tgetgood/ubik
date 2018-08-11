@@ -4,8 +4,6 @@
             [clojure.walk :as walk]
             [ubik.interactive.base :as base]))
 
-(defprotocol Subscription)
-
 ;; REVIEW: Is this really any better than two repetitive definitions? More
 ;; concise but way less readable...
 (deftype SimpleSubscription
@@ -18,8 +16,6 @@
   base/Listener
   (inputs [_]
     (into #{} dependencies))
-
-  Subscription
 
   base/Inspectable
   (debug [_]
@@ -35,9 +31,6 @@
             (set! _last-args inputs)
             (set! _last-val next)
             next))))))
-
-(defn subscription? [sig]
-  (satisfies? Subscription sig))
 
 (defn build-subscription
   {:style/indent [1]}
