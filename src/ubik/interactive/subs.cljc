@@ -10,11 +10,9 @@
 ;; concise but way less readable...
 (deftype SimpleSubscription
     #?(:clj [dependencies reaction
-             ^:volatile-mutable _last-db
              ^:volatile-mutable _last-args
              ^:volatile-mutable _last-val]
        :cljs [dependencies reaction
-              ^:mutable _last-db
               ^:mutable _last-args
               ^:mutable _last-val])
   base/Listener
@@ -25,21 +23,19 @@
 
   base/Inspectable
   (debug [_]
-    [_last-db _last-args _last-val])
+    [_last-args _last-val])
 
   #?(:clj clojure.lang.IDeref :cljs IDeref)
   (#?(:clj deref :cljs -deref) [_]
     (let [app-db (db/get-current-value)]
-      (if (= _last-db app-db)
-        _last-val
-        (let [inputs (map #(if (var? %) @@% @%) dependencies)]
-          (if (= inputs _last-args)
-            _last-val
-            (let [next (apply reaction inputs)]
-              (set! _last-db app-db)
-              (set! _last-args inputs)
-              (set! _last-val next)
-              next)))))))
+      (let [inputs (map #(if (var? %) @@% @%) dependencies)]
+        (if (= inputs _last-args)
+          _last-val
+          (let [next (apply reaction inputs)]
+            (println (zipmap dependencies inputs) )
+            (set! _last-args inputs)
+            (set! _last-val next)
+            next))))))
 
 (defn subscription? [sig]
   (satisfies? Subscription sig))
@@ -47,7 +43,7 @@
 (defn build-subscription
   {:style/indent [1]}
   [deps reaction]
-  (SimpleSubscription. deps reaction (gensym "NOMATCH") (gensym "NOMATCH") nil))
+  (SimpleSubscription. deps reaction (gensym "NOMATCH") nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Macros
@@ -90,4 +86,5 @@
       `(atom ~form)
       `(build-subscription  [~@(map key sym-seq)]
         (fn [~@(map val sym-seq)]
+
            ~body))))))
