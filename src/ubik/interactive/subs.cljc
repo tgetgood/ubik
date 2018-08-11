@@ -32,7 +32,6 @@
         (if (= inputs _last-args)
           _last-val
           (let [next (apply reaction inputs)]
-            (println (zipmap dependencies inputs) )
             (set! _last-args inputs)
             (set! _last-val next)
             next))))))
