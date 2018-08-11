@@ -1,6 +1,10 @@
 (ns ubik.interactive.subs
+  "Subscriptions are lazy processes that run a fixed function on the current
+  values of all input processes on demand and emits the result.
+
+  Because they are lazy nothing can listen to them. They have to be actively
+  derefed or nothing will ever happen."
   (:require [net.cgrand.macrovich :as macros :include-macros true]
-            [ubik.interactive.db :as db]
             [clojure.walk :as walk]
             [ubik.interactive.base :as base]))
 
@@ -23,14 +27,13 @@
 
   #?(:clj clojure.lang.IDeref :cljs IDeref)
   (#?(:clj deref :cljs -deref) [_]
-    (let [app-db (db/get-current-value)]
-      (let [inputs (map #(if (var? %) @@% @%) dependencies)]
-        (if (= inputs _last-args)
-          _last-val
-          (let [next (apply reaction inputs)]
-            (set! _last-args inputs)
-            (set! _last-val next)
-            next))))))
+    (let [inputs (map #(if (var? %) @@% @%) dependencies)]
+      (if (= inputs _last-args)
+        _last-val
+        (let [next (apply reaction inputs)]
+          (set! _last-args inputs)
+          (set! _last-val next)
+          next)))))
 
 (defn build-subscription
   {:style/indent [1]}

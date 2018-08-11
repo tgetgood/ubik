@@ -1,6 +1,5 @@
 (ns ubik.interactive.events.browser
   (:require [clojure.string :as string]
-            [ubik.interactive.db :refer [the-world]]
             [ubik.core :as u]))
 
 (defn canvas-elem []

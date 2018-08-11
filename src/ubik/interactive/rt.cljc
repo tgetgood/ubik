@@ -5,7 +5,6 @@
             [net.cgrand.macrovich :as macros :include-macros true]
             [ubik.interactive.base :as base]
             [ubik.core :as core]
-            [ubik.interactive.db :as db]
             [ubik.interactive.events :as events]
             [ubik.hosts :as hosts]
             [ubik.interactive.subs :as subs :include-macros true]
