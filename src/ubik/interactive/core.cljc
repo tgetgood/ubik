@@ -59,7 +59,8 @@
   "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
   animation frame if @state-ref has changed."
   [world host check-sym]
-  (let [recurrent (fn recurrent [counter last-run]
+  (let [last-render (atom nil)
+        recurrent (fn recurrent [counter last-run]
                     #?(:clj
                        ;; Need some kind of abstraction around animation frames.
                        ;; We can't be drawing in a busy loop like this
@@ -69,9 +70,9 @@
                         (fn [now]
                           (when (= check-sym @continue?)
                             (let [w @world]
-                              (when-not (= @db/the-world w)
+                              (when-not (= @last-render w)
                                 (core/draw! w host)
-                                (reset! db/the-world w)))
+                                (reset! last-render w)))
                             (recurrent (inc counter) now))))))]
     (recurrent 0 0)))
 
