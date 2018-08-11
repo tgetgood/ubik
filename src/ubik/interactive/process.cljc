@@ -16,9 +16,6 @@
 
 (def ^:dynamic *current-emitter* nil)
 
-(defn emitter []
-  *current-emitter*)
-
 #?(:clj
    (defmacro emit [& args]
      `(*current-emitter* ~@args)))
