@@ -133,10 +133,15 @@
     (async/go-loop []
       (when-let [events (async/<! in-ch)]
         (try
+          ;; TODO: Logging
+          #_(println "Processing event " events " on " p
+                   "\n"
+                   "Sending to " (count out-chs) " subscribers")
           (let [events (::events (transduce f shunt-rf events))]
-            (run! (fn [ch] (async/>! ch events)) out-chs))
+            (run! (fn [ch]
+                    (async/>! ch events)) out-chs))
           (catch #?(:clj Exception :cljs js/Error) e
-            (println "Error in signal process " p ": " e)))
+            (println "Error in signal process " p ": " (.-stack e))))
         (recur)))))
 
 (defn initialise-processes
