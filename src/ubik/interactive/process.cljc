@@ -159,14 +159,19 @@
 
 (macros/deftime
 
+  (defn maybe-varify [x]
+    (if (symbol? x)
+      `(var ~x)
+      x))
+
   ;; TODO: Implement IMeta for process types and take metadata in
-  ;; here. Especially docs. Though docs go on the var... I fell like metadata
+  ;; here. Especially docs. Though docs go on the var... I feel like metadata
   ;; will still be extremely useful for debugging. \s
   (defmacro defprocess
     {:style/indent [1]}
     [n bindings body-map]
     (let [method-map (into {} (map (fn [[k v]]
-                                  `[~k (fn ~bindings ~v)])
+                                     `[~(maybe-varify k) (fn ~bindings ~v)])
                                 body-map))]
       `(def ~n
          (~(if (= 2 (count bindings)) `stateful-process `process) ~method-map)))))
