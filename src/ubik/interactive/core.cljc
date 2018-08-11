@@ -89,10 +89,12 @@
   (let [es (:event-system edge)
         runtime (rt/system-parameters render-root)
         channels (rt/initialise-processes (:event-pipes runtime))]
+    (events/teardown es host)
     (events/setup es host (:event-sources runtime)
                   (fn [k v]
-                    (let [chs (get channels k)]
-                      (run! (fn [c] (async/put! c v)) chs))))
+                    (let [chs (get channels k)
+                          events [(assoc v ::render-tree @render-root)]]
+                      (run! (fn [c] (async/put! c events)) chs))))
 
     (draw-loop render-root host (reset! continue? (gensym)))))
 

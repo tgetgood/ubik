@@ -41,65 +41,49 @@
 
    :mouse-out (fn [e]
                 (.preventDefault e)
-                {:type :mouse-out})
+                {})
 
    :mouse-down (fn [e]
                  (.preventDefault e)
-                 (let [b (.-button e)
-                       p (pixel-point elem e)]
-                   (case b
-                     ;; Only handling left click for now.
-                     0 {:type     :left-mouse-down
-                        :location p
-                        :time     (now)}
-                     nil)))
+                 (let [p (pixel-point elem e)]
+                   {:location p
+                    :button (.-button e)
+                    :time     (now)}))
 
    :touch-move (fn [e]
                  (.preventDefault e))
 
    :mouse-move (fn [e]
                  (.preventDefault e)
-                 {:type     :mouse-move
-                  :location (pixel-point elem e)
+                 {:location (pixel-point elem e)
                   :time     (now)})
 
    :mouse-up (fn [e]
                (.preventDefault e)
-               ;; REVIEW: Is this really to right place to decide what
-               ;; buttons a mouse has? We do need some kind of layer between
-               ;; "button 0" and "left click", but here might not be the
-               ;; place...
-               (let [b (.-button e)
-                     p (pixel-point elem e)]
-                 (case b
-                   ;; Only handling left click for now.
-                   0 {:type     :left-mouse-up
-                      :location p
-                      :time     (now)}
-                   nil)))
+               (let [p (pixel-point elem e)]
+                 {:location p
+                  :button (.-button e)
+                  :time     (now)}))
 
    :wheel (fn [e]
             (.preventDefault e)
             (let [mag (if (= 1 (oget e "deltaMode")) 15 1)
                   dx  (* mag (js/parseInt (oget e "deltaX")))
                   dy  (* mag (js/parseInt (oget e "deltaY")))]
-              {:type     :wheel
-               :location (pixel-point elem e)
+              {:location (pixel-point elem e)
                :time     (now)
                :dx       dx
                :dy       dy}))
 
    :key-down (fn [e]
                (.preventDefault e)
-               {:type     :key-down
-                :time     (now)
+               {:time     (now)
                 :key      (.-key e)
                 :key-code (.-keyCode e)})
 
    :key-up (fn [e]
              (.preventDefault e)
-             {:type     :key-up
-              :time     (now)
+             {:time     (now)
               :key      (.-key e)
               :key-code (.-keyCode e)})})
 
@@ -108,9 +92,7 @@
 (defn wrap-dispatch [ev handler dispatch-fn]
   (fn [e]
     (when-let [res (handler e)]
-      (dispatch-fn
-       ev
-       (assoc res :ubik.interactive.events/world @the-world)))))
+      (dispatch-fn ev res))))
 
 (defn connect-events [host events dispatch-fn]
   (let [elem     (u/base host)
