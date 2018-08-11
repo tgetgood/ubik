@@ -8,7 +8,7 @@
   (setup [this host listen dispatch])
   (teardown [this host]))
 
-(def default-event-system
+(defonce default-event-system
   #?(:cljs
      (reify
        EventSystem
