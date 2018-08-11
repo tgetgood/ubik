@@ -10,50 +10,56 @@
             [ubik.interactive.subs :as subs :include-macros true]
             [ubik.interactive.process :as process]))
 
-(defn merge-graphs [gs]
-  (reduce (fn [acc g]
-            (-> acc
-                (update :all-procs set/union (:all-procs g))
-                (update :push-map (partial merge-with set/union) (:push-map g))))
-          {} gs))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Signal Graph Analysis
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn source?
+  "Returns true iff p is an event source.
+
+  Currently that just means it's a keyword, but that will probably change."
+  [p]
+  (keyword? p))
 
 (defn walk-signal-graph
-  ([c]
-   (walk-signal-graph #{} {} c))
-  ([all push-map current]
-   (if (keyword? current)
-     {:push-map push-map :all-procs (conj all current)}
-     (let [co     (if (var? current) @current current)
-           inputs (base/inputs co)
-           pm     (reduce (fn [push-map i]
-                            (if (contains? push-map i)
-                              (update push-map i conj current)
-                              (assoc push-map i #{current})))
-                          push-map inputs)]
-       (merge-graphs (map #(walk-signal-graph (conj all current) pm %) inputs))))))
+  "Walks backwards along inputs through signal graph from current and returns a
+  reversed representation where each entry in the returned map corresponds to
+  the processes which listen to that process."
+  [current]
+  (when-not (source? current)
+    (let [co     (if (var? current) @current current)
+          inputs (base/inputs co)
+          pm     (into {} (map (fn [i] [i #{current}])) inputs)]
+      (apply merge-with set/union pm
+             (map walk-signal-graph inputs)))))
 
-(defn external-events [w]
-  (into #{} (filter keyword? (:all-procs (walk-signal-graph w)))))
-
-(defn internal-events [w]
-  (:push-map (walk-signal-graph w)))
-
-(defn rooted-fibres [pm]
+(defn root-fibres
+  "Returns the subset of the given forward signal graph where the only keys
+  remaining are sources, that is processes which never receive input from the
+  graph."
+  [pm]
   (let [valset (into #{} cat (vals pm))]
     (apply dissoc pm valset)))
 
-(defn expand-set [s pm]
-  (into {} (map (fn [x] [x (get pm x)])) s))
-
-(defn fibres [pm]
-  (let [roots (rooted-fibres pm)]
+(defn fibres
+  "Returns a tree of forward links in the signal graph."
+  ;; FIXME: There is currently no checking that the graph doesn't contain
+  ;; cycles. If it does, this will loop forever. Signal graphs should in general
+  ;; contain cycles, so this will have to be overhauled with a depth first
+  ;; search algo.
+  [pm]
+  (let [roots (root-fibres pm)]
     (walk/prewalk (fn [x]
                     (if (set? x)
-                      (expand-set x pm)
+                      (into {} (map (fn [x] [x (get pm x)])) x)
                       x))
                   roots)))
 
-(defn debranch [tree]
+(defn debranch
+  "Scans tree and collapes nodes with a single edge into vectors of nodes. This
+  tells up where in the graph we can directly compose operations rather than
+  sending messages."
+  [tree]
   (into {} (map (fn [[k v]]
                   (loop [run [k]
                          sub v]
@@ -63,31 +69,51 @@
                       [run (debranch sub)]))))
         tree))
 
-(defn build-transduction-pipeline [source tree]
-  (into [] (mapcat (fn [[pipe subtree]]
-                     (let [res (last pipe)]
-                       (into [{:in source :xform pipe :out res}]
-                             (build-transduction-pipeline res subtree)))))
-        tree))
+(defn build-transduction-pipeline
+  "Returns a collection of processes extracted from the given collapsed tree."
+  ([tree]
+   (build-transduction-pipeline ::source tree))
+  ([source tree]
+   (into [] (mapcat (fn [[pipe subtree]]
+                      (let [res (last pipe)]
+                        (into [{:in source :xform pipe :out res}]
+                              (build-transduction-pipeline res subtree)))))
+         tree)))
 
-(defn process? [x]
+(defn process?
+  "Returns true if x is a multiplexer process or a var that points to one."
+  [x]
   (let [x (if (var? x) @x x)]
     (satisfies? process/Multiplexer x)))
 
-(defn correct-source-pipe [{:keys [in out xform] :as p}]
+(defn- correct-source-pipe
+  "Cleans up the erronous ::source inputs that signal a source process. "
+  ;; FIXME: This is pretty kludginous
+  [{:keys [in out xform] :as p}]
   (if (= ::source in)
     {:in (first xform) :xform (rest xform) :out out}
     p))
 
-(defn drop-lazy-subs [p]
+(defn- drop-lazy-subs
+  "Returns a version of p with all lazy processes removed from the transduction
+  pipeline.
+  Note that this requires that an eager process never depend on a lazy process,
+  but that is unenforced at present."
+  ;; FIXME: unsafe
+  [p]
   (update p :xform #(filter process? %)))
 
-(defn system-parameters [root]
-  (let [{:keys [push-map all-procs]} (walk-signal-graph root)
-        pipelines (build-transduction-pipeline ::source
-                                               (debranch (fibres push-map)))]
-    {:processes all-procs
-     :event-sources (into #{} (comp (filter (fn [x] (= ::source (:in x))))
+(defn system-parameters
+  "Analyses signal graph from root and returns the set of expected inputs to the
+  resulting system as well as the set of processes that will need to be
+  created and connected to initialise the system."
+  [root]
+  (let [pipelines (-> root
+                      walk-signal-graph
+                      fibres
+                      debranch
+                      build-transduction-pipeline)]
+    {:event-sources (into #{} (comp (filter (fn [x] (= ::source (:in x))))
                                     (map :xform)
                                     (map first))
                           pipelines)
@@ -100,7 +126,9 @@
 ;;;;;; Runtime logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-method-chain [{:keys [in xform]}]
+(defn get-method-chain
+  "Returns a vector of functions corresponding to the stages of process."
+  [{:keys [in xform]}]
   (loop [s in
          [x & xs] xform
          ms []]
@@ -109,7 +137,12 @@
         (recur x xs (conj ms (process/method dx s))))
       ms)))
 
-(defn shunt-rf
+(defn- shunt-rf
+  "Reducing function that discards the accumulated value and just collects
+  further arguments.
+
+  This is something of a kludge to implement the semantics of foldp, or if you
+  prefer, scan over time."
   ([]
    {::shunted true})
   ([db]
@@ -121,28 +154,26 @@
      (update db ::events conj ev)
      {::shunted true ::events [ev]})))
 
-(defn transduce-1 [xform ev]
-  (let [f (xform shunt-rf)]
-    (f (f ev))))
-
-(defn go-machine [p ch-map]
-  (let [f (apply comp (get-method-chain p))
-        in-ch (::ch p)
-        out-chs (get ch-map (:out p))]
+(defn go-machine
+  "Creates a go-loop which reads messages off of input, transduces them
+  according to process and distributes the resulting events (if any) to all
+  listeners."
+  [process input listeners]
+  (let [xform (apply comp (get-method-chain process))]
     (async/go-loop []
-      (when-let [events (async/<! in-ch)]
+      (when-let [events (async/<! input)]
         (try
           ;; TODO: Logging
-          #_(println "Processing event " events " on " p
+          #_(println "Processing event " events " on " process
                    "\n"
-                   "Sending to " (count out-chs) " subscribers")
-          (let [events (::events (transduce f shunt-rf events))]
+                   "Sending to " (count listeners) " subscribers")
+          (let [events (::events (transduce xform shunt-rf events))]
             (when (seq events)
               (run! (fn [ch]
                       (async/put! ch events))
-                    out-chs)))
+                    listeners)))
           (catch #?(:clj Exception :cljs js/Error) e
-            (println "Error in signal process " p ": " (.-stack e))))
+            (println "Error in signal process " process ": " (.-stack e))))
         (recur)))))
 
 (defn initialise-processes
@@ -153,5 +184,6 @@
   (let [pipes (map #(assoc % ::ch (async/chan 100)) pipes)
         ch-map (apply merge-with concat
                       (map (fn [k v] {k [v]}) (map :in pipes) (map ::ch pipes)))]
-    (run! (fn [p] (go-machine p ch-map)) pipes)
+    (run! (fn [p] (go-machine p (::ch p) (get ch-map (:in p)))) pipes)
+    (println ch-map)
     ch-map))

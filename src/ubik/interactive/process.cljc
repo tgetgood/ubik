@@ -1,8 +1,17 @@
 (ns ubik.interactive.process
+  "Processes are the fundamental unit of change in a program. Each process takes
+  input from one or more processes and transduces that input into output in
+  some way. It is up to a higher level of organisation to propagate the output
+  signal to those processes listening for it. It is also up to a higher level of
+  organisation to decide which processes are capable of listening to which (one
+  standard method at present is simply to use clojure's namespaces for this
+  purpose)."
   (:require [net.cgrand.macrovich :as macros :include-macros true]
             [ubik.interactive.base :as base]))
 
 (defprotocol Multiplexer
+  "A multiplexer is a generic function which is polymorphic in the input source
+  rather than the input type. "
   (method [this input])
   (add-method [this key method]))
 
@@ -168,6 +177,14 @@
   ;; here. Especially docs. Though docs go on the var... I feel like metadata
   ;; will still be extremely useful for debugging. \s
   (defmacro defprocess
+    "Creates a new process and binds it to n.
+
+  If one argument is present in bindings a stateless process will be created, if
+  there are two arguments it is assumed that the first is local state and the
+  second the event. In this case a stateful process will be created.
+
+  body-map is a map from inputs (either even sources as keywords or other
+  processes) to method bodies to handle events from each source. "
     {:style/indent [1]}
     [n bindings body-map]
     (let [method-map (into {} (map (fn [[k v]]

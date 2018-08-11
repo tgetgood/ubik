@@ -5,6 +5,8 @@
     "Returns a dump of internal state for debugging types."))
 
 (defprotocol Listener
+  "A listener is a process that listens for input to other processes (thus any
+  process that is not an event source is a Listener)."
   (inputs [this]
     "Returns the set of processes and subscriptions that this object listens
     to."))

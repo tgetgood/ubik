@@ -8,45 +8,6 @@
             [ubik.interactive.process :as process :include-macros true]
             [ubik.interactive.rt :as rt]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Subscriptions
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Distinction: subscriptions are reactive, signals are active. This is more
-;; important than it may seem.
-
-(macros/deftime
-  ;; FIXME: Copied over from subs.cljc. Should use import-var from Tellman's
-  ;; whatchacallit.
-  (defmacro subscription
-    "Given a form which derefs other subscriptions returns a new subscription
-  that reacts to its dependencies. If form does not depend on any subscriptions
-  then it is evaluated and it's (static) value returned."
-    [form]
-    `(subs/subscription ~form)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Processes
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(macros/deftime
-  (defmacro defprocess
-    {:style/indent [1]}
-    [n bindings body-map]
-    `(process/defprocess ~n ~bindings ~body-map)))
-
-(def tprocess process/tprocess)
-
-(def stateful-process process/stateful-process)
-
-(def process process/process)
-
-(defmacro emit [& args]
-  `(process/emit ~@args))
-
-(def add-method process/add-method)
-
-(defn db-handler [& args])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Game Loop
@@ -101,3 +62,35 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Aggregated API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;; Subscriptions
+
+;; Distinction: subscriptions are reactive, signals are active. This is more
+;; important than it may seem.
+
+(macros/deftime
+  ;; FIXME: Copied over from subs.cljc. Should use import-var from Tellman's
+  ;; whatchacallit.
+  (defmacro subscription
+    "Given a form which derefs other subscriptions returns a new subscription
+  that reacts to its dependencies. If form does not depend on any subscriptions
+  then it is evaluated and it's (static) value returned."
+    [form]
+    `(subs/subscription ~form)))
+
+;;; Processes
+
+(macros/deftime
+  (defmacro defprocess
+    {:style/indent [1]}
+    [n bindings body-map]
+    `(process/defprocess ~n ~bindings ~body-map)))
+
+(def tprocess process/tprocess)
+
+(def stateful-process process/stateful-process)
+
+(def process process/process)
+
+(defmacro emit [& args]
+  `(process/emit ~@args))
