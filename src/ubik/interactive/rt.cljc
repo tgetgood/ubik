@@ -21,6 +21,12 @@
   [p]
   (keyword? p))
 
+(defn process?
+  "Returns true if x is a multiplexer process or a var that points to one."
+  [x]
+  (let [x (if (var? x) @x x)]
+    (satisfies? process/Multiplexer x)))
+
 (defn walk-signal-graph
   "Walks backwards along inputs through signal graph from current and returns a
   reversed representation where each entry in the returned map corresponds to
@@ -42,7 +48,11 @@
     (apply dissoc pm valset)))
 
 (defn fibres
-  "Returns a tree of forward links in the signal graph."
+  "Returns a tree of forward process links in the signal graph.
+
+  Prunes the tree any time it encounters a lazy subscription. This is
+  intentional since any process that listens to a lazy sub will never get events
+  and thus be inherently broken."
   ;; FIXME: There is currently no checking that the graph doesn't contain
   ;; cycles. If it does, this will loop forever. Signal graphs should in general
   ;; contain cycles, so this will have to be overhauled with a depth first
@@ -51,7 +61,9 @@
   (let [roots (root-fibres pm)]
     (walk/prewalk (fn [x]
                     (if (set? x)
-                      (into {} (map (fn [x] [x (get pm x)])) x)
+                      (into {} (map (fn [x]
+                                      (when (process? x)
+                                        [x (get pm x)]))) x)
                       x))
                   roots)))
 
@@ -80,12 +92,6 @@
                               (build-transduction-pipeline res subtree)))))
          tree)))
 
-(defn process?
-  "Returns true if x is a multiplexer process or a var that points to one."
-  [x]
-  (let [x (if (var? x) @x x)]
-    (satisfies? process/Multiplexer x)))
-
 (defn- correct-source-pipe
   "Cleans up the erronous ::source inputs that signal a source process. "
   ;; FIXME: This is pretty kludginous
@@ -93,15 +99,6 @@
   (if (= ::source in)
     {:in (first xform) :xform (rest xform) :out out}
     p))
-
-(defn- drop-lazy-subs
-  "Returns a version of p with all lazy processes removed from the transduction
-  pipeline.
-  Note that this requires that an eager process never depend on a lazy process,
-  but that is unenforced at present."
-  ;; FIXME: unsafe
-  [p]
-  (update p :xform #(filter process? %)))
 
 (defn system-parameters
   "Analyses signal graph from root and returns the set of expected inputs to the
@@ -118,7 +115,6 @@
                                     (map first))
                           pipelines)
      :event-pipes (into #{} (comp (map correct-source-pipe)
-                                  (map drop-lazy-subs)
                                   (remove (comp empty? :xform)))
                         pipelines)}))
 
@@ -185,5 +181,4 @@
         ch-map (apply merge-with concat
                       (map (fn [k v] {k [v]}) (map :in pipes) (map ::ch pipes)))]
     (run! (fn [p] (go-machine p (::ch p) (get ch-map (:in p)))) pipes)
-    (println ch-map)
     ch-map))
