@@ -28,6 +28,9 @@
    (defmacro emit [& args]
      `(*current-emitter* ~@args)))
 
+  ;; TODO: Implement IMeta for process types and take metadata in
+  ;; here. Especially docs. Though docs go on the var... I feel like metadata
+  ;; will still be extremely useful for debugging. \s
 (deftype StatefulProcess
     #?(:clj [method-map ^:volatile-mutable last-emission ^:volatile-mutable state]
        :cljs [method-map ^:mutable last-emission ^:mutable state])
@@ -154,41 +157,64 @@
   ([init-ev init-state multiplexer]
    (StatefulProcess. multiplexer init-ev init-state)))
 
-(defn process
+(defn stateless-process
   "Returns a new process which operates on each input in the multiplexer map."
   [multiplexer]
   (StatelessProcess. multiplexer ::uninitialised))
 
-(defn tprocess
+(defn transducer-process
   "Returns a process which applies normal clojure transducers to input signals."
   ([evmap]
    (TransducerProcess. evmap))
   ([listen xform]
-   (tprocess {listen xform})))
+   (transducer-process {listen xform})))
 
 (macros/deftime
 
-  (defn maybe-varify [x]
+  (defn maybe-varify
+    "Return the var pointing at x if there is one, otherwise just return x."
+    [x]
     (if (symbol? x)
       `(var ~x)
       x))
 
-  ;; TODO: Implement IMeta for process types and take metadata in
-  ;; here. Especially docs. Though docs go on the var... I feel like metadata
-  ;; will still be extremely useful for debugging. \s
-  (defmacro defprocess
-    "Creates a new process and binds it to n.
+  (defmacro process
+    "Constructs a new process.
+
+  If only a method map is provided, it is assumed that the methods are Clojure
+  transducers and a transducing process is returned. This is the most convenient
+  form of process but limited in what it can do.
+
+  N.B.: Using stateful Clojure transducers is not recommended since that will
+  make saving and restoring application state (as in undo/redo, or pause/resume)
+  impossible (the state in the closure cannot be saved or restored.
+
+  If two arguments are given, the first must be a bindings vector and the second
+  a map from inputs to method bodies.
 
   If one argument is present in bindings a stateless process will be created, if
   there are two arguments it is assumed that the first is local state and the
-  second the event. In this case a stateful process will be created.
-
-  body-map is a map from inputs (either even sources as keywords or other
-  processes) to method bodies to handle events from each source. "
-    {:style/indent [1]}
-    [n bindings body-map]
-    (let [method-map (into {} (map (fn [[k v]]
+  second the event. In this case a stateful process will be created."
+    ([method-map]
+     (let [var-mm (into {} (map (fn [[k v]]
+                                  `[~(maybe-varify k) ~v]))
+                        method-map)]
+       `(transducer-process ~var-mm)))
+    ([bindings method-bodies]
+     (let [method-map (into {} (map (fn [[k v]]
                                      `[~(maybe-varify k) (fn ~bindings ~v)])
-                                body-map))]
+                                method-bodies))]
+      `(~(if (= 2 (count bindings))
+           `stateful-process
+           `stateless-process)
+        ~method-map))))
+
+  (defmacro defprocess
+    "Creates a new process and binds it to n."
+    {:style/indent [1]}
+    [n doc? & args]
+    (let [docstr (if (string? doc?) doc? nil)
+          args (if docstr args (cons doc? args))]
       `(def ~n
-         (~(if (= 2 (count bindings)) `stateful-process `process) ~method-map)))))
+         ~@(when docstr [docstr])
+         (process ~@args)))))

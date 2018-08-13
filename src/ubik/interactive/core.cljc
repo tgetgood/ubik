@@ -70,27 +70,25 @@
 
 (macros/deftime
   ;; FIXME: Copied over from subs.cljc. Should use import-var from Tellman's
-  ;; whatchacallit.
+  ;; Potemkin. Need to port it to cljs first though.
   (defmacro subscription
     "Given a form which derefs other subscriptions returns a new subscription
   that reacts to its dependencies. If form does not depend on any subscriptions
   then it is evaluated and it's (static) value returned."
     [form]
-    `(subs/subscription ~form)))
+    `(subs/subscription ~form))
 
 ;;; Processes
 
-(macros/deftime
+  (defmacro process [& args]
+    `(process/process ~@args))
+
   (defmacro defprocess
     {:style/indent [1]}
-    [n bindings body-map]
-    `(process/defprocess ~n ~bindings ~body-map)))
+    [& args]
+    `(process/defprocess ~@args))
 
-(def tprocess process/tprocess)
+  (defmacro emit [& args]
+    `(process/emit ~@args)))
 
 (def stateful-process process/stateful-process)
-
-(def process process/process)
-
-(defmacro emit [& args]
-  `(process/emit ~@args))
