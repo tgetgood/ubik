@@ -159,11 +159,14 @@
     (async/go-loop []
       (when-let [events (async/<! input)]
         (try
-          ;; TODO: Logging
-          #_(println "Processing event " events " on " process
-                   "\n"
-                   "Sending to " (count listeners) " subscribers")
           (let [events (::events (transduce xform shunt-rf events))]
+            ;; TODO: Logging
+            (when (< 0 (count events))
+              (println "Transduced signal " (:in process)
+                       " to " (:out process)
+                       "\n"
+                       "Sending" (count events) " events to "
+                       (count listeners) " subscribed processes."))
             (when (seq events)
               (run! (fn [ch]
                       (async/put! ch events))
@@ -176,9 +179,15 @@
   "Initialise a go machine for each process which connects the signal
   transduction with its inputs and outputs. Returns a map from processes to
   their input channels"
-  [pipes]
-  (let [pipes (map #(assoc % ::ch (async/chan 100)) pipes)
-        ch-map (apply merge-with concat
-                      (map (fn [k v] {k [v]}) (map :in pipes) (map ::ch pipes)))]
-    (run! (fn [p] (go-machine p (::ch p) (get ch-map (:in p)))) pipes)
+  [processes]
+  (let [channels (map #(async/chan 100) processes)
+        ch-map   (apply merge-with concat
+                        (map (fn [k v] {k [v]})
+                             (map :in processes)
+                             channels))]
+    (run! (fn [[p in-ch]]
+            (go-machine p in-ch (get ch-map (:out p))))
+          (partition 2 (interleave processes channels)))
+    (println "Created " (count processes) " processes listening to "
+             (count ch-map) " events.")
     ch-map))
