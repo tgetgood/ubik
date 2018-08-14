@@ -47,7 +47,8 @@
   (get-state [this]
     state)
   (set-state! [this s']
-    (set! state s'))
+    (when-not (nil? s')
+      (set! state s')))
 
   EmissionTracking
   (set-emission! [_ v]
