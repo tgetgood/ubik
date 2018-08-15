@@ -154,7 +154,7 @@
   internal state. Initial state is set to init-state if provided."
   ([multiplexer] (stateful-process nil multiplexer))
   ([init-state multiplexer]
-   (stateful-process ::uninitialised init-state multiplexer))
+   (stateful-process init-state init-state multiplexer))
   ([init-ev init-state multiplexer]
    (StatefulProcess. multiplexer init-ev init-state)))
 
@@ -201,21 +201,48 @@
                                   `[~(maybe-varify k) ~v]))
                         method-map)]
        `(transducer-process ~var-mm)))
-    ([bindings method-bodies]
+    ([bindings method-map]
+     `(process nil {} ~bindings ~method-map))
+    ([opts bindings method-map]
+     `(process (:init-state ~opts) ~opts ~bindings ~method-map))
+    ([init-state {:keys [wrap-body]} bindings method-bodies]
+     (when (and (= 1 (count bindings)) init-state)
+       (throw (Exception. (str "You're trying to create a stateless process with"
+                               " initial state. That's a mistake!!!"))))
      (let [method-map (into {} (map (fn [[k v]]
-                                     `[~(maybe-varify k) (fn ~bindings ~v)])
-                                method-bodies))]
-      `(~(if (= 2 (count bindings))
-           `stateful-process
-           `stateless-process)
-        ~method-map))))
+                                      `[~(maybe-varify k)
+                                        ~(if wrap-body
+                                           `(~wrap-body (fn ~bindings ~v))
+                                           `(fn ~bindings ~v))])
+                                    method-bodies))]
+       (if (= 2 (count bindings))
+         `(stateful-process ~init-state ~method-map)
+         `(stateless-process ~method-map)))))
 
   (defmacro defprocess
     "Creates a new process and binds it to n."
     {:style/indent [1]}
     [n doc? & args]
     (let [docstr (if (string? doc?) doc? nil)
-          args (if docstr args (cons doc? args))]
-      `(def ~n
-         ~@(when docstr [docstr])
-         (process ~@args)))))
+          args   (if docstr args (cons doc? args))
+          {:keys [reloaded? init-state] :as opts}
+          (if (= 3 (count args)) (first args) {})]
+      (if reloaded?
+        (let [state    (symbol (str (name n) "-state$ubik"))
+              listener (symbol (str (name n) "-listener$ubik"))]
+          `(do
+             (defonce ~state (atom ~init-state))
+             (let [opts# (assoc ~opts :init-state @~state)])
+             (def ~n
+               ~@(when docstr [docstr])
+               (process @~state ~opts ~@(rest args)))
+             ;; TODO: Reloading with preserved state in clj.
+             (macros/case :cljs
+               (defonce ~listener
+                 (.addEventListener
+                  js/document.body "figwheel.before-js-reload"
+                  (fn [e#]
+                    (reset! ~state (get-state ~n))))))))
+        `(def ~n
+           ~@(when docstr [docstr])
+           (process ~@args))))))
