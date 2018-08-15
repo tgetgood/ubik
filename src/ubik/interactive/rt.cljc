@@ -10,6 +10,44 @@
             [ubik.interactive.subs :as subs :include-macros true]
             [ubik.interactive.process :as process]))
 
+(defn sources
+  "Returns the subset of the given forward signal graph where the only keys
+  remaining are sources, that is processes which never receive input from the
+  graph."
+  [g]
+  (let [valset (into #{} cat (vals g))]
+    (apply dissoc g valset)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; DFS Variations
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn path*
+  [e g]
+  )
+
+(defn longest-path
+  "Returns the longest non-branching starting at start. As well as the map from
+  the end of the path to continuations."
+  [in start g]
+  (let [path (path* start g)
+        end (last path)]
+    {:path {:in in :out end :xform path}
+     :cont (when (contains? g end)
+             (select-keys g [end]))}))
+
+(defn parse-paths
+  "Given the forward edge list of a graph, returns all non-branching paths."
+  [g]
+  (loop [log (sources g)
+         paths []]
+    (if (empty? log)
+      paths
+      (let [[in outs] (first log)
+            out (first outs)
+            [[path cont]] (longest-path in out g)]
+        (recur (merge (update log in dissoc out) cont) (conj paths path))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Signal Graph Analysis
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,14 +77,6 @@
       (apply merge-with set/union pm
              (map walk-signal-graph inputs)))))
 
-(defn root-fibres
-  "Returns the subset of the given forward signal graph where the only keys
-  remaining are sources, that is processes which never receive input from the
-  graph."
-  [pm]
-  (let [valset (into #{} cat (vals pm))]
-    (apply dissoc pm valset)))
-
 (defn fibres
   "Returns a tree of forward process links in the signal graph.
 
@@ -58,7 +88,7 @@
   ;; contain cycles, so this will have to be overhauled with a depth first
   ;; search algo.
   [pm]
-  (let [roots (root-fibres pm)]
+  (let [roots (sources pm)]
     (walk/prewalk (fn [x]
                     (if (set? x)
                       (into {} (map (fn [x]
@@ -191,3 +221,6 @@
     (println "Created " (count processes) " processes listening to "
              (count ch-map) " events.")
     ch-map))
+
+(defn kill-processes [ch-map]
+  (run! async/close! (flatten (vals ch-map))))
