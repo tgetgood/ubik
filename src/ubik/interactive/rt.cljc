@@ -10,143 +10,97 @@
             [ubik.interactive.subs :as subs :include-macros true]
             [ubik.interactive.process :as process]))
 
-(defn sources
-  "Returns the subset of the given forward signal graph where the only keys
-  remaining are sources, that is processes which never receive input from the
-  graph."
-  [g]
-  (let [valset (into #{} cat (vals g))]
-    (apply dissoc g valset)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; DFS Variations
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn path*
-  [e g]
-  )
-
-(defn longest-path
-  "Returns the longest non-branching starting at start. As well as the map from
-  the end of the path to continuations."
-  [in start g]
-  (let [path (path* start g)
-        end (last path)]
-    {:path {:in in :out end :xform path}
-     :cont (when (contains? g end)
-             (select-keys g [end]))}))
-
-(defn parse-paths
-  "Given the forward edge list of a graph, returns all non-branching paths."
-  [g]
-  (loop [log (sources g)
-         paths []]
-    (if (empty? log)
-      paths
-      (let [[in outs] (first log)
-            out (first outs)
-            [[path cont]] (longest-path in out g)]
-        (recur (merge (update log in dissoc out) cont) (conj paths path))))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Signal Graph Analysis
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn source?
+(defn- source?
   "Returns true iff p is an event source.
 
   Currently that just means it's a keyword, but that will probably change."
   [p]
   (keyword? p))
 
-(defn process?
+(defn- process?
   "Returns true if x is a multiplexer process or a var that points to one."
   [x]
   (let [x (if (var? x) @x x)]
     (satisfies? process/Multiplexer x)))
 
-(defn walk-signal-graph
-  "Walks backwards along inputs through signal graph from current and returns a
-  reversed representation where each entry in the returned map corresponds to
-  the processes which listen to that process."
-  [current]
-  (when-not (source? current)
-    (let [co     (if (var? current) @current current)
-          inputs (base/inputs co)
-          pm     (into {} (map (fn [i] [i #{current}])) inputs)]
-      (apply merge-with set/union pm
-             (map walk-signal-graph inputs)))))
+(defn- sources
+  "Returns the subset of the given forward signal graph where the only keys
+  remaining are sources, that is processes which never receive input from the
+  graph."
+  [g]
+  (let [valset (into #{} cat (vals g))]
+    (apply disj (into #{} (keys g)) valset)))
 
-(defn fibres
-  "Returns a tree of forward process links in the signal graph.
+(defn- follow-branch
+  "Executes a breadth first search on graph and returns a seq of non-branching,
+  non-cyclic paths."
+  [graph start current seen]
+  (if (contains? seen start)
+    [current]
+    (let [seen (conj seen start)
+          current (conj current start)
+          steps (get graph start)]
+      (if (= 1 (count steps))
+        (follow-branch graph (first steps) current seen)
+        (into (if (< (count current) 2) [] [current])
+              (mapcat #(follow-branch graph % [start] seen))
+              steps)))))
 
-  Prunes the tree any time it encounters a lazy subscription. This is
-  intentional since any process that listens to a lazy sub will never get events
-  and thus be inherently broken."
-  ;; FIXME: There is currently no checking that the graph doesn't contain
-  ;; cycles. If it does, this will loop forever. Signal graphs should in general
-  ;; contain cycles, so this will have to be overhauled with a depth first
-  ;; search algo.
-  [pm]
-  (let [roots (sources pm)]
-    (walk/prewalk (fn [x]
-                    (if (set? x)
-                      (into {} (map (fn [x]
-                                      (when (process? x)
-                                        [x (get pm x)]))) x)
-                      x))
-                  roots)))
+(defn- trace-source-signals
+  "Returns a set of all signal pathways in g.
+  g is assumed to be a map from graph nodes to sets of forward edges."
+  [g]
+  (let [source-signals (sources g)]
+    (into #{} (mapcat #(follow-branch g % [] #{}) source-signals))))
 
-(defn debranch
-  "Scans tree and collapes nodes with a single edge into vectors of nodes. This
-  tells up where in the graph we can directly compose operations rather than
-  sending messages."
-  [tree]
-  (into {} (map (fn [[k v]]
-                  (loop [run [k]
-                         sub v]
-                    (if (= 1 (count sub))
-                      (let [[k v] (first sub)]
-                        (recur (conj run k) v))
-                      [run (debranch sub)]))))
-        tree))
+(defn- devar
+  "If x is a var deref it and return its value, otherwise return x."
+  [x]
+  (if (var? x)
+    @x
+    x))
 
-(defn build-transduction-pipeline
-  "Returns a collection of processes extracted from the given collapsed tree."
-  ([tree]
-   (build-transduction-pipeline ::source tree))
-  ([source tree]
-   (into [] (mapcat (fn [[pipe subtree]]
-                      (let [res (last pipe)]
-                        (into [{:in source :xform pipe :out res}]
-                              (build-transduction-pipeline res subtree)))))
-         tree)))
+(defn- build-signal-graph
+  "Given a process or subscription, walk back along inputs and return a map
+  representing the communication graph of the network."
+  ([current] (build-signal-graph current #{}))
+  ([current seen]
+   (when-not (or (contains? seen current) (source? current))
+     (let [inputs (base/inputs (devar current))
+           graph (into {} (map (fn [i] [i #{current}])) inputs)]
+       (apply merge-with set/union graph
+               (map #(build-signal-graph % (conj seen current)) inputs))))))
 
-(defn- correct-source-pipe
-  "Cleans up the erronous ::source inputs that signal a source process. "
-  ;; FIXME: This is pretty kludginous
-  [{:keys [in out xform] :as p}]
-  (if (= ::source in)
-    {:in (first xform) :xform (rest xform) :out out}
-    p))
+(defn- eager-subgraph
+  "Returns the graph g with all nodes which are not process or event sources
+  removed."
+  [g]
+  (into {} (comp (filter (fn [[k v]] (or (process? k) (source? k))))
+                 (map (fn [[k v]] [k (into #{} (filter process?) v)])))
+        g))
+
+(defn build-pipe
+  "Returns the current conventional datastructure for a process given a list of
+  signal transduction steps in the process."
+  [[x & xs]]
+  {:in x :xform xs :out (last xs)})
 
 (defn system-parameters
   "Analyses signal graph from root and returns the set of expected inputs to the
   resulting system as well as the set of processes that will need to be
   created and connected to initialise the system."
   [root]
-  (let [pipelines (-> root
-                      walk-signal-graph
-                      fibres
-                      debranch
-                      build-transduction-pipeline)]
-    {:event-sources (into #{} (comp (filter (fn [x] (= ::source (:in x))))
-                                    (map :xform)
-                                    (map first))
-                          pipelines)
-     :event-pipes (into #{} (comp (map correct-source-pipe)
-                                  (remove (comp empty? :xform)))
-                        pipelines)}))
+  (let [graph (build-signal-graph root)
+        inputs (sources graph)]
+    {:event-sources inputs
+     :event-pipes (->> graph
+                       eager-subgraph
+                       trace-source-signals
+                       (map build-pipe))}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Runtime logic
