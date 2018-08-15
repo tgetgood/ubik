@@ -3,6 +3,7 @@
             [clojure.set :as set]
             [clojure.walk :as walk]
             [net.cgrand.macrovich :as macros :include-macros true]
+            [taoensso.timbre :as log :include-macros true]
             [ubik.interactive.base :as base]
             [ubik.core :as core]
             [ubik.interactive.events :as events]
@@ -144,19 +145,19 @@
       (when-let [events (async/<! input)]
         (try
           (let [events (::events (transduce xform shunt-rf events))]
-            ;; TODO: Logging
             (when (< 0 (count events))
-              (println "Transduced signal " (:in process)
-                       " to " (:out process)
-                       "\n"
-                       "Sending" (count events) " events to "
-                       (count listeners) " subscribed processes."))
+              (log/debug
+               "Transduced signal" (:in process)
+               "to" (:out process)
+               "\n"
+               "Sending" (count events) "events to"
+               (count listeners) "subscribed processes."))
             (when (seq events)
               (run! (fn [ch]
                       (async/put! ch events))
                     listeners)))
           (catch #?(:clj Exception :cljs js/Error) e
-            (println "Error in signal process " process ": " (.-stack e))))
+            (log/error e "Error in signal process " process)))
         (recur)))))
 
 (defn initialise-processes
@@ -172,8 +173,8 @@
     (run! (fn [[p in-ch]]
             (go-machine p in-ch (get ch-map (:out p))))
           (partition 2 (interleave processes channels)))
-    (println "Created " (count processes) " processes listening to "
-             (count ch-map) " events.")
+    (log/info  "Created" (count processes) "processes listening to"
+               (count ch-map) "events.")
     ch-map))
 
 (defn kill-processes [ch-map]

@@ -16,6 +16,7 @@
                  [org.clojure/clojurescript "1.9.946"]
                  [org.clojure/spec.alpha "0.1.143"]
                  [org.clojure/core.async "0.3.465"]
+                 [com.taoensso/timbre "4.10.0"]
                  [quil "2.6.0" :exclusions [[org.clojure/clojure]]]]
 
   :plugins [[lein-figwheel "0.5.14"]
