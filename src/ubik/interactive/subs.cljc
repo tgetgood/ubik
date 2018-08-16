@@ -40,6 +40,9 @@
   [deps reaction]
   (SimpleSubscription. deps reaction (gensym "NOMATCH") nil))
 
+(defn subscription? [x]
+  (instance? SimpleSubscription x))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Macros
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,7 +81,9 @@
 
         sym-seq (seq @symbols)]
     (if (empty? sym-seq)
-      `(atom ~form)
+      `(build-subscription []
+         (fn []
+           ~form))
       `(build-subscription  [~@(map key sym-seq)]
         (fn [~@(map val sym-seq)]
 

@@ -92,3 +92,5 @@
     `(process/emit ~@args)))
 
 (def stateful-process process/stateful-process)
+
+(def subscription? subs/subscription?)

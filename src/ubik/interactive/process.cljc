@@ -28,9 +28,13 @@
    (defmacro emit [& args]
      `(*current-emitter* ~@args)))
 
-  ;; TODO: Implement IMeta for process types and take metadata in
-  ;; here. Especially docs. Though docs go on the var... I feel like metadata
-  ;; will still be extremely useful for debugging. \s
+;; REVIEW: do I need to implement IMeta for process types?
+;; + : Most things in clojure take metadata, so it's unintuitive that these
+;; don't
+;; - : processes are pretty much all vars at the moment, so we have metadata
+;; there. The user can't really control that though.
+;; - : I don't need it at present.
+
 (deftype StatefulProcess
     #?(:clj [method-map ^:volatile-mutable last-emission ^:volatile-mutable state]
        :cljs [method-map ^:mutable last-emission ^:mutable state])
