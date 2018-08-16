@@ -51,7 +51,7 @@
               (mapcat #(follow-branch graph % [start] seen))
               steps)))))
 
-(defn- trace-source-signals
+(defn trace-source-signals
   "Returns a set of all signal pathways in g.
   g is assumed to be a map from graph nodes to sets of forward edges."
   [g]
@@ -65,7 +65,7 @@
     @x
     x))
 
-(defn- build-signal-graph
+(defn build-signal-graph
   "Given a process or subscription, walk back along inputs and return a map
   representing the communication graph of the network."
   ([current] (build-signal-graph current #{}))
