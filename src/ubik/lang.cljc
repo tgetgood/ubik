@@ -80,7 +80,7 @@
   ([x]
    (cond
      (vector? x) (neg (vectorise x))
-     :else (- x)))
+     :else (cc/- x)))
   ([x y]
    (cond
      (number? x) (cc/- x y)
