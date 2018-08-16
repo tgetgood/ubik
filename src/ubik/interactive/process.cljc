@@ -114,14 +114,14 @@
   Multiplexer
   (method [this input]
     (when-let [method (get method-map input)]
-      (let [emitter (fn ([s]
+      (let [emitter (fn ([]
                          (fn [rf acc]
                            (rf acc)))
-                      ([s ev]
+                      ([ev]
                        (fn [rf acc]
                          (set-emission! this ev)
                          (rf acc ev)))
-                      ([s ev & evs]
+                      ([ev & evs]
                        (fn [rf acc]
                          (set-emission! this (last evs))
                          (reduce rf (rf acc ev) evs))))
