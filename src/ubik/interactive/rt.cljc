@@ -11,6 +11,8 @@
             [ubik.interactive.subs :as subs :include-macros true]
             [ubik.interactive.process :as process]))
 
+;; TODO: Get the static analysis code out of the runtime ns.
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Signal Graph Analysis
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
