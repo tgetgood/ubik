@@ -127,15 +127,11 @@
   This is something of a kludge to implement the semantics of foldp, or if you
   prefer, scan over time."
   ([]
-   {::shunted true})
+   [])
   ([db]
-   (if (::shunted db)
-     db
-     {::shunted true}))
+   db)
   ([db ev]
-   (if (::shunted db)
-     (update db ::events conj ev)
-     {::shunted true ::events [ev]})))
+   (conj db ev)))
 
 (defn go-machine
   "Creates a go-loop which reads messages off of input, transduces them
@@ -146,7 +142,7 @@
     (async/go-loop []
       (when-let [events (async/<! input)]
         (try
-          (let [events (::events (transduce xform shunt-rf events))]
+          (let [events (transduce xform shunt-rf events)]
             (when (< 0 (count events))
               (log/debug
                "Transduced signal" (:in process)
