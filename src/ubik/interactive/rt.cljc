@@ -155,7 +155,7 @@
                       (async/put! ch events))
                     listeners)))
           (catch #?(:clj Exception :cljs js/Error) e
-            (log/error e "Error in signal process " process)))
+            (log/error "Error in signal process " process ": " (.-stack e))))
         (recur)))))
 
 (defn initialise-processes
