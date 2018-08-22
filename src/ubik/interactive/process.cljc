@@ -236,7 +236,6 @@
               listener (symbol (str (name n) "-listener$ubik"))]
           `(do
              (defonce ~state (atom ~init-state))
-             (let [opts# (assoc ~opts :init-state @~state)])
              (def ~n
                ~@(when docstr [docstr])
                (process @~state ~opts ~@(rest args)))
