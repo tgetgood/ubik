@@ -142,7 +142,7 @@
     (async/go-loop []
       (when-let [events (async/<! input)]
         (try
-          (let [events (transduce xform shunt-rf events)]
+          (when-let [events (transduce xform shunt-rf events)]
             (when (< 0 (count events))
               (log/debug
                "Transduced signal" (:in process)
@@ -155,7 +155,8 @@
                       (async/put! ch events))
                     listeners)))
           (catch #?(:clj Exception :cljs js/Error) e
-            (log/error "Error in signal process " process ": " (.-stack e))))
+            (log/error "Error in signal process " process ": ")
+            #?(:cljs (js/console.error e))))
         (recur)))))
 
 (defn initialise-processes
