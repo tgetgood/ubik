@@ -68,7 +68,17 @@
 ;; Distinction: subscriptions are reactive, signals are active. This is more
 ;; important than it may seem.
 
+(defn wire [& body])
+
 (macros/deftime
+
+  (defmacro transducer
+    ([bindings body-map]
+     `(transducer {} ~bindings ~body-map))
+    ([opts bindings body-map]
+     (let [m ((cond-> opts (= 2 (count bindings)) (assoc :state true)))]
+       (into {} (fn [[k v]] [k `(with-meta (fn ~bindings ~v) ~m)])))))
+
   ;; FIXME: Copied over from subs.cljc. Should use import-var from Tellman's
   ;; Potemkin. Need to port it to cljs first though.
   (defmacro subscription
