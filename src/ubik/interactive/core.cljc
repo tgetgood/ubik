@@ -68,7 +68,9 @@
 ;; Distinction: subscriptions are reactive, signals are active. This is more
 ;; important than it may seem.
 
-(defn wire [& body])
+(defn wire [t inputs])
+
+(defn pipe [& xforms])
 
 (macros/deftime
 
