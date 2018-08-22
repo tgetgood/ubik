@@ -1,5 +1,5 @@
 (ns ubik.lang
-  (:refer-clojure :exclude [+ - * vector Vector IVector])
+  (:refer-clojure :exclude [+ - * vector Vector IVector vector?])
   (:require [#?(:clj clojure.core :cljs cljs.core) :as cc]
             [ubik.math :as math]))
 
@@ -34,7 +34,10 @@
 (defn vectorise [x]
   (if-let [v (base-vector x)]
     v
-    (error (str x " has not vector nature"))))
+    (error
+     (if (nil? x)
+       "Can't do arithmetic with nil."
+       (str x " has not vector nature")))))
 
 (extend-type #?(:clj clojure.lang.IPersistentVector
                 :cljs cljs.core/PersistentVector)
@@ -80,13 +83,12 @@
   ([x]
    (cond
      (vector? x) (neg (vectorise x))
-     :else (cc/- x)))
+     :else       (cc/- x)))
   ([x y]
    (cond
      (number? x) (cc/- x y)
      (vector? x) (v+ (vectorise x) (neg (vectorise y)))
-     :else nil))
-
+     :else       nil))
   ([x y & more]
    (reduce - (- x y) more)))
 
