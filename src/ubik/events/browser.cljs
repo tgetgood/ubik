@@ -1,6 +1,5 @@
 (ns ubik.events.browser
-  (:require [clojure.string :as string]
-            [ubik.core :as u]))
+  (:require [clojure.string :as string]))
 
 (defn canvas-elem []
   (js/document.getElementById "canvas"))
@@ -94,7 +93,7 @@
       (dispatch-fn ev res))))
 
 (defn connect-events [host events dispatch-fn]
-  (let [elem     (u/base host)
+  (let [elem     nil
         evh      (event-map elem)
         handlers (into {} (map (fn [[k v]]
                                  [k (if (contains? events k)
@@ -107,7 +106,7 @@
 
 (defn disconnect-events [host]
   (let [handlers (get @registered-listeners host)
-        elem (u/base host)]
+        elem nil]
     (doseq [[event cb] handlers]
       (.removeEventListener elem (kw->js event) cb))
     (swap! registered-listeners dissoc host)))

@@ -1,7 +1,6 @@
 (ns ubik.core
   (:require [clojure.core.async :as async :include-macros true]
             [net.cgrand.macrovich :as macros :include-macros true]
-            [ubik.core :as core]
             [ubik.events :as events]
             [ubik.hosts :as hosts]
             [ubik.subs :as subs :include-macros true]
@@ -15,7 +14,7 @@
 
 (defonce ^:private continue? (atom nil))
 
-(defn draw-loop
+#_(defn draw-loop
   "Starts an event loop which calls draw-fn on (app-fn @state-ref) each
   animation frame if @state-ref has changed."
   [world host check-sym]
@@ -57,7 +56,7 @@
                           events [(assoc v ::render-tree @render-root)]]
                       (run! (fn [c] (async/put! c events)) chs))))
 
-    (draw-loop render-root host (reset! continue? (gensym)))))
+    #_(draw-loop render-root host (reset! continue? (gensym)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Aggregated API

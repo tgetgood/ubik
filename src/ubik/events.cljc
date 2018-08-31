@@ -1,6 +1,5 @@
 (ns ubik.events
-  (:require ubik.core
-            #?(:clj [ubik.events.quil :as ev]
+  (:require #?(:clj [ubik.events.quil :as ev]
                :cljs [ubik.events.browser :as ev])
             ubik.hosts))
 
