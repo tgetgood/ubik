@@ -22,83 +22,107 @@ programming.
 	 A coordination language is a special purpose language intended to organise all
 	 of these computations into a (distributed, asynchronous, multithreaded) system.
 
-	 Coordination languages don't need to be Turing complete since they don't deal
+	 Coordination languages don't need to be Turing complete[fn:3] since they don't deal
 	 with computation. In this case Clojure(script) is the underlying computation
 	 language. Ubik simply defines a small number of primitives that let you
 	 compose pure functions into useful processes.
+** Assumptions
+*** Purity
+		The core assumption of Ubik is that any side effect whatsoever is
+		extra-computational. The point of a side effect is to communicate, either with
+		another computation, or with your future self (setting globals, writing to
+		disk, etc.).
 
-* Assumptions
-** Purity
-	 The core assumption of Ubik is that any side effect whatsoever is
-	 extra-computational. The point of a side effect is to communicate, either with
-	 another computation, or with your future self (setting globals, writing to
-	 disk, etc.).
+		Side effects are unavoidable in useful programs precisely because
+		communication is essential. The attempt to hide side effects under the covers
+		(monads), or make them almost invisible (lock free, threadsafe datastructures
+		like queues and hash maps) distracts us from the core issue that coordination
+		and computation are orthogonal concerns.
+*** Signal Transduction
+		Computations in space (that is computations on data structures arranged in
+		memory) is generally simple. Computations in time (signals, event sourcing,
+		server sessions, global variables, etc.) is a lot harder.
 
-	 Side effects are unavoidable in useful programs precisely because
-	 communication is essential. The attempt to hide side effects under the covers
-	 (monads), or make them almost invisible (lock free, threadsafe datastructures
-	 like queues and hash maps) distracts us from the core issue that coordination
-	 and computation are orthogonal concerns.
-** Signal Transduction
-	 Computations in space (that is computations on data structures arranged in
-	 memory) is generally simple. Computations in time (signals, event sourcing,
-	 server sessions, global variables, etc.) is a lot harder.
+		When you don't have all of the data that you need to perform a calculation,
+		you have to resort to some form of side effect to store the current progress
+		and another to make sure that you continue when more data is available.
 
-	 When you don't have all of the data that you need to perform a calculation,
-	 you have to resort to some form of side effect to store the current progress
-	 and another to make sure that you continue when more data is available.
+		Getting around this need for side effects is one of our core objectives. Ubik
+		still needs to perform side effects to make this work, but your computation
+		should be oblivous to that fact.
 
-	 Getting around this need for side effects is one of our core objectives. Ubik
-	 still needs to perform side effects to make this work, but your computation
-	 should be oblivous to that fact.
+		Ubik creates symmetry between computations in space and time by the analogy
+		of a process as a signal transducer. Here transducer is meant in the sense of
+		engineering or biology where transduction is the conversion of a signal from
+		one form or medium to another. Clojure's transducers bear some similarity to
+		signal transduction, but are less general.
 
-	 Ubik creates symmetry between computations in space and time by the analogy
-	 of a process as a signal transducer. Here transducer is meant in the sense of
-	 engineering or biology where transduction is the conversion of a signal from
-	 one form or medium to another. Clojure's transducers bear some similarity to
-	 signal transduction, but are less general.
+		The conversion of a signal from one form to another is a computation. So a
+		transducer takes one or more signals and a computation and returns an output
+		signal. That's it. You define transducers in ubik by specifying a mapping
+		from input signals to pure functions, and then you specify the topology of
+		which processes listen to which.
 
-	 The conversion of a signal from one form to another is a computation. So a
-	 transducer takes one or more signals and a computation and returns an output
-	 signal. That's it. You define transducers in ubik by specifying a mapping
-	 from input signals to pure functions, and then you specify the topology of
-	 which processes listen to which.
+		After specifying the computations and the topology, Ubik creates a dynamic
+		runtime and handles all of the side effects of the application[fn:2].
 
-	 After specifying the computations and the topology, Ubik creates a dynamic
-	 runtime and handles all of the side effects of the application[fn:2].
+		Performance is not a focus at present. The runtime is fast enough for my
+		purposes, but needs a lot of work.
+*** Relativity
+		Ubik deals with coodination between (pure) computations. This coordination is
+		unbounded. The processes could be threads on the same machine, device
+		controllers (discs, graphics cards, sound chips, etc.), human beings (UIs),
+		or other machines on the internet.
 
-	 Performance is not a focus at present. The runtime is fast enough for my
-	 purposes, but needs a lot of work.
-** Relativity
-	 Ubik deals with coodination between (pure) computations. This coordination is
-	 unbounded. The processes could be threads on the same machine, device
-	 controllers (discs, graphics cards, sound chips, etc.), human beings (UIs),
-	 or other machines on the internet.
+		Signals between these processes (especially within machines) travel at a
+		reasonable fraction of the speed of light. A basic consequence of this is
+		that there is no global order to events within the system.
 
-	 Signals between these processes (especially within machines) travel at a
-	 reasonable fraction of the speed of light. A basic consequence of this is
-	 that there is no global order to events within the system.
+		Systems like [[https://en.wikipedia.org/wiki/Spanner_(database)][Spanner]] solve this problem by creating a coordinate frame bigger
+		than the earth with the help of GPS and atomic clocks. This is an impressive
+		feat of engineering, but what happens when we need to extend the internet to
+		the entire solar system?
 
-	 Systems like [[https://en.wikipedia.org/wiki/Spanner_(database)][Spanner]] solve this problem by creating a coordinate frame bigger
-	 than the earth with the help of GPS and atomic clocks. This is an impressive
-	 feat of engineering, but what happens when we need to extend the internet to
-	 the entire solar system?
+		Ubik embraces special relativity. A single process is consistent. It sees
+		events in some order which it can't control, but it processes them in the
+		order it receives them and its outputs are strictly determined with respect
+		to its inputs.
 
-	 Ubik embraces special relativity. A single process is consistent. It sees
-	 events in some order which it can't control, but it processes them in the
-	 order it receives them and its outputs are strictly determined with respect
-	 to its inputs.
+		if you need a consistent view of a set of things, then you need to create a
+		single authority for those things. Nothing but a single process can be
+		consistent, but an entire network operating from a single (consistent)
+		authority can behave transactionally. If you can't centralise your data, then
+		you can't have consistency.
 
-	 if you need a consistent view of a set of things, then you need to create a
-	 single authority for those things. Nothing but a single process can be
-	 consistent, but an entire network operating from a single (consistent)
-	 authority can behave transactionally. If you can't centralise your data, then
-	 you can't have consistency.
+		The cap theorem is a direct consequence of this. We avoid the issue by
+		accepting the laws of physics as primary. You can build systems that try to
+		solve this problem, but I won't pretend that I can do it for you.
 
-	 The cap theorem is a direct consequence of this. We avoid the issue by
-	 accepting the laws of physics as primary. You can build systems that try to
-	 solve this problem, but I won't pretend that I can do it for you.
+* Programming Model
+	This is subject to change. In fact I'm really only writing it down to test
+	myself and find out if I know what I've built so far...
 
+	N.B.: terminology is not ideal. I need better words than transducer and
+	process.
+
+	A transducer is a map from named inputs, representing signals, to
+	methods. When an event comes in on a signal, the method corresponding to that
+	signal receives it. Transducers can optionally maintain an internal state. If
+	so, the method called is passed two arguments, the current state and the event
+	to be processed. A transducer method can return a new state and zero or more
+	events to be passed on to any transducers which are listening to this one.
+
+	Transducers are like functions with named arguments. They same transducer can
+	be wired up to different sets of signals to control its behaviour.
+
+	To connect a transducer to signals, call =ubik.core/wire=. Wire takes a map
+	from argument names to signals and a transducer. Any transducer input names in
+	the map will be connected. The map can contain extra signals which will be
+	ignored, and it's perfectly acceptable to only partially wire a transducer.
+
+	Networks of (partially) wired transducers are the units of a program.
+
+	This is incoherent. I have to do better.
 * License
 	Copyright © 2018 Thomas Getgood
 
@@ -109,6 +133,8 @@ programming.
 ** TODO Reference for relativity
 	 One of Armstrong's lectures about this would be great.
 * Footnotes
+
+[fn:3] Do I agree with this statement? It seems that coordinating one set of computations based on another computation is important. If coordinated units are to be first class (that is to say if signals can emit transduction networks that are to be wired into an existing computation) then the coordination language needs to be a complete language. I have a strong aversion to least power or not making something fundamental to the language first class.
 
 [fn:2] This isn't strictly true. Every system has edges, and you'll need to tell ubik how to connect your system to the outside world. Some edges, such as browser UI events, and HTTP requests can be handled for you, but you may need to extend that.
 
