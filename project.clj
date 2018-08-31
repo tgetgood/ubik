@@ -1,5 +1,5 @@
 (defproject macroexpanse/ubik "0.5.1-SNAPSHOT"
-  :description "High level language for graphical and UI programming. No markup."
+  :description "Coordination language for Pure Programs"
   :url "https://github.com/tgetgood/ubik"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
@@ -16,8 +16,7 @@
                  [org.clojure/clojurescript "1.9.946"]
                  [org.clojure/spec.alpha "0.1.143"]
                  [org.clojure/core.async "0.3.465"]
-                 [com.taoensso/timbre "4.10.0"]
-                 [quil "2.6.0" :exclusions [[org.clojure/clojure]]]]
+                 [com.taoensso/timbre "4.10.0"]]
 
   :plugins [[lein-figwheel "0.5.14"]
             [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
