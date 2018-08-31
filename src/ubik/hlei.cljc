@@ -1,4 +1,4 @@
-(ns ubik.interactive.hlei
+(ns ubik.hlei
   (:require [ubik.core :as core]
             [ubik.math :as math]))
 

@@ -1,4 +1,4 @@
-(ns ubik.interactive.base)
+(ns ubik.base)
 
 (defprotocol Inspectable
   (debug [this]

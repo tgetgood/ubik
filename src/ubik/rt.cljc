@@ -1,15 +1,15 @@
-(ns ubik.interactive.rt
+(ns ubik.rt
   (:require [clojure.core.async :as async :include-macros true]
             [clojure.set :as set]
             [clojure.walk :as walk]
             [net.cgrand.macrovich :as macros :include-macros true]
             [taoensso.timbre :as log :include-macros true]
-            [ubik.interactive.base :as base]
+            [ubik.base :as base]
             [ubik.core :as core]
-            [ubik.interactive.events :as events]
+            [ubik.events :as events]
             [ubik.hosts :as hosts]
-            [ubik.interactive.subs :as subs :include-macros true]
-            [ubik.interactive.process :as process]))
+            [ubik.subs :as subs :include-macros true]
+            [ubik.process :as process]))
 
 ;; TODO: Get the static analysis code out of the runtime ns.
 

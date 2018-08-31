@@ -1,4 +1,4 @@
-(ns ubik.interactive.process
+(ns ubik.process
   "Processes are the fundamental unit of change in a program. Each process takes
   input from one or more processes and transduces that input into output in
   some way. It is up to a higher level of organisation to propagate the output
@@ -7,7 +7,7 @@
   standard method at present is simply to use clojure's namespaces for this
   purpose)."
   (:require [net.cgrand.macrovich :as macros :include-macros true]
-            [ubik.interactive.base :as base]))
+            [ubik.base :as base]))
 
 (defprotocol Multiplexer
   "A multiplexer is a generic function which is polymorphic in the input source

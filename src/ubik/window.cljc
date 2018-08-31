@@ -1,4 +1,4 @@
-(ns ubik.interactive.window
+(ns ubik.window
   "Model the canvas as a window into R^2."
   (:require [ubik.core :as core]
             [ubik.math :as math]))

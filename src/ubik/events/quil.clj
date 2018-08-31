@@ -1,4 +1,4 @@
-(ns ubik.interactive.events.quil)
+(ns ubik.events.quil)
 
 (def no-fn (constantly nil))
 

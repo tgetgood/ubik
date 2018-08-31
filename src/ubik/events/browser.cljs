@@ -1,4 +1,4 @@
-(ns ubik.interactive.events.browser
+(ns ubik.events.browser
   (:require [clojure.string :as string]
             [ubik.core :as u]))
 

@@ -1,4 +1,4 @@
-(ns ubik.interactive.subs
+(ns ubik.subs
   "Subscriptions are lazy processes that run a fixed function on the current
   values of all input processes on demand and emits the result.
 
@@ -6,7 +6,7 @@
   derefed or nothing will ever happen."
   (:require [net.cgrand.macrovich :as macros :include-macros true]
             [clojure.walk :as walk]
-            [ubik.interactive.base :as base]))
+            [ubik.base :as base]))
 
 ;; REVIEW: Is this really any better than two repetitive definitions? More
 ;; concise but way less readable...

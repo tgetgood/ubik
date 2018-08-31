@@ -1,7 +1,7 @@
-(ns ubik.interactive.events
+(ns ubik.events
   (:require ubik.core
-            #?(:clj [ubik.interactive.events.quil :as ev]
-               :cljs [ubik.interactive.events.browser :as ev])
+            #?(:clj [ubik.events.quil :as ev]
+               :cljs [ubik.events.browser :as ev])
             ubik.hosts))
 
 (defprotocol EventSystem

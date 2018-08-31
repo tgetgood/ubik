@@ -1,4 +1,4 @@
-(ns ubik.interactive.caching)
+(ns ubik.caching)
 
 (defn cached-fn
   "Returns a memoised version of f, using the global caching strategy."
