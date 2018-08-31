@@ -1,52 +1,115 @@
 #+TITLE: Ubik
 
-Experiment in higher order visual programming.
-
-Check out [[https://github.com/tgetgood/expanse][Expanse]] to see it in use.
+Ubik is a coordination language built for my own experiments in graphics and UI
+programming.
 
 * Overview
-	This is both a library for doing vector graphics in a data driven idiomatic
-	clojure fashion and a framework for making interactive graphics / animations /
-	UIs using that library.
+** Coodination Language?
+	 Our languages today are really good at computation. If your problem can be
+	 solved by an element of the lambda calculus — if you can perform the entire
+	 thing with just pure functions — then it will be fairly straight forward to
+	 implement correctly in any modern language. Functional languages take this to
+	 an extreme, but even C programming is pretty simple if you don't need to read
+	 from disk, talk to a network, or do any coordination between threads, etc..
 
-	These two parts will likely be separated at a future date, but since the is
-	mostly an experiment at present, it's far more convenient to keep them
-	together.
+	 Our languages are *computation* languages. They control Turing machines.
 
-	The name is a reference to the fact that it seems to address all of life's
-	problems, and I have no idea what it actually is. God in a spray can it is
-	not.
-* Breakdown
-	=ubik.core=: The core graphics primitives.
+	 Getting these Turning machines right is something that we've gotten very good
+	 at as a field. 90% of the problems of modern programming are about
+	 coordination between Turing machines: I/O, multithreading, talking to
+	 networks, UIs[fn:1], etc..
 
-	=ubik.math=: Mathematical and interop helpers.
+	 A coordination language is a special purpose language intended to organise all
+	 of these computations into a (distributed, asynchronous, multithreaded) system.
 
-	=ubik.geometry=: Geometric model of the rendered world to map back and
-	forth from screen coordinates to fibres of the render tree.
+	 Coordination languages don't need to be Turing complete since they don't deal
+	 with computation. In this case Clojure(script) is the underlying computation
+	 language. Ubik simply defines a small number of primitives that let you
+	 compose pure functions into useful processes.
 
-	=ubik.interactive.core=: Framework for building interactive graphical
-	applications. Heavilty cribbed from re-frame.
+* Assumptions
+** Purity
+	 The core assumption of Ubik is that any side effect whatsoever is
+	 extra-computational. The point of a side effect is to communicate, either with
+	 another computation, or with your future self (setting globals, writing to
+	 disk, etc.).
 
-	Renderers are in =ubik.renderers.*=. There are currently only 2, an HTML
-	Canvas 2d rendering context renderer for the browser and a quil renderer for
-	JVM Clojure. Both renderers are working and should produce identical
-	results. I'd be much obliged to anyone who can point out where they don't.
+	 Side effects are unavoidable in useful programs precisely because
+	 communication is essential. The attempt to hide side effects under the covers
+	 (monads), or make them almost invisible (lock free, threadsafe datastructures
+	 like queues and hash maps) distracts us from the core issue that coordination
+	 and computation are orthogonal concerns.
+** Signal Transduction
+	 Computations in space (that is computations on data structures arranged in
+	 memory) is generally simple. Computations in time (signals, event sourcing,
+	 server sessions, global variables, etc.) is a lot harder.
 
-	The definition of shapes is probably going to change from one based on curves
-	and winding numbers as most graphics libraries do to a constructive
-	topology. That is glue together locally convex simply connected shapes to
-	produce non simple shapes, and subtract one shape from another. I'm still
-	thinking out the details.
-* Getting Started
-	[[https://github.com/tgetgood/expanse][Expanse]] is the place to go if you want to see Ubik in action or play with
-	running code.
-* Testing
-	Having a fully declarative model of the UI allows headless testing of most UI
-	components. You can determine the exact pixel coordinates of any shape or the
-	colour of any pixel without rendering anything. At least in principle. Ubik
-	itself needs some heavy testing to make sure this is true.
+	 When you don't have all of the data that you need to perform a calculation,
+	 you have to resort to some form of side effect to store the current progress
+	 and another to make sure that you continue when more data is available.
+
+	 Getting around this need for side effects is one of our core objectives. Ubik
+	 still needs to perform side effects to make this work, but your computation
+	 should be oblivous to that fact.
+
+	 Ubik creates symmetry between computations in space and time by the analogy
+	 of a process as a signal transducer. Here transducer is meant in the sense of
+	 engineering or biology where transduction is the conversion of a signal from
+	 one form or medium to another. Clojure's transducers bear some similarity to
+	 signal transduction, but are less general.
+
+	 The conversion of a signal from one form to another is a computation. So a
+	 transducer takes one or more signals and a computation and returns an output
+	 signal. That's it. You define transducers in ubik by specifying a mapping
+	 from input signals to pure functions, and then you specify the topology of
+	 which processes listen to which.
+
+	 After specifying the computations and the topology, Ubik creates a dynamic
+	 runtime and handles all of the side effects of the application[fn:2].
+
+	 Performance is not a focus at present. The runtime is fast enough for my
+	 purposes, but needs a lot of work.
+** Relativity
+	 Ubik deals with coodination between (pure) computations. This coordination is
+	 unbounded. The processes could be threads on the same machine, device
+	 controllers (discs, graphics cards, sound chips, etc.), human beings (UIs),
+	 or other machines on the internet.
+
+	 Signals between these processes (especially within machines) travel at a
+	 reasonable fraction of the speed of light. A basic consequence of this is
+	 that there is no global order to events within the system.
+
+	 Systems like [[https://en.wikipedia.org/wiki/Spanner_(database)][Spanner]] solve this problem by creating a coordinate frame bigger
+	 than the earth with the help of GPS and atomic clocks. This is an impressive
+	 feat of engineering, but what happens when we need to extend the internet to
+	 the entire solar system?
+
+	 Ubik embraces special relativity. A single process is consistent. It sees
+	 events in some order which it can't control, but it processes them in the
+	 order it receives them and its outputs are strictly determined with respect
+	 to its inputs.
+
+	 if you need a consistent view of a set of things, then you need to create a
+	 single authority for those things. Nothing but a single process can be
+	 consistent, but an entire network operating from a single (consistent)
+	 authority can behave transactionally. If you can't centralise your data, then
+	 you can't have consistency.
+
+	 The cap theorem is a direct consequence of this. We avoid the issue by
+	 accepting the laws of physics as primary. You can build systems that try to
+	 solve this problem, but I won't pretend that I can do it for you.
+
 * License
 	Copyright © 2018 Thomas Getgood
 
 	Distributed under the Eclipse Public License either version 1.0 or (at your
 	option) any later version.
+* References
+	[[https://dl.acm.org/citation.cfm?id=129635][Coordination Languages and their Significance]]
+** TODO Reference for relativity
+	 One of Armstrong's lectures about this would be great.
+* Footnotes
+
+[fn:2] This isn't strictly true. Every system has edges, and you'll need to tell ubik how to connect your system to the outside world. Some edges, such as browser UI events, and HTTP requests can be handled for you, but you may need to extend that.
+
+[fn:1] This treats the user as just another machine to interact with, which means that all side effects can be treated on the same grounds. I'm not interested in philosophical arguments about whether humans are or are not Turing machines, I don't really care, this is just a useful analogy.
