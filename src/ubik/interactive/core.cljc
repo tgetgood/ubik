@@ -81,6 +81,10 @@
      (let [m ((cond-> opts (= 2 (count bindings)) (assoc :state true)))]
        (into {} (fn [[k v]] [k `(with-meta (fn ~bindings ~v) ~m)])))))
 
+  (defmacro deft [n & args]
+    `(def ~n
+       (transducer ~@args)))
+
   ;; FIXME: Copied over from subs.cljc. Should use import-var from Tellman's
   ;; Potemkin. Need to port it to cljs first though.
   (defmacro subscription
@@ -91,14 +95,6 @@
     `(subs/subscription ~form))
 
 ;;; Processes
-
-  (defmacro process [& args]
-    `(process/process ~@args))
-
-  (defmacro defprocess
-    {:style/indent [1]}
-    [& args]
-    `(process/defprocess ~@args))
 
   (defmacro emit [& args]
     `(process/emit ~@args)))
