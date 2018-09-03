@@ -75,12 +75,17 @@
     ([bindings body-map]
      `(transducer {} ~bindings ~body-map))
     ([opts bindings body-map]
-     (let [m ((cond-> opts (= 2 (count bindings)) (assoc :state true)))]
-       (into {} (fn [[k v]] [k `(with-meta (fn ~bindings ~v) ~m)])))))
+     (let [m (cond-> opts (= 2 (count bindings)) (assoc :state true))]
+       (println m)
+       (into {} (map (fn [[k v]] [k `(with-meta (fn ~bindings ~v) ~m)])
+                     body-map)))))
 
   (defmacro deft [n & args]
-    `(def ~n
-       (transducer ~@args)))
+    (let [doc  (if (string? (first args)) (first args) nil)
+          args (if doc (rest args) args)]
+      `(def ~n
+         ~@(when doc [doc])
+         (transducer ~@args))))
 
   ;; FIXME: Copied over from subs.cljc. Should use import-var from Tellman's
   ;; Potemkin. Need to port it to cljs first though.
