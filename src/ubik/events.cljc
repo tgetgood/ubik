@@ -1,7 +1,6 @@
 (ns ubik.events
   (:require #?(:clj [ubik.events.quil :as ev]
-               :cljs [ubik.events.browser :as ev])
-            ubik.hosts))
+               :cljs [ubik.events.browser :as ev])))
 
 (defprotocol EventSystem
   (setup [this host listen dispatch])

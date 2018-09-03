@@ -2,7 +2,6 @@
   (:require [clojure.core.async :as async :include-macros true]
             [net.cgrand.macrovich :as macros :include-macros true]
             [ubik.events :as events]
-            [ubik.hosts :as hosts]
             [ubik.subs :as subs :include-macros true]
             [ubik.process :as process :include-macros true]
             [ubik.rt :as rt]))
@@ -44,8 +43,7 @@
 (defn ^:dynamic initialise!
   "Initialises the system, whatever that means right now."
   [{:keys [render-root edge host] :or
-    {host (hosts/default-host {})
-     edge {:sinks {} :sources {} :event-system events/default-event-system}}}]
+    {edge {:sinks {} :sources {} :event-system events/default-event-system}}}]
   (let [es (:event-system edge)
         runtime (rt/system-parameters render-root)
         channels (rt/initialise-processes (:event-pipes runtime))]

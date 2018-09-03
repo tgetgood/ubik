@@ -5,7 +5,6 @@
             [net.cgrand.macrovich :as macros :include-macros true]
             [taoensso.timbre :as log :include-macros true]
             [ubik.base :as base]
-            [ubik.hosts :as hosts]
             [ubik.subs :as subs :include-macros true]
             [ubik.process :as process]))
 
