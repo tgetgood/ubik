@@ -1,7 +1,7 @@
 (ns ubik.events
   "Respond to javafx events. This shouldn't be in this project."
   (:require [clojure.core.async :as async]
-            [editor.jfx :as fx])
+            [falloleen.jfx :as fx])
   (:import [javafx.event Event EventHandler]
            javafx.scene.control.TextArea
            javafx.scene.input.KeyEvent))
