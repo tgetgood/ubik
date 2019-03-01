@@ -124,25 +124,67 @@
 
 (def codebase-schema
   [
-   ;; Code snippet
-   {:db/ident       :code/form
+   ;;;; Snippets
+
+   {:db/ident       :snippet/form
     :db/valueType   :db.type/ref
     :db/cardinality :db.cardinality/one
-    :db/doc         "code itself"}
+    :db/doc         "The code itself."}
 
-   ;; This should link the editor to the form being edited.
-   {:db/ident       :code/raw-text
+   {:db/ident       :snippet/name
     :db/valueType   :db.type/string
-    :db/isComponent true
-    :db/fulltext    true
     :db/cardinality :db.cardinality/one
-    :db/doc         "Text of code, may or may not be valid."}
+    :db/doc         "Name given to this code snippet."}
 
-   {:db/ident       :code/previous
+   {:db/ident       :snippet/binding
     :db/valueType   :db.type/ref
     :db/cardinality :db.cardinality/many
-    :db/doc         "Other code blocks from which this was derived."}
+    :db/doc         "A local binding for this snippet."}
 
+   {:db/ident       :snippet.binding/symbol
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc         "Bound (clojure) symbol"}
+
+   {:db/ident       :snippet.binding/form
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc         "Reference of binding."}
+
+   {:db/ident       :snippet/previous
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/many
+    :db/doc         "Other code snippets from which this was derived."}
+
+   ;;;; Namespace
+
+   {:db/ident       :namespace/name
+    :db/doc         "the name of a namespace"
+    :db/cardinality :db.cardinality/one
+    :db/valueType   :db.type/string}
+
+   {:db/ident       :namespace/map
+    :db/doc         "The mapping of the ns. Clojure map from names to entity ids."
+    :db/cardinality :db.cardinality/one
+    :db/valueType   :db.type/ref}
+
+   {:db/ident       :branch/name
+    :db/doc         "Qualified name of a branch 'coder/hostname/branchname"
+    :db/cardinality :db.cardinality/one
+    :db/unique      :db.unique/identity
+    :db/valueType   :db.type/string}
+
+   {:db/ident       :branch/namespace
+    :db/doc         "A namespace in a branch."
+    :db/cardinality :db.cardinality/many
+    :db/valueType   :db.type/ref}
+
+   ;;;; Topology
+
+   {:db/ident       :branch/topology
+    :db/doc         "The topology of a branch. A snippet."
+    :db/cardinality :db.cardinality/one
+    :db/valueType   :db.type/ref}
 
    ])
 
@@ -159,8 +201,7 @@
   (d/delete-database db-uri)
   (d/create-database db-uri)
   (let [c (d/connect db-uri)]
-    (d/transact c clojure-schema)
-    (d/transact c codebase-schema)
+    (d/transact c (into clojure-schema codebase-schema))
     (alter-var-root #'conn (constantly c))))
 
 (reset-db!)
