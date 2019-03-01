@@ -2,7 +2,6 @@
   (:require [clojure.core.async :as async :include-macros true]
             [clojure.set :as set]
             [clojure.walk :as walk]
-            [net.cgrand.macrovich :as macros :include-macros true]
             [taoensso.timbre :as log :include-macros true]
             [ubik.base :as base]
             [ubik.subs :as subs :include-macros true]
@@ -151,9 +150,8 @@
               (run! (fn [ch]
                       (async/put! ch events))
                     listeners)))
-          (catch #?(:clj Exception :cljs js/Error) e
-            (log/error "Error in signal process " process ": ")
-            #?(:cljs (js/console.error e))))
+          (catch Exception e
+            (log/error "Error in signal process " process ": ")))
         (recur)))))
 
 (defn initialise-processes

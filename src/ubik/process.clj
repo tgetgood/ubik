@@ -6,8 +6,7 @@
   organisation to decide which processes are capable of listening to which (one
   standard method at present is simply to use clojure's namespaces for this
   purpose)."
-  (:require [net.cgrand.macrovich :as macros :include-macros true]
-            [ubik.base :as base]))
+  (:require [ubik.base :as base]))
 
 (defprotocol Multiplexer
   "A multiplexer is a generic function which is polymorphic in the input source
@@ -24,9 +23,8 @@
 
 (def ^:dynamic *current-emitter* nil)
 
-#?(:clj
-   (defmacro emit [& args]
-     `(*current-emitter* ~@args)))
+(defmacro emit [& args]
+  `(*current-emitter* ~@args))
 
 ;; REVIEW: do I need to implement IMeta for process types?
 ;; + : Most things in clojure take metadata, so it's unintuitive that these
@@ -36,15 +34,14 @@
 ;; - : I don't need it at present.
 
 (deftype StatefulProcess
-    #?(:clj [method-map ^:volatile-mutable last-emission ^:volatile-mutable state]
-       :cljs [method-map ^:mutable last-emission ^:mutable state])
+    [method-map ^:volatile-mutable last-emission ^:volatile-mutable state]
 
   base/Listener
   (inputs [_]
     (into #{} (keys method-map)))
 
-  #?(:clj clojure.lang.IDeref :cljs IDeref)
-  (#?(:clj deref :cljs -deref) [_]
+  clojure.lang.IDeref
+  (deref [_]
     last-emission)
 
   Stateful
@@ -96,15 +93,14 @@
     (StatefulProcess. (assoc method-map k method) ::uninitialised nil)))
 
 (deftype StatelessProcess
-    #?(:clj [method-map ^:volatile-mutable last-emission]
-       :cljs [method-map ^:mutable last-emission])
+    [method-map ^:volatile-mutable last-emission]
 
   base/Listener
   (inputs [_]
     (into #{} (keys method-map)))
 
-  #?(:clj clojure.lang.IDeref :cljs IDeref)
-  (#?(:clj deref :cljs -deref) [_]
+  clojure.lang.IDeref
+  (deref [_]
     last-emission)
 
   EmissionTracking
@@ -174,17 +170,15 @@
   ([listen xform]
    (transducer-process {listen xform})))
 
-(macros/deftime
+(defn maybe-varify
+  "Return the var pointing at x if there is one, otherwise just return x."
+  [x]
+  (if (symbol? x)
+    `(var ~x)
+    x))
 
-  (defn maybe-varify
-    "Return the var pointing at x if there is one, otherwise just return x."
-    [x]
-    (if (symbol? x)
-      `(var ~x)
-      x))
-
-  (defmacro process
-    "Constructs a new process.
+(defmacro process
+  "Constructs a new process.
 
   If only a method map is provided, it is assumed that the methods are Clojure
   transducers and a transducing process is returned. This is the most convenient
@@ -200,52 +194,52 @@
   If one argument is present in bindings a stateless process will be created, if
   there are two arguments it is assumed that the first is local state and the
   second the event. In this case a stateful process will be created."
-    ([method-map]
-     (let [var-mm (into {} (map (fn [[k v]]
-                                  `[~(maybe-varify k) ~v]))
-                        method-map)]
-       `(transducer-process ~var-mm)))
-    ([bindings method-map]
-     `(process nil {} ~bindings ~method-map))
-    ([opts bindings method-map]
-     `(process (:init-state ~opts) ~opts ~bindings ~method-map))
-    ([init-state {:keys [wrap-body]} bindings method-bodies]
-     (when (and (= 1 (count bindings)) init-state)
-       (throw (Exception. (str "You're trying to create a stateless process with"
-                               " initial state. That's a mistake!!!"))))
-     (let [method-map (into {} (map (fn [[k v]]
-                                      `[~(maybe-varify k)
-                                        ~(if wrap-body
-                                           `(~wrap-body (fn ~bindings ~v))
-                                           `(fn ~bindings ~v))])
-                                    method-bodies))]
-       (if (= 2 (count bindings))
-         `(stateful-process ~init-state ~method-map)
-         `(stateless-process ~method-map)))))
+  ([method-map]
+   (let [var-mm (into {} (map (fn [[k v]]
+                                `[~(maybe-varify k) ~v]))
+                      method-map)]
+     `(transducer-process ~var-mm)))
+  ([bindings method-map]
+   `(process nil {} ~bindings ~method-map))
+  ([opts bindings method-map]
+   `(process (:init-state ~opts) ~opts ~bindings ~method-map))
+  ([init-state {:keys [wrap-body]} bindings method-bodies]
+   (when (and (= 1 (count bindings)) init-state)
+     (throw (Exception. (str "You're trying to create a stateless process with"
+                             " initial state. That's a mistake!!!"))))
+   (let [method-map (into {} (map (fn [[k v]]
+                                    `[~(maybe-varify k)
+                                      ~(if wrap-body
+                                         `(~wrap-body (fn ~bindings ~v))
+                                         `(fn ~bindings ~v))])
+                                  method-bodies))]
+     (if (= 2 (count bindings))
+       `(stateful-process ~init-state ~method-map)
+       `(stateless-process ~method-map)))))
 
-  (defmacro defprocess
-    "Creates a new process and binds it to n."
-    {:style/indent [1]}
-    [n doc? & args]
-    (let [docstr (if (string? doc?) doc? nil)
-          args   (if docstr args (cons doc? args))
-          {:keys [reloaded? init-state] :as opts}
-          (if (= 3 (count args)) (first args) {})]
-      (if reloaded?
-        (let [state    (symbol (str (name n) "-state$ubik"))
-              listener (symbol (str (name n) "-listener$ubik"))]
-          `(do
-             (defonce ~state (atom ~init-state))
-             (def ~n
-               ~@(when docstr [docstr])
-               (process @~state ~opts ~@(rest args)))
-             ;; TODO: Reloading with preserved state in clj.
-             (macros/case :cljs
-               (defonce ~listener
-                 (.addEventListener
-                  js/document.body "figwheel.before-js-reload"
-                  (fn [e#]
-                    (reset! ~state (get-state ~n))))))))
-        `(def ~n
-           ~@(when docstr [docstr])
-           (process ~@args))))))
+(defmacro defprocess
+  "Creates a new process and binds it to n."
+  {:style/indent [1]}
+  [n doc? & args]
+  (let [docstr (if (string? doc?) doc? nil)
+        args   (if docstr args (cons doc? args))
+        {:keys [reloaded? init-state] :as opts}
+        (if (= 3 (count args)) (first args) {})]
+    (if reloaded?
+      (let [state    (symbol (str (name n) "-state$ubik"))
+            listener (symbol (str (name n) "-listener$ubik"))]
+        `(do
+           (defonce ~state (atom ~init-state))
+           (def ~n
+             ~@(when docstr [docstr])
+             (process @~state ~opts ~@(rest args)))
+           ;; TODO: Reloading with preserved state in clj.
+           (macros/case :cljs
+             (defonce ~listener
+               (.addEventListener
+                js/document.body "figwheel.before-js-reload"
+                (fn [e#]
+                  (reset! ~state (get-state ~n))))))))
+      `(def ~n
+         ~@(when docstr [docstr])
+         (process ~@args)))))
