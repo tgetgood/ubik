@@ -1,9 +1,27 @@
 (ns ubik.core
   (:require [clojure.core.async :as async :include-macros true]
+            [falloleen.jfx :as fx]
             [ubik.events :as events]
             [ubik.subs :as subs :include-macros true]
             [ubik.process :as process :include-macros true]
-            [ubik.rt :as rt]))
+            [ubik.rt :as rt])
+  (:import javafx.scene.control.TextArea))
+
+
+(defn create-code-stage []
+  (let [p @(fx/code-stage)
+        ev-map (events/bind-text-area! (:area p))]
+    {:node (:area p) :stage (:stage p) :event-streams ev-map}))
+
+(defn lift [f]
+  {:input (fn [_ x] (f x))})
+
+(defn text-renderer [^TextArea node]
+  (fn [text]
+    (fx/fx-thread
+     (let [caret (.getCaretPosition node)]
+       (.setText node text)
+       (.positionCaret node caret)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Aggregated API
