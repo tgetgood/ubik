@@ -23,6 +23,10 @@
        (.setText node text)
        (.positionCaret node caret)))))
 
+(def image-signal nil)
+
+(defn source-effector [branch ns-name sym]
+  )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Aggregated API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
