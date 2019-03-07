@@ -22,10 +22,6 @@
 (defn current-branch []
   (str you "/" machine "/" @branch))
 
-#_(defn tx-branch! []
-  @(d/transact conn [{:db/id      "temp"
-                      :branch/name (current-branch)}] ))
-
 (def built-in-code
   (quote
    #:internal.editor.core
@@ -41,12 +37,14 @@
                (fn [image]
                  (get-in image [:code branch ns n])))
 
-    :format-code-text (fn [form]
-                        (with-out-str (pprint form)))
+    :format-code-text
+    (fn [form]
+      (with-out-str (pprint form)))
 
     :create-topo-new-editor
     ;; REVIEW: Really verbose, but that might well be the best way. This isn't
     ;; intended for human manipulation.
+    ^{:bindings {create-code-stage ubik.core/create-code-stage}}
     (fn [branch ns n]
       (let [{:keys [node event-streams]} (create-code-stage)]
 
@@ -122,12 +120,43 @@
         (d/db conn) branch ns-name)))
 
 (defn pull-snip [snip]
-  (pull (d/q '[:find ?f .
-               :in $ ?snip
-               :where [?snip :snippet/form ?f]]
-             (d/db conn) snip)))
+  (let [bits (d/pull
+              (d/db conn)
+              [:snippet/form
+               :snippet/name
+               {:snippet/binding [:snippet.binding/symbol
+                                  :snippet.binding/form]}]
+               snip)
+        snip (pull (:db/id (:snippet/form bits)))]
+    (with-meta snip (merge (meta snip) bits))))
 
 (defn pull-code [sym]
   (let [ns-map (pull-ns (current-branch) (namespace sym))
         snip   (get ns-map (keyword (name sym)))]
     (pull-snip snip)))
+
+(defn invoke [sym & args]
+  (apply (eval (pull-code sym)) args))
+
+(defn gen-ns [n]
+  (create-ns n)
+  (binding [*ns* (the-ns n)]
+    (refer-clojure)
+    (require '[ubik.core :refer [create-code-stage lift text-renderer
+                                 image-signal source-effector]]
+             '[falloleen.core :as falloleen]
+             '[clojure.pprint :refer [pprint]]))
+  (the-ns n))
+
+(defn gen-ns-for-var [sym]
+  (let [ns-name (symbol (namespace sym))
+        ns* (gen-ns ns-name)
+        ns-vars (map #(symbol (name ns-name) (name (key %)))
+                     (pull-ns (current-branch) (name ns-name)))]
+    (binding [*ns* ns*]
+      (doseq [sym ns-vars]
+        (declare sym))
+      (doseq [sym ns-vars]
+        (clojure.lang.Var/intern ns* (symbol (name sym))
+                                 (eval (pull-code sym)))))
+    ns*))
