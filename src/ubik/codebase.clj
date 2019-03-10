@@ -113,43 +113,19 @@
         snip   (get ns-map (name sym))]
     (pull-snip snip)))
 
-(defn naive-invoke [sym & args]
-  (apply (eval (pull-code sym)) args))
-
-;; It remains to stop creating namespaces, and instead create local contexts for
-;; each and every function that I need to execute. This is rather hard to
-;; swallow. I think the flexibility is worth it though.
-
-;; (defn gen-ns [n]
-;;   (find-or-create-ns n)
-;;   (binding [*ns* (the-ns n)]
-;;     (refer-clojure)
-    ;; (require '[ubik.core :refer [create-code-stage lift text-renderer
-    ;;                              image-signal source-effector]]
-    ;;          '[falloleen.core :as falloleen]
-    ;;          '[clojure.pprint :refer [pprint]]))
-;;   (the-ns n))
-
-;; (defn gen-ns-for-var [sym]
-;;   (let [ns-name (symbol (namespace sym))
-;;         ns* (gen-ns ns-name)
-;;         ns-vars (map #(symbol (name ns-name) (name (key %)))
-;;                      (pull-ns (current-branch) (name ns-name)))]
-;;     (binding [*ns* ns*]
-;;       (doseq [sym ns-vars]
-;;         (declare sym))
-;;       (doseq [sym ns-vars]
-;;         (clojure.lang.Var/intern ns* (symbol (name sym))
-;;                                  (eval (pull-code sym)))))
-;;     ns*))
-
-(defn prepare-eval []
+(defn prepare-eval
+  "Import all of the symbols that residential programs should be able to assume
+  exist."
+  []
   (require '[ubik.core :refer [create-code-stage lift text-renderer
                                  image-signal source-effector]]
              '[falloleen.core :as falloleen]
              '[clojure.pprint :refer [pprint]]))
 
-(defn gen-evalable [sym]
+(defn gen-evalable
+  "Generates all of the code necessary to evaluate a form stored in the DB. What
+  this constitutes is currently a moving target."
+  [sym]
   ;; TODO: Sort ns by transaction time. That should accomplish the same as a
   ;; topological sort.
   (let [ns (pull-ns (current-branch) (namespace sym))]
