@@ -2,11 +2,11 @@
   (:require [clojure.core.async :as async :include-macros true]
             [falloleen.jfx :as fx]
             [ubik.events :as events]
+            [ubik.codebase :as codebase]
             [ubik.subs :as subs :include-macros true]
             [ubik.process :as process :include-macros true]
             [ubik.rt :as rt])
   (:import javafx.scene.control.TextArea))
-
 
 (defn create-code-stage []
   (let [p @(fx/code-stage)
@@ -23,10 +23,10 @@
        (.setText node text)
        (.positionCaret node caret)))))
 
-(def image-signal nil)
+(def image-signal codebase/image-signal)
 
-(defn source-effector [branch ns-name sym]
-  )
+(def source-effector codebase/source-effector)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Aggregated API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
