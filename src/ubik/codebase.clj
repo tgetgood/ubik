@@ -91,10 +91,8 @@
   "Upserts var into namespace."
   [branch sym form]
   (let [old-ns (pull-ns branch (namespace sym))
-        _ (println old-ns)
         snip  (build-snip sym form)
         new-ns (assoc old-ns (name sym) snip)]
-    (println new-ns)
     (intern-ns (current-branch) (namespace sym) (push new-ns))))
 
 (defn pull-snip [snip-id]
@@ -118,7 +116,7 @@
   exist."
   []
   (require '[ubik.core :refer [create-code-stage lift text-renderer
-                                 image-signal source-effector]]
+                               image-signal source-effector]]
              '[falloleen.core :as falloleen]
              '[clojure.pprint :refer [pprint]]))
 
