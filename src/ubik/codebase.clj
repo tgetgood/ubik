@@ -58,7 +58,7 @@
     (when eid
       [[:db/retract [:branch/name branch] :branch/namespace eid]])))
 
-(def empty-map
+(defonce empty-map
   (push {}))
 
 (defn intern-ns [branch ns-name ns-map]
@@ -82,10 +82,31 @@
           [?ns :namespace/map ?ns-map]]
         (d/db conn) branch ns-name))
 
-(defn pull-ns [branch ns-name]
+(defn find-or-create-ns [branch ns-name]
   (when-not (find-ns branch ns-name)
     (intern-ns branch ns-name empty-map))
-  (pull (find-ns-map branch ns-name)))
+  (find-ns-map branch ns-name))
+
+(defn pull-ns [branch ns-name]
+  (pull (find-or-create-ns branch ns-name)))
+
+(defn ns-by-tx [id]
+  (d/q '[:find ?k ?v ?tx
+         :in $ ?id
+         :where
+         [?id :map/element ?m]
+         [?m :map.element/key ?k]
+         [?m :map.element/value ?v]
+         [?v :form/type _ ?tx]]
+       (d/db conn)
+       id))
+
+(defn pull-ns-sorted [branch ns-name]
+  (let [mid (find-or-create-ns branch ns-name)]
+    (->> mid
+         ns-by-tx
+         (sort-by last)
+         (map (fn [[k v t]] [(pull k) (pull v)])))))
 
 (defn intern-code
   "Upserts var into namespace."
@@ -123,19 +144,16 @@
 (defn gen-evalable
   "Generates all of the code necessary to evaluate a form stored in the DB. What
   this constitutes is currently a moving target."
-  [sym]
+  [sork]
   ;; TODO: Sort ns by transaction time. That should accomplish the same as a
   ;; topological sort.
-  (let [ns (pull-ns (current-branch) (namespace sym))]
+  (let [sym (if (symbol? sork) sork (symbol sork))
+        ns (pull-ns-sorted (current-branch) (namespace sym))]
     `(let [~@(apply concat
               (map (fn [[k v]]
                      [(symbol k) (pull-snip v)])
                    ns))]
        ~(symbol (name sym)))))
-
-;;; Wiping out stale state from the namespaces is, in fact, surprisingly
-;;; difficult. You immediately see how tools.namespace came to be so essential
-;;; to the entire ecosystem.
 
 ;;;;; External API
 

@@ -14,7 +14,10 @@
     {:node (:area p) :stage (:stage p) :event-streams ev-map}))
 
 (defn lift [f]
-  {:input (fn [_ x] (f x))})
+  {:in (fn [_ x]
+         (let [out (f x)]
+           (when out
+             {:emit out})))})
 
 (defn text-renderer [^TextArea node]
   (fn [text]
@@ -45,7 +48,6 @@
    `(transducer {} ~bindings ~body-map))
   ([opts bindings body-map]
    (let [m (cond-> opts (= 2 (count bindings)) (assoc :state true))]
-     (println m)
      (into {} (map (fn [[k v]] [k `(with-meta (fn ~bindings ~v) ~m)])
                    body-map)))))
 
