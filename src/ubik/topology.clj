@@ -42,10 +42,9 @@
 
 (defn process [k]
   (let [form (cb/gen-evalable (symbol k))
-        _ (clojure.pprint/pprint form)
         mul (form->multiplex form)
         out-ch (async/chan (async/sliding-buffer 128))
-        in-map (vmap #(async/chan) mul)]
+        in-map (vmap (fn [_] (async/chan)) mul)]
     (doseq [[k ch] in-map]
       (async/go-loop [state {}]
         (when-let [msg (async/<! ch)]
@@ -63,8 +62,10 @@
 (defn wire [channels send-map receiver]
   (doseq [[edge sender] send-map]
     (let [send-ch (get-in channels [sender :out])
-          rec-ch (get-in channels [receiver :in edge])]
-      (async/pipe (async/tap send-ch rec-ch)))))
+          rec-ch (get-in channels [receiver :in edge])
+          tch (async/chan)]
+      (async/tap send-ch tch)
+      (async/pipe tch rec-ch))))
 
 (defn activate!
   "As a first step, we're just going to start the new topology and let the old
@@ -75,12 +76,10 @@
   be wired together.
 
   O! this is so ad hoc."
-  [{:keys [inputs effectors nodes edges]}]
-  (let [input-chans (vmap listen inputs )
-        node-chans  (vmap process nodes)
-        all         (merge node-chans input-chans)]
-    (doseq [[send-map receiver] edges]
-      (wire all send-map receiver))))
+  [{:keys [nodes wires]}]
+  (let [node-chans  (vmap process nodes)]
+    (doseq [[send-map receiver] wires]
+      (wire node-chans send-map receiver))))
 
 (defn replace-topology! [t]
   (set-topology! t)
