@@ -313,6 +313,18 @@
                      :vector.element/value (datomify x)})
                   v)})
 
+  clojure.lang.PersistentVector$ChunkedSeq
+  (tx [v id]
+    {:db/id     id
+     :form/type :type/vector
+     :vector/element
+     (map-indexed (fn [i x]
+                    {:db/id                (d/tempid :db.part/user)
+                     :vector.element/index i
+                     :vector.element/value (datomify x)})
+                  v)})
+
+
   clojure.lang.PersistentHashMap
   (tx [v id]
     {:db/id       id
