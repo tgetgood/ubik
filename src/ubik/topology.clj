@@ -40,6 +40,9 @@
       (map? o) o
       :else (throw (Exception. "Bad multiplexer")))))
 
+(defn process? [m]
+  (::process? (meta m)))
+
 (defn process [k]
   (let [form (cb/gen-evalable (symbol k))
         mul (form->multiplex form)
@@ -57,12 +60,24 @@
                         (run! #(async/put! out-ch %) (:emit-all res))))
               (catch Exception e (reset! res state)))
             (recur @res)))))
-    {:in in-map :out (async/mult out-ch)}))
+    (with-meta
+      {:in in-map :out (async/mult out-ch)}
+      {::process? true})))
+
+(defn sender-channel [channels sender]
+  (if (contains? channels sender)
+    (get-in channels [sender :out])
+    (prepare-source sender)))
+
+(defn receiver-channel [channels receiver edge]
+  (if (contains? channels receiver)
+    (get-in channels [receiver :in edge])
+    (prepare-sink receiver edge)))
 
 (defn wire [channels send-map receiver]
   (doseq [[edge sender] send-map]
-    (let [send-ch (get-in channels [sender :out])
-          rec-ch (get-in channels [receiver :in edge])
+    (let [send-ch (sender-channel channels sender)
+          rec-ch (receiver-channel channels receiver edge)
           tch (async/chan)]
       (async/tap send-ch tch)
       (async/pipe tch rec-ch))))

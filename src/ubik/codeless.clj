@@ -34,7 +34,7 @@
 (defn snip-edit-topology
   "Creates an editor window and returns a messaging topology to control it."
   [branch sym]
-  {:local-code [[::stage        '(create-code-stage)]
+  {:local-code [[::stage        `(create-code-stage ~branch ~sym)]
                 [::key-strokes  '(-> stage :event-streams :key-stroke)]
                 [::node         '(-> stage :node)]
                 [::code-display `(~'display ~branch ~sym)]
