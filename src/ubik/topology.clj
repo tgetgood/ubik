@@ -3,6 +3,7 @@
             [clojure.set :as set]
             [clojure.string :as string]
             [datomic.api :as d]
+            [taoensso.timbre :as log]
             [ubik.codebase :as cb :refer [current-branch]]
             [ubik.db :refer [push pull conn]]))
 
@@ -55,14 +56,22 @@
             (try
               (reset! res ((get mul k) state msg)
                       (when (contains? res :emit)
+                        (log/debug k "emit:" (:emit res))
                         (async/>! out-ch (:emit res)))
                       (when (contains? res :emit-all)
+                        (log/debug k "emit-all:" (:emit-all res))
                         (run! #(async/put! out-ch %) (:emit-all res))))
               (catch Exception e (reset! res state)))
             (recur @res)))))
     (with-meta
       {:in in-map :out (async/mult out-ch)}
       {::process? true})))
+
+(defn prepare-source [sender]
+  (async/mult (eval (cb/gen-evalable sender))))
+
+(defn prepare-sink [rec edge]
+  (eval (cb/gen-evalable rec)))
 
 (defn sender-channel [channels sender]
   (if (contains? channels sender)
@@ -79,6 +88,7 @@
     (let [send-ch (sender-channel channels sender)
           rec-ch (receiver-channel channels receiver edge)
           tch (async/chan)]
+      (log/debug "Connecting wire:" [sender edge receiver])
       (async/tap send-ch tch)
       (async/pipe tch rec-ch))))
 

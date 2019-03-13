@@ -8,7 +8,7 @@
             [ubik.rt :as rt])
   (:import javafx.scene.control.TextArea))
 
-(defonce stages (atom {}))
+(def stages (atom {}))
 
 (defn create-code-stage [branch sym]
   (let [k (str branch "-" sym)]

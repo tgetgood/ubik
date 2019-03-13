@@ -34,7 +34,7 @@
 (defn snip-edit-topology
   "Creates an editor window and returns a messaging topology to control it."
   [branch sym]
-  {:local-code [[::stage        `(create-code-stage ~branch ~sym)]
+  {:local-code [[::stage        `(~'create-code-stage ~branch ~sym)]
                 [::key-strokes  '(-> stage :event-streams :key-stroke)]
                 [::node         '(-> stage :node)]
                 [::code-display `(~'display ~branch ~sym)]
@@ -83,3 +83,11 @@
 
   (topo/replace-topology! initial-topology)
   (async/put! dev/image-signal-in true))
+
+(defn topo-test! []
+  #_(dev/prepare-eval)
+  (init!)
+  (register-addition
+   (snip-edit-topology (dev/current-branch) ::format-code-text)))
+
+(dev/gen-evalable ::format-code-text)

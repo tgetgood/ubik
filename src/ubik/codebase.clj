@@ -1,12 +1,13 @@
 (ns ubik.codebase
-  (:refer-clojure :exclude [find-ns create-ns])
   (:require [clojure.core.async :as async]
             [clojure.datafy :refer [datafy]]
             [clojure.string :as string]
             [datomic.api :as d]
             [ubik.db :refer [push pull conn]]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Branching
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def you
   "Possibly frivolous test of self control: Can I avoid refering to anyone as a
@@ -23,18 +24,26 @@
 (defonce ^:private branch-stem
   (atom "master"))
 
-(def core-ns
-  "Namespace into which all of the builtin bootstrapping code is loaded."
-  "editor.core")
-
 ;; TODO: The actual act of branching...
 (defn current-branch []
   (str you "/" machine "/" @branch-stem))
 
-;;;;; Static code processing
+(def core-ns
+  "Namespace into which all of the builtin bootstrapping code is loaded."
+  "editor.core")
 
-(defn build-snip [sym code]
-  (let [id (push code)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Code as data in a database.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn build-snip
+  "Interns form in db, and creates a snippet, returning the id of the snippet.
+
+  A snippet is a reified form. Practically that just means that it has a name
+  and you can now talk about it explicitely; that is you can attach db
+  relations to it."
+  [sym form]
+  (let [id (push form)
         ent {:db/id "snip"
              :snippet/form id
              :snippet/name (name sym)}
@@ -42,7 +51,7 @@
                        [:tempids "snip"])]
     ent-id))
 
-(defn find-ns
+(defn find-ns-id
   "Returns entity id of namespace in the given branch."
   [branch ns-name]
   (d/q '[:find ?ns .
@@ -53,15 +62,17 @@
          [?ns :namespace/name ?ns-name]]
        (d/db conn) branch ns-name))
 
-(defn ns-retraction [branch ns-name]
-  (let [eid (find-ns branch ns-name)]
+(defn ns-retraction
+  "Returns a datomic retraction of the given namespace from branch."
+  [branch ns-name]
+  (let [eid (find-ns-id branch ns-name)]
     (when eid
       [[:db/retract [:branch/name branch] :branch/namespace eid]])))
 
-(defonce empty-map
-  (push {}))
-
-(defn intern-ns [branch ns-name ns-map]
+(defn intern-ns
+  "Creates a new namespace with name ns-name and content ns-map and upserts it
+  into branch. Returns the entity id of the new namespace."
+  [branch ns-name ns-map]
   (get-in @(d/transact conn (into (ns-retraction branch ns-name)
                                   [{:db/id          "new-ns"
                                     :namespace/name ns-name
@@ -70,9 +81,9 @@
                                     :branch/namespace "new-ns"}]))
           [:tempids "new-ns"]))
 
-;;;;; Retrieval
-
-(defn find-ns-map [branch ns-name]
+(defn find-ns-map
+  "Returns the entity id of the ns-map for ns-name in branch."
+  [branch ns-name]
   (d/q '[:find ?ns-map .
           :in $ ?branch ?ns-name
           :where
@@ -82,12 +93,16 @@
           [?ns :namespace/map ?ns-map]]
         (d/db conn) branch ns-name))
 
-(defn find-or-create-ns [branch ns-name]
-  (when-not (find-ns branch ns-name)
+(defn find-or-create-ns
+  "Returns the id of ns-map for ns-name in branch, creating it if it doesn't
+  already exist."
+  [branch ns-name]
+  (when-not (find-ns-id branch ns-name)
     (intern-ns branch ns-name empty-map))
   (find-ns-map branch ns-name))
 
-(defn pull-ns [branch ns-name]
+(defn pull-ns
+  [branch ns-name]
   (pull (find-or-create-ns branch ns-name)))
 
 (defn ns-by-tx [id]
@@ -174,5 +189,6 @@
 
 (defn source-effector [branch sym]
   (fn [form]
+    (println form)
     (intern-code branch sym form)
     (async/put! image-signal-in true)))

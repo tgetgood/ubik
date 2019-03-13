@@ -1,5 +1,6 @@
 (ns ubik.db
-  (:require [datomic.api :as d]))
+  (:require [clojure.pprint :refer [pprint]]
+            [datomic.api :as d]))
 
 (def clojure-schema
   "A (partial) schema for clojure data itself."
@@ -164,9 +165,10 @@
     :db/valueType   :db.type/string}
 
    {:db/ident       :namespace/map
-    :db/doc         "The mapping of the ns. Clojure map from names to entity ids."
     :db/cardinality :db.cardinality/one
-    :db/valueType   :db.type/ref}
+    :db/valueType   :db.type/ref
+    :db/doc
+    "The mapping of the ns. Clojure map from names to entity ids."}
 
    {:db/ident       :branch/name
     :db/doc         "Qualified name of a branch 'coder/hostname/branchname"
@@ -186,25 +188,46 @@
     :db/cardinality :db.cardinality/one
     :db/valueType   :db.type/ref}
 
+   ;;;; Misc
+
+   {:db/ident       :comment
+    :db/cardinality :db.cardinality/many
+    :db/valueType   :db.type/string
+    :db/fulltext    true}
    ])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Super sloppy dev stuff
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def db-uri "datomic:mem://demo")
-
-(def conn nil)
+(def db-uri "datomic:free://localhost:4334/initial-test"
+  "datomic:mem://test-it")
 
 (defn reset-db! []
   "Deletes DB, recreates it and adds schema. Only use for early dev."
-  (d/delete-database db-uri)
-  (d/create-database db-uri)
-  (let [c (d/connect db-uri)]
-    (d/transact c (into clojure-schema codebase-schema))
-    (alter-var-root #'conn (constantly c))))
+  (d/delete-database db-uri))
 
-(reset-db!)
+(def conn
+  (if (d/create-database db-uri)
+    (let [c (d/connect db-uri)]
+      #_(d/transact c (into clojure-schema codebase-schema))
+      c)
+    (d/connect db-uri)))
+
+(defn serialise-db []
+  (binding [*print-length* false]
+    (->> (.txRange (.log conn) nil nil)
+         .iterator
+         iterator-seq
+         pprint
+         with-out-str
+         (spit "residential.db"))))
+
+(defn read-datom [[e a v t o]]
+  (if o
+    {:db/id (str e)
+     a (if (number? v) (str v) v)}
+    [:db/retract e a v]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Querying
