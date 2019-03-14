@@ -3,7 +3,6 @@
   (:require [clojure.core.async :as async]
             [clojure.java.io :as io]
             [datomic.api :as d]
-            [ubik.db :as db]
             [ubik.codebase :as dev]
             [ubik.topology :as topo]))
 
@@ -109,5 +108,3 @@
 
 (defonce store
   (FileStore. persistence-uri))
-
-(def )

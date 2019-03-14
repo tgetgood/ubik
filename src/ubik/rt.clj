@@ -4,7 +4,6 @@
             [clojure.walk :as walk]
             [taoensso.timbre :as log :include-macros true]
             [ubik.base :as base]
-            [ubik.subs :as subs :include-macros true]
             [ubik.process :as process]))
 
 ;; TODO: Get the static analysis code out of the runtime ns.

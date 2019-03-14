@@ -2,25 +2,8 @@
   (:require [clojure.core.async :as async]
             [clojure.set :as set]
             [clojure.string :as string]
-            [datomic.api :as d]
             [taoensso.timbre :as log]
-            [ubik.codebase :as cb :refer [current-branch]]
-            [ubik.db :refer [push pull conn]]))
-
-(defn set-topology! [tops]
-  (let [topo-id (push tops)]
-    (d/transact conn
-                [{:branch/name     (current-branch)
-                  :branch/topology topo-id}])))
-
-(defn current-topology []
-  (pull (d/q '[:find ?t .
-               :in $ ?b
-               :where
-               [?bid :branch/name ?b]
-               [?bid :branch/topology ?t]]
-             (d/db conn)
-             (current-branch))))
+            [ubik.codebase :as cb :refer [current-branch]]))
 
 (defn vmap [f m]
   (into {} (map (fn [[k v]] [k (f v)])) m))
@@ -45,7 +28,7 @@
   (::process? (meta m)))
 
 (defn process [k]
-  (let [form (cb/gen-evalable (symbol k))
+  #_(let [form (cb/gen-evalable (symbol k))
         mul (form->multiplex form)
         out-ch (async/chan (async/sliding-buffer 128))
         in-map (vmap (fn [_] (async/chan)) mul)]
@@ -68,10 +51,10 @@
       {::process? true})))
 
 (defn prepare-source [sender]
-  (async/mult (eval (cb/gen-evalable sender))))
+  #_(async/mult (eval (cb/gen-evalable sender))))
 
 (defn prepare-sink [rec edge]
-  (eval (cb/gen-evalable rec)))
+  #_(eval (cb/gen-evalable rec)))
 
 (defn sender-channel [channels sender]
   (if (contains? channels sender)
@@ -105,6 +88,9 @@
   (let [node-chans  (vmap process nodes)]
     (doseq [[send-map receiver] wires]
       (wire node-chans send-map receiver))))
+
+(defn set-topology! [t])
+(defn current-topology [])
 
 (defn replace-topology! [t]
   (set-topology! t)

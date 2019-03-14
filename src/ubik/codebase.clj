@@ -1,8 +1,7 @@
 (ns ubik.codebase
   (:require [clojure.core.async :as async]
             [clojure.datafy :refer [datafy]]
-            [clojure.string :as string]
-            [ubik.db :refer [push pull conn]]))
+            [clojure.string :as string]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Branching
@@ -43,7 +42,7 @@
 
 (def image-signal
   (let [ch (async/chan)]
-    (async/go-loop []
+    #_(async/go-loop []
       (when-let [msg (async/<! image-signal-in)]
         (try
           (let [ns (pull-ns (current-branch) core-ns)
@@ -55,6 +54,4 @@
 
 (defn source-effector [branch sym]
   (fn [form]
-    (println form)
-    (intern-code branch sym form)
     (async/put! image-signal-in true)))
