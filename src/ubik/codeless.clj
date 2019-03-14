@@ -1,5 +1,8 @@
 (ns ubik.codeless
+  (:refer-clojure :exclude [intern])
   (:require [clojure.core.async :as async]
+            [clojure.java.io :as io]
+            [datomic.api :as d]
             [ubik.db :as db]
             [ubik.codebase :as dev]
             [ubik.topology :as topo]))
@@ -64,30 +67,47 @@
                        [{:edit ::edits} ::form]
                        [{:in ::form} ::code-change]}}})
 
-;; (db/reset-db!)
+(defmacro snippet
+  "Syntactic sugar for writing linked snippets."
+  {:style/indent [1]}
+  [bindings expr]
+  `{:form '~expr
+    :links '~bindings
+    :id (java.util.UUID/randomUUID)})
 
-(defn register-addition
-  "An addition is a new local namespace plus a topology fragment. Unsolved
-  problems: cleanup and garbage collection, partial graph updates, linking to
-  exisiting graph fragments, access control."
-  [{:keys [local-code topology]}]
-  (let [branch (dev/current-branch)]
-    (doseq [[k form] local-code]
-      (dev/intern-code branch (symbol k) form))
-    (topo/add-micro-topo topology)))
+(def persistence-uri
+  "Just a file at the moment."
+  "residential.db")
 
-(defn init! []
-  (doseq [code-map built-in-code]
-    (doseq [[k form] code-map]
-      (dev/intern-code (dev/current-branch) (symbol k) form)))
+(defprotocol Store
+  (intern [this snippet] "Intern a snippet in the code store")
+  (retrieve [this id]
+    "Retrieves a code snippet by id. N.B.: This isn't always efficient.")
+  (as-map [this] "Retrieves the entire store as a map from ids to snippets."))
 
-  (topo/replace-topology! initial-topology)
-  (async/put! dev/image-signal-in true))
+(defrecord FileStore [file-name]
+  Store
+  (intern [_ snippet]
+    (assert (contains? snippet :id)
+            "You're trying to intern a code fragment without an id. You may as
+            well drop it on the floor to its face.")
+    (spit file-name (str snippet "\n") :append true)
+    (:id snippet))
+  (retrieve [_ id]
+    (with-open [rdr (io/reader file-name)]
+      (->> rdr
+           line-seq
+           (map read-string)
+           (filter #(= (:id %) id))
+           first)))
+  (as-map [_]
+    (with-open [rdr (io/reader file-name)]
+      (into {}
+            (comp (map read-string)
+                  (map (fn [x] [(:id x) x])))
+            (line-seq rdr)))))
 
-(defn topo-test! []
-  #_(dev/prepare-eval)
-  (init!)
-  (register-addition
-   (snip-edit-topology (dev/current-branch) ::format-code-text)))
+(defonce store
+  (FileStore. persistence-uri))
 
-(dev/gen-evalable ::format-code-text)
+(def )

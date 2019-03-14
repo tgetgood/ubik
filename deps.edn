@@ -1,5 +1,4 @@
-{:deps  {com.datomic/datomic-free {:mvn/version "0.9.5697"}
-         com.taoensso/timbre      {:mvn/version "4.10.0"}
+{:deps  {com.taoensso/timbre      {:mvn/version "4.10.0"}
          macroexpanse/falloleen   {:local/root "/home/thomas/projects/falloleen"}
          org.clojure/clojure      {:mvn/version "1.10.0"}
          org.clojure/core.async   {:mvn/version "0.4.490"}}
