@@ -1,9 +1,6 @@
 (ns ubik.codeless
-  (:refer-clojure :exclude [intern])
   (:require [clojure.core.async :as async]
-            [clojure.java.io :as io]
-            [datomic.api :as d]
-            [ubik.codebase :as dev]
+            [ubik.codebase :as base]
             [ubik.topology :as topo]))
 
 (def built-in-code
@@ -57,7 +54,7 @@
               ;; the node. If it is not, it will be ignored. Similarly, not all
               ;; signals a node can listen for need to be connected. Whether the
               ;; node can do anything of use without all of its signals is
-              ;; application logic.'
+              ;; application logic.
               :wires #{[{:in :editor.core/image-signal} ::code-1]
                        [{:in ::code-1} ::code-2]
                        [{:in ::code-2} ::text-render]
@@ -65,46 +62,3 @@
                        [{:in ::key-strokes} ::edits]
                        [{:edit ::edits} ::form]
                        [{:in ::form} ::code-change]}}})
-
-(defmacro snippet
-  "Syntactic sugar for writing linked snippets."
-  {:style/indent [1]}
-  [bindings expr]
-  `{:form '~expr
-    :links '~bindings
-    :id (java.util.UUID/randomUUID)})
-
-(def persistence-uri
-  "Just a file at the moment."
-  "residential.db")
-
-(defprotocol Store
-  (intern [this snippet] "Intern a snippet in the code store")
-  (retrieve [this id]
-    "Retrieves a code snippet by id. N.B.: This isn't always efficient.")
-  (as-map [this] "Retrieves the entire store as a map from ids to snippets."))
-
-(defrecord FileStore [file-name]
-  Store
-  (intern [_ snippet]
-    (assert (contains? snippet :id)
-            "You're trying to intern a code fragment without an id. You may as
-            well drop it on the floor to its face.")
-    (spit file-name (str snippet "\n") :append true)
-    (:id snippet))
-  (retrieve [_ id]
-    (with-open [rdr (io/reader file-name)]
-      (->> rdr
-           line-seq
-           (map read-string)
-           (filter #(= (:id %) id))
-           first)))
-  (as-map [_]
-    (with-open [rdr (io/reader file-name)]
-      (into {}
-            (comp (map read-string)
-                  (map (fn [x] [(:id x) x])))
-            (line-seq rdr)))))
-
-(defonce store
-  (FileStore. persistence-uri))
