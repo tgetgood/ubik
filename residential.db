@@ -1,0 +1,2 @@
+{:id #uuid "5c89b7d9-2bbc-410b-842f-510959dcb9dc", :form (fn [x] (+ x 7)), :links {}}
+{:id #uuid "5c89b7f2-666c-4f28-a353-8829622902b6", :form (fn [x] (* 2 (sev x))), :links {sev #uuid "5c89b7d9-2bbc-410b-842f-510959dcb9dc"}}
