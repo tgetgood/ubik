@@ -33,17 +33,17 @@
 (defn snip-edit-topology
   "Creates an editor window and returns a messaging topology to control it."
   [branch sym]
-  `(base/snippets
+  (base/snippets
    display          #uuid "013dfaec-fb48-4685-adb1-17f85a70e8d8"
    format-code-text #uuid "46e1dc3f-778e-446f-9a72-616149fa29e8"
    edits            #uuid "68f91c1f-c8e4-441b-9afa-83e28a5bd5a9"
    form             #uuid "de7aaabe-8e9a-46e4-9d76-3d33b5e43277"
-   stage        (create-code-stage ~branch ~sym)
+   stage        (create-code-stage branch sym)
    key-strokes  (-> stage :event-streams :key-stroke)
    text-obj     (-> stage :node)
-   code-display (display ~branch ~sym)
+   code-display (display branch sym)
    text-render  (text-renderer text-obj)
-   code-change  (source-effector ~branch ~sym)
+   code-change  (source-effector branch sym)
    topology     {:topology
                  {
                   ;; The nodes in a topology are distict process fragments. One
