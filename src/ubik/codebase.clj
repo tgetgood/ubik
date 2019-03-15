@@ -31,18 +31,9 @@
 (def core-ns
   "Namespace into which all of the builtin bootstrapping code is loaded."
   "editor.core")
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Codebase without a file tree (but still with files for the time being).
+;; Code Persistence
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defmacro snippet
-  "Syntactic sugar for writing linked snippets."
-  {:style/indent [1]}
-  [bindings expr]
-  `{:form  '~expr
-    :links '~bindings
-    :id    (java.util.UUID/randomUUID)})
 
 (def persistence-uri
   "Just a file at the moment."
@@ -50,18 +41,19 @@
 
 (defprotocol Store
   (intern [this snippet] "Intern a snippet in the code store")
-  (retrieve [this id]
-    "Retrieves a code snippet by id. N.B.: This isn't always efficient.")
+  (retrieve [this id] "Retrieves a code snippet by id.")
+  (lookup [this snip] "Returns the snip if it is in the store, nil otherwise.")
   (as-map [this] "Retrieves the entire store as a map from ids to snippets."))
 
 (defrecord FileStore [file-name]
+  ;; This will fall over very easily. We need indicies. Hell, we need a database.
   Store
   (intern [_ snippet]
     (assert (contains? snippet :id)
             "You're trying to intern a code fragment without an id. You may as
             well drop it on the floor to its face.")
     (spit file-name (str snippet "\n") :append true)
-    (:id snippet))
+    snippet)
   (retrieve [_ id]
     (with-open [rdr (io/reader file-name)]
       (->> rdr
@@ -69,6 +61,14 @@
            (map read-string)
            (filter #(= (:id %) id))
            first)))
+  (lookup [_ snip]
+    (let [snip (dissoc snip :id)]
+      (with-open [rdr (io/reader file-name)]
+        (->> rdr
+             line-seq
+             (map read-string)
+             (filter #(= snip (dissoc % :id)))
+             first))))
   (as-map [_]
     (with-open [rdr (io/reader file-name)]
       (into {}
@@ -76,11 +76,11 @@
                   (map (fn [x] [(:id x) x])))
             (line-seq rdr)))))
 
-(defonce store
+(defonce ^:dynamic *store*
   (FileStore. persistence-uri))
 
-(defn edit [store id]
-  (let [{:keys [form links]} (retrieve store id)]
+(defn edit [id]
+  (let [{:keys [form links]} (retrieve *store* id)]
     `(snippet ~links
        ~form)))
 
@@ -120,6 +120,50 @@
 (defn clear-ns [ns]
   (let [vars (keys (ns-interns ns))]
     (run! #(ns-unmap ns %) vars)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Snippets
+;;
+;; Snippets are minimal, meaningful, fragments of code.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn create-snippet
+  "Expects a map with keys :form and :links. Returns the stored snippet matching
+  the given code, creating a new entry if necessary."
+  [snip]
+  (with-meta
+    (if-let [snip (lookup *store* snip)]
+      snip
+      (intern *store* (assoc snip :id (java.util.UUID/randomUUID))))
+    {::snippet true}))
+
+(defmacro snippet
+  "Syntactic sugar for writing linked snippets."
+  {:style/indent [1]}
+  [bindings expr]
+  `(create-snippet {:form  '~expr
+                    :links '~bindings}))
+
+(defn s1 [snips links bindings]
+  (if (seq bindings)
+    (if (uuid? (second bindings))
+       (s1 snips (assoc links (first bindings) (second bindings))
+              (rest (rest bindings)))
+       (let [snip (create-snippet {:links links
+                                   :form (second bindings)})]
+         (s1 (conj snips snip) (assoc links (first bindings) (:id snip))
+             (rest (rest bindings)))))
+    snips))
+
+(defmacro quote-all [syms]
+ (if (seq syms)
+    `(into ['~(first syms)]
+           (quote-all ~(rest syms)))) )
+
+(defmacro snippets
+  {:style/indent :let}
+  [& bindings]
+  `(s1 [] {} (quote-all ~bindings)))
 
 ;;;;; External API
 
