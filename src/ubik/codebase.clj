@@ -76,17 +76,14 @@
                   (map (fn [x] [(:id x) x])))
             (line-seq rdr)))))
 
-(defonce ^:dynamic *store*
+(def ^:dynamic *store*
+  "Default code storage backend."
   (FileStore. persistence-uri))
 
-(defn edit [id]
-  (let [{:keys [form links]} (retrieve *store* id)]
-    `(snippet ~links
-       ~form)))
-
 (defonce
-  ^{:doc "The namespace into which all interned code gets loaded."}
-  primary-ns
+  ^{:doc     "The namespace into which all interned code gets loaded."
+    :dynamic true}
+  *primary-ns*
   (let [ns-name 'codebase.internal]
     (if-let [ns (find-ns ns-name)]
       ns
@@ -100,22 +97,28 @@
 (defn interned-var-name [id]
   (symbol (str 'f$ id)))
 
-(defn gen-code-for-body [refer-ns {:keys [form links]}]
-  `(let [~@(mapcat (fn [[n id]]
-                     (let [v (symbol (name (ns-name refer-ns))
-                                     (name (interned-var-name id)))]
-                       `[~n ~v]))
-                   links)]
-     ~form))
+(defn gen-code-for-body
+  ([body] (gen-code-for-body *primary-ns* body))
+  ([refer-ns {:keys [form links]}]
+   `(let [~@(mapcat (fn [[n id]]
+                      (let [v (symbol (name (ns-name refer-ns))
+                                      (name (interned-var-name id)))]
+                        `[~n ~v]))
+                    links)]
+      ~form)))
 
-(defn ns-intern-all [ns var-map]
-  (let [current-map (ns-interns ns)
-        new-snippets (remove #(contains? current-map (key %)) var-map)]
-    (doseq [[id body] new-snippets]
-      (clojure.core/intern
-       ns
-       (with-meta (interned-var-name id) body)
-       (eval (gen-code-for-body ns body))))))
+(defn load-ns
+  "Load all code snippets into ns. Each snippet becomes a var named by its
+  id. Links are captured as lexical references to other vars in the same ns."
+  ([var-map] (load-ns *primary-ns* var-map))
+  ([ns var-map]
+   (let [current-map (ns-interns ns)
+         new-snippets (remove #(contains? current-map (key %)) var-map)]
+     (doseq [[id body] new-snippets]
+       (clojure.core/intern
+        ns
+        (with-meta (interned-var-name id) body)
+        (eval (gen-code-for-body ns body)))))))
 
 (defn clear-ns [ns]
   (let [vars (keys (ns-interns ns))]
@@ -164,6 +167,13 @@
   {:style/indent :let}
   [& bindings]
   `(s1 [] {} (quote-all ~bindings)))
+
+(defn edit
+  "Returns snippet in easily editable form by id."
+  [id]
+  (let [{:keys [form links]} (retrieve *store* id)]
+    `(snippet ~links
+       ~form)))
 
 ;;;;; External API
 
