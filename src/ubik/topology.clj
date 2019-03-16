@@ -8,8 +8,6 @@
 (defn vmap [f m]
   (into {} (map (fn [[k v]] [k (f v)])) m))
 
-(defn listen [x]
-  {:out (async/mult x)})
 
 (defn lift [f]
   {:in (fn [_ x]

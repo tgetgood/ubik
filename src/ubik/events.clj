@@ -1,7 +1,8 @@
 (ns ubik.events
   "Respond to javafx events. This shouldn't be in this project."
   (:require [clojure.core.async :as async]
-            [falloleen.jfx :as fx])
+            [falloleen.jfx :as fx]
+            [ubik.rt :as rt])
   (:import [javafx.event Event EventHandler]
            javafx.scene.control.TextArea
            javafx.scene.input.KeyEvent))
@@ -46,8 +47,17 @@
    :key-stroke 'setOnKeyTyped})
 
 (defn ch-handler [event-xform]
-  (let [c (async/chan (async/sliding-buffer 128) (map event-xform))]
-    [(handler [ev] (async/put! c ev)) c]))
+  (let [c (async/chan (async/sliding-buffer 128) (map event-xform))
+        s (rt/signal)]
+    ;; I'm only using core async for buffering. That's not a bad reason, I
+    ;; suppose.
+    (async/go-loop []
+      (if-let [msg (async/<! c)]
+        (do
+         (rt/send s msg)
+         (recur))
+        (rt/send s nil)))
+    [(handler [ev] (async/put! c ev)) s]))
 
 (defmacro binder
   "Binds event handlers to the given JFX object and returns a map from event
@@ -59,10 +69,10 @@
              [~@(map
                  (fn [[k# v#]]
                    (let [hs (gensym)
-                         cs (gensym)]
-                     `(let [[~hs ~cs] (ch-handler (partial ~ev-parse ~x))]
+                         sig (gensym)]
+                     `(let [[~hs ~sig] (ch-handler (partial ~ev-parse ~x))]
                         (fx/fx-thread (. ~x ~v# ~hs))
-                        [~k# ~cs])))
+                        [~k# ~sig])))
                  binding-map)]))))
 
 (defmacro bind-text-area!

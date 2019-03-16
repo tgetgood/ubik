@@ -1,4 +1,5 @@
 (ns ubik.rt
+  (:refer-clojure :exclude [send])
   (:require [clojure.core.async :as async :include-macros true]
             [clojure.set :as set]
             [clojure.walk :as walk]
@@ -172,3 +173,41 @@
 
 (defn kill-processes [ch-map]
   (run! async/close! (flatten (vals ch-map))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Attempt the second
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defprotocol Signal
+  (send [_ message] "Force signal to emit message to all listeners")
+  (listen [_ cb]
+    "Adds a listener to this signal. cb will be called immediately with the most
+    recent message (if any) and then asyncronously with each subsequent
+    message.
+
+    cb should be a function of one argument. If it is called with nil, this
+    indicates that the signal has closed and the cb will never be invoked
+    again."))
+
+(defrecord BasicSignal [last-message listeners]
+  ;; Messages have to be sent exactly once, to all listeners, and in the order
+  ;; they are emitted. New listeners can only be added between messages.
+  Signal
+  (send [this message]
+    (locking this
+      (reset! last-message message)
+      (run! #(% message) @listeners)))
+  (listen [this cb]
+    (locking this
+      (swap! listeners conj cb)
+      (when-let [lm @last-message]
+        (cb lm)))))
+
+(defn signal []
+  (BasicSignal. (atom nil) (atom [])))
+
+(defn lift [f]
+  {:in (fn [_ x]
+         (let [out (f x)]
+           (when out
+             {:emit out})))})

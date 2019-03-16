@@ -3,7 +3,8 @@
   (:require [clojure.core.async :as async]
             [clojure.datafy :refer [datafy]]
             [clojure.java.io :as io]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [ubik.rt :as rt]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Branching
@@ -181,16 +182,7 @@
   (async/chan))
 
 (def image-signal
-  (let [ch (async/chan)]
-    #_(async/go-loop []
-      (when-let [msg (async/<! image-signal-in)]
-        (try
-          (let [ns (pull-ns (current-branch) core-ns)
-                ns-map (into {} (map (fn [[k v]] [k (pull-snip v)])) ns)]
-            (async/>! ch ns-map))
-          (catch Exception e (println (datafy e))))
-        (recur)))
-    ch))
+  (rt/signal))
 
 (defn source-effector [branch sym]
   (fn [form]

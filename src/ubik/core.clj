@@ -1,9 +1,7 @@
 (ns ubik.core
-  (:require [clojure.core.async :as async :include-macros true]
-            [falloleen.jfx :as fx]
-            [ubik.events :as events]
+  (:require [falloleen.jfx :as fx]
             [ubik.codebase :as codebase]
-            [ubik.process :as process :include-macros true]
+            [ubik.events :as events]
             [ubik.rt :as rt])
   (:import javafx.scene.control.TextArea))
 
@@ -19,11 +17,7 @@
         (swap! stages assoc k res)
         res))))
 
-(defn lift [f]
-  {:in (fn [_ x]
-         (let [out (f x)]
-           (when out
-             {:emit out})))})
+(def lift rt/lift)
 
 (defn text-renderer [^TextArea node]
   (fn [text]
