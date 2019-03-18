@@ -3,12 +3,17 @@
   (:require [clojure.core.async :as async :include-macros true]
             [clojure.datafy :refer [datafy]]
             clojure.reflect
+            [clojure.pprint :as pprint]
             [clojure.set :as set]
             [clojure.walk :as walk]
             [taoensso.timbre :as log :include-macros true]
             [ubik.base :as base]
             [ubik.process :as process]
             [ubik.util :refer [vmap]]))
+
+(defn ppe [e]
+  (log/error (with-out-str
+               (pprint/pprint (datafy e)))))
 
 ;; TODO: Get the static analysis code out of the runtime ns.
 
@@ -192,6 +197,12 @@
     indicates that the signal has closed and the cb will never be invoked
     again."))
 
+(defprotocol Multiplexer
+  (call [this wire message]
+    "Process message from wire. Returns a function that takes a reducing
+    function and an accumulator.")
+  (wire [this n sig]))
+
 (defrecord BasicSignal [last-message listeners]
   ;; Messages have to be sent exactly once, to all listeners, and in the order
   ;; they are emitted. New listeners can only be added between messages.
@@ -209,13 +220,17 @@
 (defn signal []
   (BasicSignal. (atom nil) (atom [])))
 
-(defprotocol Multiplexer
-  (call [this wire message]
-    "Process message from wire. Returns a function that takes a reducing
-    function and an accumulator.")
-  (wire [this n sig]))
-
 (defrecord MProcess [method-map output-signal input-queue previous]
+  Signal
+  (send [this message]
+    (log/warn (str "You should not be manually injecting messages into the"
+                   " middle of the graph. Consistency will suffer."))
+    ;; REVIEW: I should probably just not implement this, but it feels like it
+    ;; will be so handy for debugging...
+    (send output-signal message))
+  (listen [this cb]
+    (listen output-signal cb))
+
   Multiplexer
   (call [this k message]
     ;; Manual one-step transduce
@@ -226,36 +241,34 @@
         (async/put! input-queue [k message])))))
 
 (defn stateless-xform [method]
-  (fn [xform]
-    (fn [rf]
-      (fn
-        ([] (rf))
-        ([acc] (rf acc))
-        ([acc m]
-         (let [res (method m)]
+  (fn [rf]
+    (fn
+      ([] (rf))
+      ([acc] (rf acc))
+      ([acc m]
+       (let [res (method m)]
+         (if-let [m (:emit res)]
+           (rf acc m)
+           (if-let [ms (:emit-all res)]
+             (reduce rf acc ms)
+             acc)))))))
+
+(defn stateful-xform [state method]
+  (fn [rf]
+    (fn
+      ([] (rf))
+      ([acc] (rf acc))
+      ([acc m]
+       (locking state
+         (let [res (method @state m)]
+           ;; I'm interpretting returning nil as abort, or pass.
+           (when res
+             (reset! state res))
            (if-let [m (:emit res)]
              (rf acc m)
              (if-let [ms (:emit-all res)]
                (reduce rf acc ms)
                acc))))))))
-
-(defn stateful-xform [state method]
-  (fn [xform]
-    (fn [rf]
-      (fn
-        ([] (rf))
-        ([acc] (rf acc))
-        ([acc m]
-         (locking state
-           (let [res (method @state m)]
-             ;; I'm interpretting returning nil as abort, or pass.
-             (when res
-               (reset! state res))
-             (if-let [m (:emit res)]
-               (rf acc m)
-               (if-let [ms (:emit-all res)]
-                 (reduce rf acc ms)
-                 acc)))))))))
 
 (defn- process* [node]
   (let [out (signal)
@@ -267,8 +280,7 @@
       (when-let [[meth msg] (async/<! q)]
         (try
           (call p meth msg)
-          (catch Exception e
-            (log/error (datafy e))))
+          (catch Exception e (ppe e)))
         (recur)))
     p))
 
@@ -301,6 +313,5 @@
       (when-let [[k msg] (async/<! in)]
         (try
           (call eff k msg)
-          (catch Exception e
-            (log/error (datafy e))))))
+          (catch Exception e (ppe e)))))
     eff))

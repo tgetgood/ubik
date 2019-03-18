@@ -31,8 +31,10 @@
 (defn set-topology! [t])
 (defn current-topology [])
 
+(defonce running-topologies
+  (atom {}))
 
-(defn init-topology! [{:keys [sinks sources nodes wires]}]
+(defn init-topology! [k {:keys [sinks sources nodes wires] :as t}]
   (let [nodes (vmap rt/process nodes)
         sinks (vmap rt/effector sinks)
         all (merge sources sinks nodes)]
@@ -40,4 +42,6 @@
       (let [k (if (keyword? k) {:in k} k)
             k (vmap #(get all %) k)
             v (get all v)]
-        (run! #(rt/wire v (key %) (val %)) k)))))
+        (run! #(rt/wire v (key %) (val %)) k)))
+    (swap! running-topologies assoc k
+           (assoc t :nodes nodes :sinks sinks))))

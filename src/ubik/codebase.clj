@@ -81,7 +81,7 @@
   "Default code storage backend."
   (FileStore. persistence-uri))
 
-(defonce
+(def
   ^{:doc     "The namespace into which all interned code gets loaded."
     :dynamic true}
   *primary-ns*
@@ -92,7 +92,9 @@
         (binding [*ns* ns]
           (require '[falloleen.core :as falloleen]
                    '[clojure.pprint]
-                   '[ubik.core :refer :all]))
+                   '[ubik.core :refer :all]
+                   'ubik.rt)
+          (import '[ubik.rt Signal MProcess BasicSignal Multiplexer]))
         ns))))
 
 (defn interned-var-name [id]
@@ -180,8 +182,8 @@
 
 (def image-signal
   (let [sig (rt/signal)]
-    (rt/send sig {:text (retrieve *store*
-                                  #uuid "46e1dc3f-778e-446f-9a72-616149fa29e8")})
+    (rt/send sig {:stm (:form (retrieve *store*
+                                        #uuid "46e1dc3f-778e-446f-9a72-616149fa29e8"))})
     sig))
 
 (defn source-effector [branch sym]

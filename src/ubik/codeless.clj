@@ -1,6 +1,6 @@
 (ns ubik.codeless
   (:require [clojure.core.async :as async]
-            [ubik.codebase :as base]
+            [ubik.codebase :as code]
             [ubik.topology :as topo]))
 
 (def built-in-code
@@ -32,7 +32,7 @@
 
 (def snip-edit-topology
   "Creates an editor window and returns a messaging topology to control it."
-  (base/snippet {display          #uuid "013dfaec-fb48-4685-adb1-17f85a70e8d8"
+  (code/snippet {display          #uuid "013dfaec-fb48-4685-adb1-17f85a70e8d8"
                  format-code-text #uuid "46e1dc3f-778e-446f-9a72-616149fa29e8"
                  edits            #uuid "68f91c1f-c8e4-441b-9afa-83e28a5bd5a9"
                  form             #uuid "de7aaabe-8e9a-46e4-9d76-3d33b5e43277"}
@@ -53,7 +53,7 @@
           :nodes {::code-1 (map code-display)
                   ::code-2 (map format-code-text)
                   ::edits  (map edits)
-                  ::form   (make-node form)}
+                  ::form   (ubik.core/make-node form)}
 
           ;; I'm not sure that we need to explicitely declare sources
           ;; and sinks, but right now it's just easier this way.
