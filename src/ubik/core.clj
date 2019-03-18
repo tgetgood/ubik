@@ -2,7 +2,8 @@
   (:require [falloleen.jfx :as fx]
             [ubik.codebase :as codebase]
             [ubik.events :as events]
-            [ubik.rt :as rt])
+            [ubik.rt :as rt]
+            [ubik.topology :as topo])
   (:import javafx.scene.control.TextArea))
 
 (def stages (atom {}))
@@ -27,3 +28,5 @@
 (def image-signal codebase/image-signal)
 
 (def source-effector codebase/source-effector)
+
+(def make-node topo/make-node)

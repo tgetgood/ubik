@@ -53,7 +53,7 @@
           :nodes {::code-1 (map code-display)
                   ::code-2 (map format-code-text)
                   ::edits  (map edits)
-                  ::form   (topo/make-node form)}
+                  ::form   (make-node form)}
 
           ;; I'm not sure that we need to explicitely declare sources
           ;; and sinks, but right now it's just easier this way.
@@ -79,8 +79,8 @@
           ;; for...
           :wires #{[{:in ::image} ::code-1]
                    [{:in ::code-1} ::code-2]
-                   [{:in ::code-2} ::text-render]
+                   [::code-2 ::text-render]
 
                    [{:in ::key-strokes} ::edits]
                    [{:edit ::edits} ::form]
-                   [{:in ::form} ::code-change]}}}))))
+                   [::form ::code-change]}}}))))

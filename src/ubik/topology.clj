@@ -31,12 +31,13 @@
 (defn set-topology! [t])
 (defn current-topology [])
 
-(defn replace-topology! [t]
-  (set-topology! t)
-  (activate! t))
 
-(defn add-micro-topo [{:keys [nodes wires]}]
-  (let [current (current-topology)
-        new {:nodes (merge (:nodes current) nodes)
-             :wires (set/union (:wires current) wires)}]
-    (replace-topology! new)))
+(defn init-topology! [{:keys [sinks sources nodes wires]}]
+  (let [nodes (vmap rt/process nodes)
+        sinks (vmap rt/effector sinks)
+        all (merge sources sinks nodes)]
+    (doseq [[k v] wires]
+      (let [k (if (keyword? k) {:in k} k)
+            k (vmap #(get all %) k)
+            v (get all v)]
+        (run! #(rt/wire v (key %) (val %)) k)))))

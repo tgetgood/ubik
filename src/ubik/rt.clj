@@ -257,12 +257,11 @@
                  (reduce rf acc ms)
                  acc)))))))))
 
-(defn process [method-map]
+(defn- process* [node]
   (let [out (signal)
-        prev (atom nil)
+        prev (:state (meta node))
         q (async/chan (async/sliding-buffer 32))
-        mm (vmap (prepare-xform prev) method-map)
-        p (MProcess. mm out q prev (atom {}))]
+        p (MProcess. node out q prev)]
     ;; REVIEW: Do I want to somehow put this go machine inside the object?
     (async/go-loop []
       (when-let [[meth msg] (async/<! q)]
@@ -272,3 +271,36 @@
             (log/error (datafy e))))
         (recur)))
     p))
+
+(defn process [node]
+  (if (fn? node)
+    (process* {:in node})
+    (process* node)))
+
+
+(defrecord Effector [f input-queue]
+  Multiplexer
+  (call [this k message]
+    (f this message))
+  (wire [this k sig]
+    (listen sig
+      (fn [m]
+        (async/put! input-queue [k m])))))
+
+(defn effector [f]
+  (let [in (async/chan (async/sliding-buffer 32))
+        ;; A side effector, in this system, is a reducing function that ignores
+        ;; the accumulation.
+        f' (fn [acc x]
+             ;; These effects need to be executed serially.
+             ;; TODO: Is this the best way to enforce that?
+             (locking f
+               (f x)))
+        eff (Effector. f' in)]
+    (async/go-loop []
+      (when-let [[k msg] (async/<! in)]
+        (try
+          (call eff k msg)
+          (catch Exception e
+            (log/error (datafy e))))))
+    eff))

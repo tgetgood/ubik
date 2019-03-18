@@ -178,12 +178,12 @@
 
 ;;;;; External API
 
-(def image-signal-in
-  (async/chan))
-
 (def image-signal
-  (rt/signal))
+  (let [sig (rt/signal)]
+    (rt/send sig {:text (retrieve *store*
+                                  #uuid "46e1dc3f-778e-446f-9a72-616149fa29e8")})
+    sig))
 
 (defn source-effector [branch sym]
   (fn [form]
-    (async/put! image-signal-in true)))
+    (rt/send image-signal form)))
