@@ -17,8 +17,6 @@
         (swap! stages assoc k res)
         res))))
 
-(def lift rt/lift)
-
 (defn text-renderer [^TextArea node]
   (fn [text]
     (fx/fx-thread

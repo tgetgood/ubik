@@ -50,10 +50,10 @@
           ;; multiple nodes in the graph, each with different internal
           ;; state and different connections. The same computation can
           ;; mean different things in different contexts.
-          :nodes {::code-1 code-display
-                  ::code-2 format-code-text
-                  ::edits  edits
-                  ::form   form}
+          :nodes {::code-1 (map code-display)
+                  ::code-2 (map format-code-text)
+                  ::edits  (map edits)
+                  ::form   (topo/make-node form)}
 
           ;; I'm not sure that we need to explicitely declare sources
           ;; and sinks, but right now it's just easier this way.

@@ -1,11 +1,14 @@
 (ns ubik.rt
   (:refer-clojure :exclude [send])
   (:require [clojure.core.async :as async :include-macros true]
+            [clojure.datafy :refer [datafy]]
+            clojure.reflect
             [clojure.set :as set]
             [clojure.walk :as walk]
             [taoensso.timbre :as log :include-macros true]
             [ubik.base :as base]
-            [ubik.process :as process]))
+            [ubik.process :as process]
+            [ubik.util :refer [vmap]]))
 
 ;; TODO: Get the static analysis code out of the runtime ns.
 
@@ -179,8 +182,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol Signal
-  (send [_ message] "Force signal to emit message to all listeners")
-  (listen [_ cb]
+  (send [this message] "Force signal to emit message to all listeners")
+  (^{:style/indent [1]} listen [this cb]
     "Adds a listener to this signal. cb will be called immediately with the most
     recent message (if any) and then asyncronously with each subsequent
     message.
@@ -206,8 +209,66 @@
 (defn signal []
   (BasicSignal. (atom nil) (atom [])))
 
-(defn lift [f]
-  {:in (fn [_ x]
-         (let [out (f x)]
-           (when out
-             {:emit out})))})
+(defprotocol Multiplexer
+  (call [this wire message]
+    "Process message from wire. Returns a function that takes a reducing
+    function and an accumulator.")
+  (wire [this n sig]))
+
+(defrecord MProcess [method-map output-signal input-queue previous]
+  Multiplexer
+  (call [this k message]
+    ;; Manual one-step transduce
+    (((get method-map k) send) output-signal message))
+  (wire [this k sig]
+    (listen sig
+      (fn [message]
+        (async/put! input-queue [k message])))))
+
+(defn stateless-xform [method]
+  (fn [xform]
+    (fn [rf]
+      (fn
+        ([] (rf))
+        ([acc] (rf acc))
+        ([acc m]
+         (let [res (method m)]
+           (if-let [m (:emit res)]
+             (rf acc m)
+             (if-let [ms (:emit-all res)]
+               (reduce rf acc ms)
+               acc))))))))
+
+(defn stateful-xform [state method]
+  (fn [xform]
+    (fn [rf]
+      (fn
+        ([] (rf))
+        ([acc] (rf acc))
+        ([acc m]
+         (locking state
+           (let [res (method @state m)]
+             ;; I'm interpretting returning nil as abort, or pass.
+             (when res
+               (reset! state res))
+             (if-let [m (:emit res)]
+               (rf acc m)
+               (if-let [ms (:emit-all res)]
+                 (reduce rf acc ms)
+                 acc)))))))))
+
+(defn process [method-map]
+  (let [out (signal)
+        prev (atom nil)
+        q (async/chan (async/sliding-buffer 32))
+        mm (vmap (prepare-xform prev) method-map)
+        p (MProcess. mm out q prev (atom {}))]
+    ;; REVIEW: Do I want to somehow put this go machine inside the object?
+    (async/go-loop []
+      (when-let [[meth msg] (async/<! q)]
+        (try
+          (call p meth msg)
+          (catch Exception e
+            (log/error (datafy e))))
+        (recur)))
+    p))
