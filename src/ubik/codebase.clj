@@ -184,11 +184,11 @@
 ;;;;; External API
 
 (def image-signal
-  (let [sig (rt/signal)]
+  (let [sig (rt/signal ::image-signal)]
     (rt/send sig {:stm (:form (retrieve *store*
                                         #uuid "46e1dc3f-778e-446f-9a72-616149fa29e8"))})
     sig))
 
 (defn source-effector [branch sym]
   (fn [form]
-    (rt/send image-signal form)))
+    (rt/send image-signal {"stm" form})))

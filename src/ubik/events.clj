@@ -48,7 +48,7 @@
 
 (defn ch-handler [event-xform]
   (let [c (async/chan (async/sliding-buffer 128) (map event-xform))
-        s (rt/signal)]
+        s (rt/signal ::text-area)]
     ;; I'm only using core async for buffering. That's not a bad reason, I
     ;; suppose.
     (async/go-loop []

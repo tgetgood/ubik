@@ -1,5 +1,6 @@
 (ns ubik.codeless
   (:require [clojure.core.async :as async]
+            [taoensso.timbre :as log]
             [ubik.codebase :as code]
             [ubik.topology :as topo]))
 

@@ -35,8 +35,8 @@
   (atom {}))
 
 (defn init-topology! [k {:keys [sinks sources nodes wires] :as t}]
-  (let [nodes (vmap rt/process nodes)
-        sinks (vmap rt/effector sinks)
+  (let [nodes (into {} (map (fn [[k v]] [k (rt/process k v)])) nodes)
+        sinks (into {} (map (fn [[k v]] [k (rt/effector k v)])) sinks)
         all (merge sources sinks nodes)]
     (doseq [[k v] wires]
       (let [k (if (keyword? k) {:in k} k)

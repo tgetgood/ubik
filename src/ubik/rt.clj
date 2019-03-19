@@ -1,19 +1,15 @@
 (ns ubik.rt
   (:refer-clojure :exclude [send])
-  (:require [clojure.core.async :as async :include-macros true]
+  (:require [clojure.core.async :as async]
             [clojure.datafy :refer [datafy]]
             clojure.reflect
             [clojure.pprint :as pprint]
             [clojure.set :as set]
             [clojure.walk :as walk]
-            [taoensso.timbre :as log :include-macros true]
+            [taoensso.timbre :as log]
             [ubik.base :as base]
             [ubik.process :as process]
             [ubik.util :refer [vmap]]))
-
-(defn ppe [e]
-  (log/error (with-out-str
-               (pprint/pprint (datafy e)))))
 
 ;; TODO: Get the static analysis code out of the runtime ns.
 
@@ -203,12 +199,18 @@
     function and an accumulator.")
   (wire [this n sig]))
 
-(defrecord BasicSignal [last-message listeners]
+(defrecord BasicSignal [name last-message listeners]
   ;; Messages have to be sent exactly once, to all listeners, and in the order
   ;; they are emitted. New listeners can only be added between messages.
   Signal
   (send [this message]
     (locking this
+      (log/log (if (= name :ubik.events/text-area)
+                 :trace
+                 :debug)
+       {:event-type "BasicSignal/send"
+        :name name
+        :message message})
       (reset! last-message message)
       (run! #(% message) @listeners)))
   (listen [this cb]
@@ -217,10 +219,10 @@
       (when-let [lm @last-message]
         (cb lm)))))
 
-(defn signal []
-  (BasicSignal. (atom nil) (atom [])))
+(defn signal [name]
+  (BasicSignal. name (atom nil) (atom [])))
 
-(defrecord MProcess [method-map output-signal input-queue previous]
+(defrecord MProcess [name method-map output-signal input-queue previous]
   Signal
   (send [this message]
     (log/warn (str "You should not be manually injecting messages into the"
@@ -234,6 +236,9 @@
   Multiplexer
   (call [this k message]
     ;; Manual one-step transduce
+    (log/debug {:event-type "MProcess/call"
+                :name name
+                :message message})
     (((get method-map k) send) output-signal message))
   (wire [this k sig]
     (listen sig
@@ -270,36 +275,40 @@
                (reduce rf acc ms)
                acc))))))))
 
-(defn- process* [node]
-  (let [out (signal)
+(defn- process* [name node]
+  (let [out (signal [name :out])
         prev (:state (meta node))
         q (async/chan (async/sliding-buffer 32))
-        p (MProcess. node out q prev)]
+        p (MProcess. name node out q prev)]
     ;; REVIEW: Do I want to somehow put this go machine inside the object?
     (async/go-loop []
       (when-let [[meth msg] (async/<! q)]
         (try
           (call p meth msg)
-          (catch Exception e (ppe e)))
+          (catch Exception e
+            (log/error "Exception in go machine" name ": " (datafy e))))
         (recur)))
     p))
 
-(defn process [node]
+(defn process [name node]
   (if (fn? node)
-    (process* {:in node})
-    (process* node)))
+    (process* name {:in node})
+    (process* name node)))
 
 
-(defrecord Effector [f input-queue]
+(defrecord Effector [name f input-queue]
   Multiplexer
   (call [this k message]
+    (log/debug {:event-type "Effector/call"
+                :name name
+                :message message})
     (f this message))
   (wire [this k sig]
     (listen sig
       (fn [m]
         (async/put! input-queue [k m])))))
 
-(defn effector [f]
+(defn effector [n f]
   (let [in (async/chan (async/sliding-buffer 32))
         ;; A side effector, in this system, is a reducing function that ignores
         ;; the accumulation.
@@ -308,10 +317,12 @@
              ;; TODO: Is this the best way to enforce that?
              (locking f
                (f x)))
-        eff (Effector. f' in)]
+        eff (Effector. n f' in)]
     (async/go-loop []
       (when-let [[k msg] (async/<! in)]
         (try
           (call eff k msg)
-          (catch Exception e (ppe e)))))
+          (catch Exception e
+            (log/error "Exception in go machine" n ": " (datafy e))))
+        (recur)))
     eff))
