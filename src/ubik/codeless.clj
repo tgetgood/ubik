@@ -84,3 +84,12 @@
                    [{:in ::key-strokes} ::edits]
                    [{:edit ::edits} ::form]
                    [::form ::code-change]}}}))))
+
+(defn go []
+  (code/clear-ns code/*primary-ns*)
+  (code/load-ns (code/as-map code/*store*))
+  (let [init (get (ns-interns code/*primary-ns*)
+                  (code/interned-var-name
+                   #uuid "6e901074-482d-408e-b495-ed8eae654043"))
+        top (init "master" :stm)]
+    (topo/init-topology! :test (:topology top))))

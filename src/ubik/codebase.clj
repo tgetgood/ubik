@@ -100,12 +100,15 @@
 (defn interned-var-name [id]
   (symbol (str 'f$ id)))
 
+(defn qualified-var-name [ns id]
+  (symbol (name (ns-name ns))
+          (name (interned-var-name id))))
+
 (defn gen-code-for-body
   ([body] (gen-code-for-body *primary-ns* body))
   ([refer-ns {:keys [form links]}]
    `(let [~@(mapcat (fn [[n id]]
-                      (let [v (symbol (name (ns-name refer-ns))
-                                      (name (interned-var-name id)))]
+                      (let [v (qualified-var-name refer-ns id)]
                         `[~n ~v]))
                     links)]
       ~form)))
