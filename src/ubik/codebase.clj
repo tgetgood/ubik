@@ -6,6 +6,9 @@
             [clojure.string :as string]
             [ubik.rt :as rt]))
 
+(def image-signal
+  (rt/signal ::image-signal))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Branching
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -77,9 +80,28 @@
                   (map (fn [x] [(:id x) x])))
             (line-seq rdr)))))
 
+(defn file-backed-mem-store [file-name]
+  (let [store (FileStore. file-name)
+        cache (atom (as-map store))]
+    (reify Store
+      (intern [_ snippet]
+        (intern store snippet)
+        (swap! cache assoc (:id snippet) snippet)
+        ;; TODO: Decouple this somehow. Eventually. We can't go and put all of
+        ;; the code ever defined into a message every time a char is
+        ;; typed. Though it is just a reference, so maybe we can...'
+        (rt/send image-signal @cache))
+      (retrieve [_ id]
+        (get @cache id))
+      (lookup [_ snip]
+        ;; TODO: Indicies
+        (first (filter #(= snip %) (vals @cache))))
+      (as-map [_]
+        @cache))))
+
 (def ^:dynamic *store*
   "Default code storage backend."
-  (FileStore. persistence-uri))
+  (file-backed-mem-store persistence-uri))
 
 (def
   ^{:doc     "The namespace into which all interned code gets loaded."
@@ -182,12 +204,6 @@
        ~form)))
 
 ;;;;; External API
-
-(def image-signal
-  (let [sig (rt/signal ::image-signal)]
-    (rt/send sig {:stm (:form (retrieve *store*
-                                        #uuid "46e1dc3f-778e-446f-9a72-616149fa29e8"))})
-    sig))
 
 (defn source-effector [branch sym]
   (fn [form]
