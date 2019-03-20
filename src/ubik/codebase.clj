@@ -35,74 +35,150 @@
 (def core-ns
   "Namespace into which all of the builtin bootstrapping code is loaded."
   "editor.core")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Code Persistence
+;; Globals
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def persistence-uri
+(def master-uri
+  "Temp uri of master branch"
+  "master.db")
+
+(def snippet-db-uri
   "Just a file at the moment."
   "residential.db")
 
+(defn now []
+  (java.util.Date.))
+
+(defn append-line
+  "Appends (str x \"\\n\") to file."
+  [filename x]
+  (spit filename (str x "\n") :append true))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Protocols
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defprotocol Store
   (intern [this snippet] "Intern a snippet in the code store")
-  (retrieve [this id] "Retrieves a code snippet by id.")
-  (lookup [this snip] "Returns the snip if it is in the store, nil otherwise.")
-  (as-map [this] "Retrieves the entire store as a map from ids to snippets."))
+  (retrieve [this id] "Retrieves a code snippet by id."))
 
-(defrecord FileStore [file-name]
+(defprotocol ReverseLookup
+   (lookup [this snip] "Returns the snip if it is in the store, nil otherwise."))
+
+(defprotocol ValueMap
+   (as-map [this] "Retrieves the entire store as a map from ids to snippets."))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Namespaces
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defrecord FileBackedBranch [filename]
+  Store
+  (intern [this entry]
+    (let [new (assoc entry :op :add :time (now))]
+      (when-let [old (retrieve this entry)]
+        (append-line filename (assoc old :op :retract)))
+      (append-line filename new )))
+  (retrieve [this sym]
+    (with-open [rdr (io/reader filename)]
+      (->> rdr
+           line-seq
+           (map read-string)
+           (filter #(= sym (get % :ns/symbol)))
+           first)))
+
+  ValueMap
+  (as-map [this]
+    (with-open [rdr (io/reader filename)]
+      (reduce (fn [nses s]
+                (let [m (read-string s)
+                      op (:op m)
+                      ns (namespace (:ns/symbol m))
+                      sym (name (:ns/symbol m))]
+                  (if (= op :add)
+                    (assoc-in nses [ns sym] m)
+                    (update nses ns dissoc sym))))
+              {}
+              (line-seq rdr) ))))
+
+(defonce
+  ^{:dynamic true
+    :doc "Current branch. Not that branching is supported robustly at present."}
+  *branch*
+  (FileBackedBranch. master-uri))
+
+(defn ns-sym [sym id]
+  {:ns/symbol sym :id id})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Code Persistence (snippets)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defrecord FileStore [filename]
   ;; This will fall over very easily. We need indicies. Hell, we need a database.
   Store
   (intern [_ snippet]
     (assert (contains? snippet :id)
             "You're trying to intern a code fragment without an id. You may as
             well drop it on the floor to its face.")
-    (spit file-name (str snippet "\n") :append true)
-    snippet)
+    (let [snippet (assoc snippet :time (now))]
+      (append-line filename snippet)
+      snippet))
   (retrieve [_ id]
-    (with-open [rdr (io/reader file-name)]
+    (with-open [rdr (io/reader filename)]
       (->> rdr
            line-seq
            (map read-string)
            (filter #(= (:id %) id))
            first)))
+
+  ReverseLookup
   (lookup [_ snip]
-    (let [snip (dissoc snip :id)]
-      (with-open [rdr (io/reader file-name)]
+    (let [snip (dissoc snip :id :time)]
+      (with-open [rdr (io/reader filename)]
         (->> rdr
              line-seq
              (map read-string)
-             (filter #(= snip (dissoc % :id)))
+             (filter #(= snip (dissoc % :id :time)))
              first))))
+
+  ValueMap
   (as-map [_]
-    (with-open [rdr (io/reader file-name)]
+    (with-open [rdr (io/reader filename)]
       (into {}
             (comp (map read-string)
                   (map (fn [x] [(:id x) x])))
             (line-seq rdr)))))
 
-(defn file-backed-mem-store [file-name]
-  (let [store (FileStore. file-name)
+(defn file-backed-mem-store [filename]
+  (let [store (FileStore. filename)
         cache (atom (as-map store))]
     (reify Store
       (intern [_ snippet]
-        (intern store snippet)
-        (swap! cache assoc (:id snippet) snippet)
+        (let [snippet (intern store snippet)]
+          (swap! cache assoc (:id snippet) snippet))
         ;; TODO: Decouple this somehow. Eventually. We can't go and put all of
         ;; the code ever defined into a message every time a char is
         ;; typed. Though it is just a reference, so maybe we can...'
         (rt/send image-signal @cache))
       (retrieve [_ id]
         (get @cache id))
+
+      ReverseLookup
       (lookup [_ snip]
         ;; TODO: Indicies
-        (let [snip (dissoc snip :id)]
-          (first (filter #(= snip (dissoc % :id)) (vals @cache)))))
+        (let [snip (dissoc snip :id :time)]
+          (first (filter #(= snip (dissoc % :id :time)) (vals @cache)))))
+
+      ValueMap
       (as-map [_]
         @cache))))
 
 (def ^:dynamic *store*
   "Default code storage backend."
-  (file-backed-mem-store persistence-uri))
+  (file-backed-mem-store snippet-db-uri))
 
 (def
   ^{:doc     "The namespace into which all interned code gets loaded."
@@ -209,3 +285,10 @@
 (defn source-effector [branch sym]
   (fn [form]
     (rt/send image-signal {"stm" form})))
+
+;;;; Extras
+
+(defmacro ref-sig
+  "Returns a signal which will emit the new version of ref when any of its
+  components or dependencies change."
+  [deps body])
