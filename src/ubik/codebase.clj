@@ -95,7 +95,8 @@
         (get @cache id))
       (lookup [_ snip]
         ;; TODO: Indicies
-        (first (filter #(= snip %) (vals @cache))))
+        (let [snip (dissoc snip :id)]
+          (first (filter #(= snip (dissoc % :id)) (vals @cache)))))
       (as-map [_]
         @cache))))
 
