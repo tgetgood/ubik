@@ -2,6 +2,7 @@
   (:require [clojure.core.async :as async]
             [taoensso.timbre :as log]
             [ubik.codebase :as code]
+            [ubik.storage :as store]
             [ubik.topology :as topo]))
 
 (def built-in-code
@@ -88,7 +89,7 @@
 
 (defn go []
   (code/clear-ns code/*primary-ns*)
-  (code/load-ns (code/as-map code/*store*))
+  (code/load-ns (store/as-map code/*store*))
   (let [init (get (ns-interns code/*primary-ns*)
                   (code/interned-var-name
                    #uuid "6e901074-482d-408e-b495-ed8eae654043"))
