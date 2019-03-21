@@ -38,12 +38,12 @@
     (into {} (map (fn [s]
                     (let [ref (get-in image [(namespace s) (name s)])]
                       [(:ns/symbol ref)
-                       (invoke-by-id (:id ref))])))
+                       (ubik.core/invoke-by-id (:id ref))])))
                       syms)))
 
 (def extract-deps
   "I've only named these as vars for the ease of reference"
-  (code/snippet {fn-map #uuid "e03eccd4-f7ae-43ae-a107-97d97eafa255"}
+  (code/snippet {fn-map #uuid "2acb74ea-1fef-47e1-a4fd-2ea885f281b9"}
     (fn [image]
       (fn-map image [:core/display
                      :core/format-code-text
@@ -119,7 +119,7 @@
 
 (def meta-topo
   (code/snippet {edit-multi   #uuid "df9b93b3-7431-4049-8008-80248c292491"
-                 extract-deps #uuid "8dd1928f-ffac-4471-b8fa-7085186a080e"
+                 extract-deps #uuid "fec71d27-96c3-4a65-9a7a-82476925bdea"
                  topo-fac     #uuid "59476105-595a-44ac-a905-e184b0c2d213"}
     {:sources {::image ubik.core/image-signal
                ::input ubik.core/input-signal}
@@ -139,7 +139,7 @@
   (code/reload!)
   (topo/init-topology!
    :pre-boot
-   (code/invoke-by-id #uuid "7ab9c4d0-78b4-43db-a800-da8b7dd9ffc1"))
+   (code/invoke-by-id #uuid "9e1531d0-2712-460c-a186-bc59ed88dd46"))
   (rt/send code/image-signal (code/internal-ns-map)))
 
 (defn sources []
