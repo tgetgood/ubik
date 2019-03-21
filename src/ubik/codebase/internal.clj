@@ -15,6 +15,9 @@
   (symbol (name (ns-name *ns*))
           (name (interned-var-name id))))
 
+(defn id-var [id]
+  (get (ns-interns *ns*) (interned-var-name id)))
+
 (defmacro declare-all []
   (let [ks (keys (store/as-map core/*store*))
         ns (ns-interns *ns*)]

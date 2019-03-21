@@ -75,3 +75,5 @@
     (rt/send image-signal {"stm" form})))
 
 (def interned-var-name internal/interned-var-name)
+
+(def id-var internal/id-var)
