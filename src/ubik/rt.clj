@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [send])
   (:require [clojure.core.async :as async]
             [clojure.datafy :refer [datafy]]
+            [clojure.pprint :refer [pprint]]
             [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -62,9 +63,11 @@
   Multiplexer
   (call [this k message]
     ;; Manual one-step transduce
-    (log/debug {:event-type "MProcess/call"
-                :name name
-                :message message})
+    (log/debug (str "\n" (with-out-str (pprint {:event-type "MProcess/call"
+                                                :name       name
+                                                :wire       k
+                                                :multiplex  method-map
+                                                :message    message}))))
     (((get method-map k) send) output-signal message))
   (wire [this k sig]
     (listen sig
@@ -102,17 +105,23 @@
                acc))))))))
 
 (defn- process* [name node]
-  (let [out (signal [name :out])
+  (let [out  (signal [name :out])
         prev (:state (meta node))
-        q (async/chan (async/sliding-buffer 32))
-        p (MProcess. name node out q prev)]
+        q    (async/chan (async/sliding-buffer 32))
+        p    (MProcess. name node out q prev)]
     ;; REVIEW: Do I want to somehow put this go machine inside the object?
     (async/go-loop []
       (when-let [[meth msg] (async/<! q)]
         (try
           (call p meth msg)
           (catch Exception e
-            (log/error "Exception in go machine" name ": " (datafy e))))
+            (log/error "Exception in process go machine" name ": \n"
+                       (with-out-str (pprint
+                                      {:wire      meth
+                                       :node      name
+                                       :multiplex node
+                                       :message   msg
+                                       :exception (datafy e)})))))
         (recur)))
     p))
 
@@ -135,20 +144,25 @@
         (async/put! input-queue [k m])))))
 
 (defn effector [n f]
-  (let [in (async/chan (async/sliding-buffer 32))
+  (let [in  (async/chan (async/sliding-buffer 32))
         ;; A side effector, in this system, is a reducing function that ignores
         ;; the accumulation.
-        f' (fn [acc x]
-             ;; These effects need to be executed serially.
-             ;; TODO: Is this the best way to enforce that?
-             (locking f
-               (f x)))
+        f'  (fn [acc x]
+              ;; These effects need to be executed serially.
+              ;; TODO: Is this the best way to enforce that?
+              (locking f
+                (f x)))
         eff (Effector. n f' in)]
     (async/go-loop []
       (when-let [[k msg] (async/<! in)]
         (try
           (call eff k msg)
           (catch Exception e
-            (log/error "Exception in go machine" n ": " (datafy e))))
+            (log/error "Exception in effector go machine" n ": \n"
+                       (with-out-str (pprint
+                                      {:wire      k
+                                       :name      n
+                                       :message   msg
+                                       :exception (datafy e)})))))
         (recur)))
     eff))
