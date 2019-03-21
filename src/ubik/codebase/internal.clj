@@ -11,6 +11,10 @@
 (defn interned-var-name [id]
   (symbol (str 'f$ id)))
 
+(defn full-var-name [id]
+  (symbol (name (ns-name *ns*))
+          (name (interned-var-name id))))
+
 (defmacro declare-all []
   (let [ks (keys (store/as-map core/*store*))
         ns (ns-interns *ns*)]
@@ -27,7 +31,7 @@
 (defn gen-code-for-body
   [{:keys [form links]}]
   `(let [~@(mapcat (fn [[n id]]
-                     (let [v (interned-var-name id)]
+                     (let [v (full-var-name id)]
                        `[~n (deref ~v)]))
                    links)]
      ~form))
