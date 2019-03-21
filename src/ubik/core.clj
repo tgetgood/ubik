@@ -24,12 +24,16 @@
        (.setText node text)
        (.positionCaret node caret)))))
 
-(def image-signal codebase/image-signal)
+(defonce image-signal codebase/image-signal)
 
-(def input-signal
-  (rt/signal ::input-signal))
+(defonce input-signal
+  (let [s (rt/signal ::input-signal)]
+    (rt/send s :core/display)
+    s))
 
 (def source-effector codebase/source-effector)
+
+(def invoke-by-id codebase/invoke-by-id)
 
 (defn topo-effector [t]
   (println "topo-effector!")

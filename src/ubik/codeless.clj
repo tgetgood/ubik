@@ -3,6 +3,7 @@
             [taoensso.timbre :as log]
             [ubik.codebase :as code]
             [ubik.codebase.storage :as store]
+            [ubik.rt :as rt]
             [ubik.topology :as topo]))
 
 (def built-in-code
@@ -34,12 +35,15 @@
 
 (code/snippet {}
   (fn [image syms]
-    (into {} (map (fn [s] [s (get-in image [(namespace s) (name s)])]))
+    (into {} (map (fn [s]
+                    (let [ref (get-in image [(namespace s) (name s)])]
+                      [(:ns/symbol ref)
+                       (invoke-by-id (:id ref))])))
                       syms)))
 
 (def extract-deps
   "I've only named these as vars for the ease of reference"
-  (code/snippet {fn-map #uuid "6a6a41bc-96fc-46aa-afaa-b2517e1cc6dc"}
+  (code/snippet {fn-map #uuid "e03eccd4-f7ae-43ae-a107-97d97eafa255"}
     (fn [image]
       (fn-map image [:core/display
                      :core/format-code-text
@@ -55,7 +59,7 @@
                 (if watch
                   (assoc s' :emit s')
                   s')))
-     :args (fn [{:keys [image] :as state} watch]
+     :watch (fn [{:keys [image] :as state} watch]
              (let [s' (assoc state :watch watch)]
                (if image
                  (assoc s' :emit s')
@@ -114,8 +118,8 @@
                   [::form ::code-change]}}))))
 
 (def meta-topo
-  (code/snippet {edit-multi   #uuid "63d1640b-177b-4ffa-8d1a-a9dce6034ed1"
-                 extract-deps #uuid "22e8e482-4f59-45e6-88be-a0d8d8ad4848"
+  (code/snippet {edit-multi   #uuid "df9b93b3-7431-4049-8008-80248c292491"
+                 extract-deps #uuid "8dd1928f-ffac-4471-b8fa-7085186a080e"
                  topo-fac     #uuid "59476105-595a-44ac-a905-e184b0c2d213"}
     {:sources {::image ubik.core/image-signal
                ::input ubik.core/input-signal}
@@ -128,9 +132,18 @@
                 [::combined ::topo]
                 [::topo ::out]}}))
 
-(defn go []
-  (let [init (get (ns-interns (the-ns 'ubik.codebase.internal))
-                  (code/interned-var-name
-                   #uuid "6e901074-482d-408e-b495-ed8eae654043"))
-        top (init "master" :stm)]
-    (topo/init-topology! :test (:topology top))))
+(defn trigger-network
+  "Set off a cascade that should result in something interesting happening. I'm
+  becomming less and less discerning in what I consider interesting."
+  []
+  (code/reload!)
+  (topo/init-topology!
+   :pre-boot
+   (code/invoke-by-id #uuid "7ab9c4d0-78b4-43db-a800-da8b7dd9ffc1"))
+  (rt/send code/image-signal (code/internal-ns-map)))
+
+(defn sources []
+  (-> topo/running-topologies
+      deref
+      :pre-boot
+      :sources))
