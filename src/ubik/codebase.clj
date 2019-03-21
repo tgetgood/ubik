@@ -67,7 +67,7 @@
 
 ;;;;; External API
 
-(def image-signal
+(defonce image-signal
   (rt/signal ::image-signal))
 
 (defn source-effector [sym]
@@ -76,4 +76,11 @@
 
 (def interned-var-name internal/interned-var-name)
 
-(def id-var internal/id-var)
+(def invoke-by-id internal/invoke-by-id)
+
+(defn internal-ns-map []
+  (store/as-map core/*branch*))
+
+(defn reload! []
+  (internal/clear-ns)
+  (internal/load-ns))

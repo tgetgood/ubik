@@ -8,28 +8,27 @@
             [ubik.codebase.storage :as store])
   (:import [ubik.rt Signal MProcess BasicSignal Multiplexer]))
 
+(def internal (the-ns 'ubik.codebase.internal))
+
 (defn interned-var-name [id]
   (symbol (str 'f$ id)))
 
 (defn full-var-name [id]
-  (symbol (name (ns-name *ns*))
+  (symbol (name (ns-name internal))
           (name (interned-var-name id))))
 
 (defn id-var [id]
-  (get (ns-interns *ns*) (interned-var-name id)))
+  (get (ns-interns internal) (interned-var-name id)))
 
-(defmacro declare-all []
-  (let [ks (keys (store/as-map core/*store*))
-        ns (ns-interns *ns*)]
-    `(do
-       ~@(map
-          (fn [s]
-            (let [v (interned-var-name s)]
-              (when-not (contains? ns v)
-                `(declare ~v))))
-          ks))))
+(defn invoke-by-id
+  "Given the id of a snippet, return the evaluated form to which it refers."
+  [id]
+  @@(id-var id))
 
-(declare-all)
+(defn declare-all []
+  (let [ks (keys (store/as-map core/*store*))]
+    (run! #(intern internal %)
+         (map interned-var-name ks))))
 
 (defn gen-code-for-body
   [{:keys [form links]}]
@@ -42,15 +41,16 @@
 (defn clear-ns
   []
   (let [vars (filter #(string/starts-with? (name (symbol %)) "f$")
-                     (keys (ns-interns *ns*)))]
-    (run! #(ns-unmap *ns* %) vars)))
+                     (keys (ns-interns internal)))]
+    (run! #(ns-unmap internal %) vars)))
 
 (defn load-ns
   "Load all code snippets into ns. Each snippet becomes a var named by its
   id. Links are captured as lexical references to other vars in the same ns."
   []
+  (declare-all)
   (let [m (store/as-map core/*store*)
-        ns (ns-interns *ns*)]
+        ns (ns-interns internal)]
     (doseq [[id body] m]
       (let [v (get ns (interned-var-name id))
             form (gen-code-for-body body)]
