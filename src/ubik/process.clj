@@ -139,7 +139,8 @@
         (recur)))
     p))
 
-(defn process [name node]
+(defn process
+  [name node]
   (if (fn? node)
     (process* name {:in node})
     (process* name node)))
@@ -159,7 +160,7 @@
       (fn [m]
         (async/put! input-queue [k m])))))
 
-(defn effector [n f]
+(defn effector [name f]
   (let [in  (async/chan (async/sliding-buffer 32))
         ;; A side effector, in this system, is a reducing function that ignores
         ;; the accumulation.
@@ -168,16 +169,16 @@
               ;; TODO: Is this the best way to enforce that?
               (locking f
                 (f x)))
-        eff (Effector. n f' in)]
+        eff (Effector. name f' in)]
     (async/go-loop []
       (when-let [[k msg] (async/<! in)]
         (try
           (call eff k msg)
           (catch Exception e
-            (log/error "Exception in effector go machine" n ": \n"
+            (log/error "Exception in effector go machine" name ": \n"
                        (with-out-str (pprint
                                       {:wire      k
-                                       :name      n
+                                       :name      name
                                        :message   msg
                                        :exception (datafy e)})))))
         (recur)))
@@ -201,10 +202,12 @@
       (vmap (partial stateful-xform state) mm)
       {:state state})))
 
-(defn make-node [method-map]
-  (let [c (into #{} (map max-args) (vals method-map))]
-    (assert (= 1 (count c)) "All methods of a node must have the same arity.")
-    (cond
-      (= #{1} c) (vmap stateless-xform method-map)
-      (= #{2} c) (make-stateful-node method-map)
-      :else      (throw (Exception. "Unknown node method type.")))))
+(defn make-node [name method-map]
+  (process
+   name
+   (let [c (into #{} (map max-args) (vals method-map))]
+     (assert (= 1 (count c)) "All methods of a node must have the same arity.")
+     (cond
+       (= #{1} c) (vmap stateless-xform method-map)
+       (= #{2} c) (make-stateful-node method-map)
+       :else      (throw (Exception. "Unknown node method type."))))))

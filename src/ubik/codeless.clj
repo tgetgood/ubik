@@ -1,6 +1,5 @@
 (ns ubik.codeless
   (:require [ubik.codebase :as code]
-            [ubik.process :as process]
             [ubik.codebase.internal :as internal]
             [ubik.topology :as topo]))
 
@@ -74,14 +73,14 @@
          ;; multiple nodes in the graph, each with different internal
          ;; state and different connections. The same computation can
          ;; mean different things in different contexts.
-         :nodes {:ed/code-1 (process (map code-display))
-                 :ed/code-2 (process (map format-code-text))
-                 :ed/edits  (process (map edits))
-                 :ed/form   (make-node form)
-                 :ed/key-strokes key-strokes
+         :nodes [(process :ed/code-1 (map code-display))
+                 (process :ed/code-2 (map format-code-text))
+                 (process :ed/edits (map edits))
+                 (make-node :ed/form form)
+                 ^{:name :ed/key-strokes} key-strokes
 
-                 :ed/text-render (effector text-render)
-                 :ed/code-change (effector code-change)}
+                 (effector :ed/text-render text-render)
+                 (effector :ed/code-change code-change)]
 
          ;; Wires connect a set of named inputs to a node. Each name in
          ;; the input map is assumed to also be the name of an input
@@ -108,13 +107,14 @@
 (def meta-topo
   (code/snippet {edit-multi   #uuid "5854b093-746e-4d0f-a4c5-84f715354b57"
                  extract-deps #uuid "c6ac1861-bd41-41e4-980e-8fd03e334113"
-                 topo-fac     #uuid "0c888a87-4072-4a57-818f-1844d13cfd91"}
+                 topo-fac     #uuid "2fb13a14-bf6f-496e-8ef3-1de092209840"}
 
-    {:nodes {:mt/input     (signal)
-             :mt/sub-image (process (map extract-deps))
-             :mt/combined  (make-node edit-multi)
-             :mt/topo      (process (map topo-fac))
-             :mt/out       (effector topo-effector)}
+    {:nodes [(signal :mt/input)
+             (process :mt/sub-image (map extract-deps))
+             (make-node :mt/combined edit-multi)
+             (process :mt/topo (map topo-fac))
+             (effector :mt/out topo-effector)]
+
      :wires #{[:ubik.topology/image :mt/sub-image]
               [{:image :mt/sub-image :watch ::input} :mt/combined]
               [:mt/combined :mt/topo]
@@ -124,6 +124,7 @@
   "Set off a cascade that should result in something interesting happening. I'm
   becomming less and less discerning in what I consider interesting."
   []
+  (internal/clear-ns)
+  (internal/load-ns)
   (topo/init-topology!
-   :pre-boot
-   (internal/invoke-by-id #uuid "e2a3ec9d-a690-41c9-8ac8-1ad70f6d264a")))
+   (internal/invoke-by-id #uuid "2a700163-c1d8-48d4-bee0-7e0d36fc230f")))

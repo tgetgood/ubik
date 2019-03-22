@@ -56,6 +56,9 @@
         (when-not (= body (::body (meta v)))
           (log/trace "Defining" v "for first time.")
           (alter-meta! v assoc ::body body)
-          (alter-var-root v (constantly (delay (eval form)))))))))
+          (alter-var-root v (constantly
+                             (delay
+                              (binding [*ns* internal]
+                                (eval form))))))))))
 
 (load-ns)
