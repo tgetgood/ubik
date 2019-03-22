@@ -31,12 +31,10 @@
     (topo/init-topology! k t)))
 
 (def make-node process/make-node)
-
 (def signal process/signal)
-
-(defonce image-signal
-  (signal ::image-signal))
+(def process process/process)
+(def effector process/effector)
 
 (defn source-effector [sym]
   (fn [form]
-    (process/send image-signal {"stm" form})))
+    ))
