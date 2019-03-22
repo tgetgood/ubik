@@ -22,10 +22,10 @@ programming.
 	 A coordination language is a special purpose language intended to organise all
 	 of these computations into a (distributed, asynchronous, multithreaded) system.
 
-	 Coordination languages don't need to be Turing complete[fn:3] since they don't deal
-	 with computation. In this case Clojure(script) is the underlying computation
-	 language. Ubik simply defines a small number of primitives that let you
-	 compose pure functions into useful processes.
+	 Coordination languages don't need to be Turing complete[fn:3] since they
+	 don't deal with computation. In this case Clojure(script) is the underlying
+	 computation language. Ubik simply defines a small number of primitives that
+	 let you compose pure functions into useful processes.
 ** Assumptions
 *** Purity
 		The core assumption of Ubik is that any side effect whatsoever is
@@ -124,7 +124,7 @@ programming.
 
 	This is incoherent. I have to do better.
 * License
-	Copyright © 2018 Thomas Getgood
+	Copyright © 2019 Thomas Getgood
 
 	Distributed under the Eclipse Public License either version 1.0 or (at your
 	option) any later version.
