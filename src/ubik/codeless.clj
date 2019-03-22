@@ -1,6 +1,7 @@
 (ns ubik.codeless
   (:require [ubik.codebase :as code]
             [ubik.process :as process]
+            [ubik.codebase.internal :as internal]
             [ubik.topology :as topo]))
 
 (def built-in-code
@@ -13,9 +14,9 @@
                       {:emit (read-string text)}
                       (catch Exception e {:unreadable text})))}
 
-     ::display (fn [branch sym]
+     ::display (fn [sym]
                 (fn [image]
-                  (get image (name sym))))
+                  (get image sym)))
 
      ::format-code-text
      (fn [form]
@@ -23,12 +24,6 @@
 
     ;; Runtimey things
     {:editor.core/image-signal image-signal}]))
-
-(def initial-topology
-  {:inputs    {}
-   :effectors {}
-   :nodes     {}
-   :edges     #{}})
 
 (code/snippet {}
   (fn [image syms]
@@ -40,7 +35,7 @@
 
 (def extract-deps
   "I've only named these as vars for the ease of reference"
-  (code/snippet {fn-map #uuid "2acb74ea-1fef-47e1-a4fd-2ea885f281b9"}
+  (code/snippet {fn-map #uuid "6b0fc0a5-ea99-41b0-b4e2-884f7abe0433"}
     (fn [image]
       (fn-map image [:core/display
                      :core/format-code-text
@@ -79,18 +74,14 @@
          ;; multiple nodes in the graph, each with different internal
          ;; state and different connections. The same computation can
          ;; mean different things in different contexts.
-         :nodes {::code-1 (map code-display)
-                 ::code-2 (map format-code-text)
-                 ::edits  (map edits)
-                 ::form   (make-node form)}
+         :nodes {:ed/code-1 (process (map code-display))
+                 :ed/code-2 (process (map format-code-text))
+                 :ed/edits  (process (map edits))
+                 :ed/form   (make-node form)
+                 :ed/key-strokes key-strokes
 
-         ;; I'm not sure that we need to explicitely declare sources
-         ;; and sinks, but right now it's just easier this way.
-         :sources {::image       image-signal
-                   ::key-strokes key-strokes}
-
-         :sinks {::text-render text-render
-                 ::code-change code-change}
+                 :ed/text-render (effector text-render)
+                 :ed/code-change (effector code-change)}
 
          ;; Wires connect a set of named inputs to a node. Each name in
          ;; the input map is assumed to also be the name of an input
@@ -106,28 +97,28 @@
          ;; snippets that will be converted into runtime constructs by
          ;; id? That seems extreme. But maybe extremism is called
          ;; for...
-         :wires #{[{:in ::image} ::code-1]
-                  [{:in ::code-1} ::code-2]
-                  [::code-2 ::text-render]
+         :wires #{[:ubik.topology/image :ed/code-1]
+                  [:ed/code-1 :ed/code-2]
+                  [:ed/code-2 :ed/text-render]
 
-                  [{:in ::key-strokes} ::edits]
-                  [{:edit ::edits} ::form]
-                  [::form ::code-change]}}))))
+                  [:ed/key-strokes :ed/edits]
+                  [{:edit :ed/edits} :ed/form]
+                  [:ed/form :ed/code-change]}}))))
 
 (def meta-topo
-  (code/snippet {edit-multi   #uuid "df9b93b3-7431-4049-8008-80248c292491"
-                 extract-deps #uuid "fec71d27-96c3-4a65-9a7a-82476925bdea"
-                 topo-fac     #uuid "59476105-595a-44ac-a905-e184b0c2d213"}
-    {
-     :sinks   {::out topo-effector}
-     :nodes   {:meta-topo/input (signal)
-               ::sub-image (process (map extract-deps))
-               ::combined  (make-node edit-multi)
-               ::topo      (process (map topo-fac))}
-     :wires   #{[:ubik.topology/image ::sub-image]
-                [{:image ::sub-image :watch ::input} ::combined]
-                [::combined ::topo]
-                [::topo ::out]}}))
+  (code/snippet {edit-multi   #uuid "5854b093-746e-4d0f-a4c5-84f715354b57"
+                 extract-deps #uuid "c6ac1861-bd41-41e4-980e-8fd03e334113"
+                 topo-fac     #uuid "0c888a87-4072-4a57-818f-1844d13cfd91"}
+
+    {:nodes {:mt/input     (signal)
+             :mt/sub-image (process (map extract-deps))
+             :mt/combined  (make-node edit-multi)
+             :mt/topo      (process (map topo-fac))
+             :mt/out       (effector topo-effector)}
+     :wires #{[:ubik.topology/image :mt/sub-image]
+              [{:image :mt/sub-image :watch ::input} :mt/combined]
+              [:mt/combined :mt/topo]
+              [:mt/topo :mt/out]}}))
 
 (defn trigger-network
   "Set off a cascade that should result in something interesting happening. I'm
@@ -135,5 +126,4 @@
   []
   (topo/init-topology!
    :pre-boot
-   #_(code/invoke-by-id #uuid "9e1531d0-2712-460c-a186-bc59ed88dd46"))
-  )
+   (internal/invoke-by-id #uuid "e2a3ec9d-a690-41c9-8ac8-1ad70f6d264a")))

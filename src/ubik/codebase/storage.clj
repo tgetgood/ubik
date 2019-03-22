@@ -39,7 +39,7 @@
     (let [new (assoc entry :op :add :time (now))]
       (when-let [old (lookup this entry)]
         (append-line filename (assoc old :op :retract)))
-      (append-line filename new )))
+      (append-line filename new)))
   (lookup [this sym]
     (with-open [rdr (io/reader filename)]
       (->> rdr
@@ -111,7 +111,8 @@
     (reify Store
       (intern [_ snippet]
         (let [snippet (intern store snippet)]
-          (swap! cache assoc (:id snippet) snippet)))
+          (swap! cache assoc (:id snippet) snippet)
+          snippet))
       (lookup [_ id]
         (get @cache id))
 
