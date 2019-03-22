@@ -11,14 +11,18 @@
 
 (defprotocol Signal
   (send [this message] "Force signal to emit message to all listeners")
-  (^{:style/indent [1]} listen [this cb]
+  (disconnect [this key])
+  (^{:style/indent [2]} listen [this key cb]
     "Adds a listener to this signal. cb will be called immediately with the most
     recent message (if any) and then asyncronously with each subsequent
     message.
 
     cb should be a function of one argument. If it is called with nil, this
     indicates that the signal has closed and the cb will never be invoked
-    again."))
+    again.
+
+    key must be a unique key which is used to remove a listener using the
+    disconnect method."))
 
 (defprotocol Multiplexer
   (call [this wire message]
@@ -40,14 +44,19 @@
         :message message})
       (reset! last-message message)
       (run! #(% message) @listeners)))
-  (listen [this cb]
+  (disconnect [this key]
     (locking this
-      (swap! listeners conj cb)
+      (swap! listeners dissoc key)
+      nil))
+  (listen [this key cb]
+    (locking this
+      (log/warn key "is already a registered listener on" name ". Ignoring.")
+      (swap! listeners assoc key cb)
       (when-let [lm @last-message]
         (cb lm)))))
 
 (defn signal [name]
-  (BasicSignal. name (atom nil) (atom [])))
+  (BasicSignal. name (atom nil) (atom {})))
 
 (defrecord MProcess [name method-map output-signal input-queue previous]
   Signal
@@ -57,20 +66,23 @@
     ;; REVIEW: I should probably just not implement this, but it feels like it
     ;; will be so handy for debugging...
     (send output-signal message))
-  (listen [this cb]
-    (listen output-signal cb))
+  (listen [this key cb]
+    (listen output-signal key cb))
+  (disconnect [this key]
+    (disconnect output-signal key))
 
   Multiplexer
   (call [this k message]
     ;; Manual one-step transduce
-    (log/debug (str "\n" (with-out-str (pprint {:event-type "MProcess/call"
-                                                :name       name
-                                                :wire       k
-                                                :multiplex  method-map
-                                                :message    message}))))
+    (log/debug (str "Processing message:" "\n"
+                    (with-out-str (pprint {:event-type "MProcess/call"
+                                           :name       name
+                                           :wire       k
+                                           :multiplex  method-map
+                                           :message    message}))))
     (((get method-map k) send) output-signal message))
   (wire [this k sig]
-    (listen sig
+    (listen sig name
       (fn [message]
         (async/put! input-queue [k message])))))
 
@@ -134,12 +146,14 @@
 (defrecord Effector [name f input-queue]
   Multiplexer
   (call [this k message]
-    (log/debug {:event-type "Effector/call"
-                :name name
-                :message message})
+    (log/debug (str "Effect:" "\n"
+                    (with-out-str (pprint {:event-type "Effector/call"
+                                           :wire       k
+                                           :name       name
+                                           :message    message}))))
     (f this message))
   (wire [this k sig]
-    (listen sig
+    (listen sig name
       (fn [m]
         (async/put! input-queue [k m])))))
 
