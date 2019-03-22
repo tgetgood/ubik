@@ -1,7 +1,6 @@
 (ns ubik.codebase.storage
   (:refer-clojure :exclude [intern])
-  (:require [clojure.java.io :as io]
-            [ubik.rt :as rt]))
+  (:require [clojure.java.io :as io]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpers

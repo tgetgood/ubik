@@ -2,7 +2,7 @@
   "Respond to javafx events. This shouldn't be in this project."
   (:require [clojure.core.async :as async]
             [falloleen.jfx :as fx]
-            [ubik.rt :as rt])
+            [ubik.process :as process])
   (:import [javafx.event Event EventHandler]
            javafx.scene.control.TextArea
            javafx.scene.input.KeyEvent))
@@ -48,15 +48,15 @@
 
 (defn ch-handler [event-xform]
   (let [c (async/chan (async/sliding-buffer 128) (map event-xform))
-        s (rt/signal ::text-area)]
+        s (process/signal ::text-area)]
     ;; I'm only using core async for buffering. That's not a bad reason, I
     ;; suppose.
     (async/go-loop []
       (if-let [msg (async/<! c)]
         (do
-         (rt/send s msg)
+         (process/send s msg)
          (recur))
-        (rt/send s nil)))
+        (process/send s nil)))
     [(handler [ev] (async/put! c ev)) s]))
 
 (defmacro binder

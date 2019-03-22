@@ -1,8 +1,7 @@
 (ns ubik.codebase
   (:refer-clojure :exclude [intern])
-  (:require [clojure.string :as string] [ubik.rt :as rt]
-            [ubik.codebase.core :as core :refer [*store*]]
-            [ubik.codebase.internal :as internal]
+  (:require [clojure.string :as string]
+            [ubik.codebase.config :as config :refer [*store*]]
             [ubik.codebase.storage :as store]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -67,20 +66,5 @@
 
 ;;;;; External API
 
-(defonce image-signal
-  (rt/signal ::image-signal))
-
-(defn source-effector [sym]
-  (fn [form]
-    (rt/send image-signal {"stm" form})))
-
-(def interned-var-name internal/interned-var-name)
-
-(def invoke-by-id internal/invoke-by-id)
-
 (defn internal-ns-map []
-  (store/as-map core/*branch*))
-
-(defn reload! []
-  (internal/clear-ns)
-  (internal/load-ns))
+  (store/as-map config/*branch*))

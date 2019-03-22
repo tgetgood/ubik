@@ -1,9 +1,6 @@
 (ns ubik.codeless
-  (:require [clojure.core.async :as async]
-            [taoensso.timbre :as log]
-            [ubik.codebase :as code]
-            [ubik.codebase.storage :as store]
-            [ubik.rt :as rt]
+  (:require [ubik.codebase :as code]
+            [ubik.process :as process]
             [ubik.topology :as topo]))
 
 (def built-in-code
@@ -124,9 +121,9 @@
     {
      :sinks   {::out topo-effector}
      :nodes   {:meta-topo/input (signal)
-               ::sub-image () (map extract-deps)
+               ::sub-image (process (map extract-deps))
                ::combined  (make-node edit-multi)
-               ::topo      (map topo-fac)}
+               ::topo      (process (map topo-fac))}
      :wires   #{[:ubik.topology/image ::sub-image]
                 [{:image ::sub-image :watch ::input} ::combined]
                 [::combined ::topo]
@@ -136,14 +133,7 @@
   "Set off a cascade that should result in something interesting happening. I'm
   becomming less and less discerning in what I consider interesting."
   []
-  (code/reload!)
   (topo/init-topology!
    :pre-boot
-   (code/invoke-by-id #uuid "9e1531d0-2712-460c-a186-bc59ed88dd46"))
-  (rt/send code/image-signal (code/internal-ns-map)))
-
-(defn sources []
-  (-> topo/running-topologies
-      deref
-      :pre-boot
-      :sources))
+   #_(code/invoke-by-id #uuid "9e1531d0-2712-460c-a186-bc59ed88dd46"))
+  )

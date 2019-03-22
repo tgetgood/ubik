@@ -3,9 +3,8 @@
             [falloleen.core :as falloleen]
             [clojure.pprint]
             [taoensso.timbre :as log]
-            ubik.rt
             [ubik.codebase.builtin :refer :all]
-            [ubik.codebase.core :as core]
+            [ubik.codebase.config :as config]
             [ubik.codebase.storage :as store])
   (:import [ubik.rt Signal MProcess BasicSignal Multiplexer]))
 
@@ -27,7 +26,7 @@
   @@(id-var id))
 
 (defn declare-all []
-  (let [ks (keys (store/as-map core/*store*))]
+  (let [ks (keys (store/as-map config/*store*))]
     (run! #(intern internal %)
          (map interned-var-name ks))))
 
@@ -50,7 +49,7 @@
   id. Links are captured as lexical references to other vars in the same ns."
   []
   (declare-all)
-  (let [m (store/as-map core/*store*)
+  (let [m (store/as-map config/*store*)
         ns (ns-interns internal)]
     (doseq [[id body] m]
       (let [v (get ns (interned-var-name id))

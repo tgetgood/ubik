@@ -1,4 +1,4 @@
-(ns ubik.codebase.core
+(ns ubik.codebase.config
   (:require [ubik.codebase.storage :as store]))
 
 (def master-uri

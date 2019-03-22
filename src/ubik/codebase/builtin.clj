@@ -2,7 +2,7 @@
   (:require [falloleen.jfx :as fx]
             [ubik.codebase :as codebase]
             [ubik.events :as events]
-            [ubik.rt :as rt]
+            [ubik.process :as process]
             [ubik.topology :as topo])
   (:import javafx.scene.control.TextArea))
 
@@ -26,23 +26,19 @@
        (.setText node text)
        (.positionCaret node caret)))))
 
-(defonce image-signal codebase/image-signal)
-
-(defonce input-signal
-  (let [s (rt/signal ::input-signal)]
-    (rt/send s :core/display)
-    s))
-
-(def source-effector codebase/source-effector)
-
-(def invoke-by-id codebase/invoke-by-id)
-
 (defn topo-effector [t]
   (println "topo-effector!")
   (println t)
   #_(let [k (keyword (gensym))]
     (topo/init-topology! k t)))
 
-(def make-node topo/make-node)
+(def make-node process/make-node)
 
-(def signal rt/signal)
+(def signal process/signal)
+
+(defonce image-signal
+  (signal ::image-signal))
+
+(defn source-effector [sym]
+  (fn [form]
+    (process/send image-signal {"stm" form})))

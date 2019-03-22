@@ -1,9 +1,11 @@
-(ns ubik.rt
+(ns ubik.process
   (:refer-clojure :exclude [send])
   (:require [clojure.core.async :as async]
             [clojure.datafy :refer [datafy]]
             [clojure.pprint :refer [pprint]]
-            [taoensso.timbre :as log]))
+            clojure.reflect
+            [taoensso.timbre :as log]
+            [ubik.util :refer [vmap]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Attempt the second
@@ -180,3 +182,29 @@
                                        :exception (datafy e)})))))
         (recur)))
     eff))
+
+
+
+(defn max-args
+  "Returns the maximal non-var-args arity of the function f."
+  [f]
+  (transduce (comp (filter #(= (:name %) 'invoke))
+                   (map :parameter-types)
+                   (map count))
+             max
+             0
+             (:members (clojure.reflect/reflect f))))
+
+(defn make-stateful-node [mm]
+  (let [state (atom nil)]
+    (with-meta
+      (vmap (partial stateful-xform state) mm)
+      {:state state})))
+
+(defn make-node [method-map]
+  (let [c (into #{} (map max-args) (vals method-map))]
+    (assert (= 1 (count c)) "All methods of a node must have the same arity.")
+    (cond
+      (= #{1} c) (vmap stateless-xform method-map)
+      (= #{2} c) (make-stateful-node method-map)
+      :else      (throw (Exception. "Unknown node method type.")))))
