@@ -1,6 +1,7 @@
 (ns ubik.topology
   (:require clojure.reflect
             [clojure.set :as set]
+            [ubik.codebase :as code]
             [ubik.rt :as rt]
             [ubik.util :refer [vmap]]))
 
@@ -31,8 +32,8 @@
 (defn set-topology! [t])
 (defn current-topology [])
 
-(defonce running-topologies
-  (atom {}))
+(defonce node-map
+  (atom {::image code/image-signal}))
 
 (defn init-topology! [k {:keys [sinks sources nodes wires] :as t}]
   (let [nodes (into {} (map (fn [[k v]] [k (rt/process k v)])) nodes)
@@ -43,5 +44,4 @@
             k (vmap #(get all %) k)
             v (get all v)]
         (run! #(rt/wire v (key %) (val %)) k)))
-    (swap! running-topologies assoc k
-           (assoc t :nodes nodes :sinks sinks))))
+    ))

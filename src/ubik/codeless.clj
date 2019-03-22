@@ -38,7 +38,7 @@
     (into {} (map (fn [s]
                     (let [ref (get-in image [(namespace s) (name s)])]
                       [(:ns/symbol ref)
-                       (ubik.core/invoke-by-id (:id ref))])))
+                       (invoke-by-id (:id ref))])))
                       syms)))
 
 (def extract-deps
@@ -70,12 +70,12 @@
   (code/snippet {}
     (fn [{{:keys [display format-code-text edits form]} :image
           watch                                         :watch}]
-      (let [stage        (ubik.core/create-code-stage watch)
+      (let [stage        (create-code-stage watch)
             key-strokes  (-> stage :event-streams :key-stroke)
             text-obj     (-> stage :node)
             code-display (display watch)
-            text-render  (ubik.core/text-renderer text-obj)
-            code-change  (ubik.core/source-effector watch)]
+            text-render  (text-renderer text-obj)
+            code-change  (source-effector watch)]
         {
          ;; The nodes in a topology are distict process fragments. One
          ;; function or multiplexer map can be instantiated into
@@ -85,11 +85,11 @@
          :nodes {::code-1 (map code-display)
                  ::code-2 (map format-code-text)
                  ::edits  (map edits)
-                 ::form   (ubik.core/make-node form)}
+                 ::form   (make-node form)}
 
          ;; I'm not sure that we need to explicitely declare sources
          ;; and sinks, but right now it's just easier this way.
-         :sources {::image       ubik.core/image-signal
+         :sources {::image       image-signal
                    ::key-strokes key-strokes}
 
          :sinks {::text-render text-render
@@ -121,13 +121,13 @@
   (code/snippet {edit-multi   #uuid "df9b93b3-7431-4049-8008-80248c292491"
                  extract-deps #uuid "fec71d27-96c3-4a65-9a7a-82476925bdea"
                  topo-fac     #uuid "59476105-595a-44ac-a905-e184b0c2d213"}
-    {:sources {::image ubik.core/image-signal
-               ::input ubik.core/input-signal}
-     :sinks   {::out ubik.core/topo-effector}
-     :nodes   {::sub-image (map extract-deps)
-               ::combined  (ubik.core/make-node edit-multi)
+    {
+     :sinks   {::out topo-effector}
+     :nodes   {:meta-topo/input (signal)
+               ::sub-image () (map extract-deps)
+               ::combined  (make-node edit-multi)
                ::topo      (map topo-fac)}
-     :wires   #{[::image ::sub-image]
+     :wires   #{[:ubik.topology/image ::sub-image]
                 [{:image ::sub-image :watch ::input} ::combined]
                 [::combined ::topo]
                 [::topo ::out]}}))

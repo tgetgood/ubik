@@ -4,6 +4,7 @@
             [clojure.pprint]
             [taoensso.timbre :as log]
             ubik.rt
+            [ubik.codebase.builtin :refer :all]
             [ubik.codebase.core :as core]
             [ubik.codebase.storage :as store])
   (:import [ubik.rt Signal MProcess BasicSignal Multiplexer]))

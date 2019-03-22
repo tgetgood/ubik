@@ -1,4 +1,4 @@
-(ns ubik.core
+(ns ubik.codebase.builtin
   (:require [falloleen.jfx :as fx]
             [ubik.codebase :as codebase]
             [ubik.events :as events]
@@ -17,6 +17,8 @@
       (swap! stages assoc k res)
       res)))
 
+;; FIXME: This jfx specific code does not belong in Ubik. But it also doesn't
+;; belong in Falloleen. It's a kludge anyway so why worry about factoring?
 (defn text-renderer [^TextArea node]
   (fn [text]
     (fx/fx-thread
@@ -42,3 +44,5 @@
     (topo/init-topology! k t)))
 
 (def make-node topo/make-node)
+
+(def signal rt/signal)
