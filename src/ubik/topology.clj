@@ -1,6 +1,4 @@
-(ns ubik.topology
-  (:require [ubik.codebase :as code]
-            [ubik.util :refer [vmap]]))
+(ns ubik.topology)
 
 (defn set-topology! [t])
 (defn current-topology [])

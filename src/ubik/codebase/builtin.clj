@@ -1,9 +1,7 @@
 (ns ubik.codebase.builtin
   (:require [falloleen.jfx :as fx]
-            [ubik.codebase :as codebase]
             [ubik.events :as events]
-            [ubik.process :as process]
-            [ubik.topology :as topo])
+            [ubik.process :as process])
   (:import javafx.scene.control.TextArea))
 
 (def stages (atom {}))
