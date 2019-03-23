@@ -27,9 +27,17 @@
 (defn current-branch []
   (str you "/" machine "/" @branch-stem))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Namespaces
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn ns-sym [sym id]
   {:ns/symbol sym :id id})
+
+(defn populate-nses [m]
+  (run! (fn [[sym id]]
+          (store/intern config/*branch* (ns-sym sym id)))
+        m))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Snippets

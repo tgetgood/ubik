@@ -1,6 +1,7 @@
 (ns ubik.codeless
   (:require [ubik.codebase :as code]
             [ubik.codebase.internal :as internal]
+            [ubik.process :as process]
             [ubik.topology :as topo]))
 
 (def built-in-code
@@ -23,6 +24,12 @@
 
     ;; Runtimey things
     {:editor.core/image-signal image-signal}]))
+
+(def starting-ns
+  {:core/display #uuid "81df67e2-01b7-45a7-a22d-a56da9ccd95e"
+   :core/format-code-text #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5"
+   :core/edits #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e"
+   :core/form #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df"})
 
 (code/snippet {}
   (fn [image syms]
@@ -59,8 +66,11 @@
 (def snip-edit-topology
   "Creates an editor window and returns a messaging topology to control it."
   (code/snippet {}
-    (fn [{{:keys [display format-code-text edits form]} :image
-          watch                                         :watch}]
+    (fn [{{:keys [core/display
+                  core/format-code-text
+                  core/edits
+                  core/form]} :image
+          watch               :watch}]
       (let [stage        (create-code-stage watch)
             key-strokes  (-> stage :event-streams :key-stroke)
             text-obj     (-> stage :node)
@@ -107,7 +117,7 @@
 (def meta-topo
   (code/snippet {edit-multi   #uuid "5854b093-746e-4d0f-a4c5-84f715354b57"
                  extract-deps #uuid "c6ac1861-bd41-41e4-980e-8fd03e334113"
-                 topo-fac     #uuid "2fb13a14-bf6f-496e-8ef3-1de092209840"}
+                 topo-fac     #uuid "e0085372-0ca5-438d-8e51-6a2835cacf1d"}
 
     {:nodes [(signal :mt/input)
              (process :mt/sub-image (map extract-deps))
@@ -116,7 +126,7 @@
              (effector :mt/out topo-effector)]
 
      :wires #{[:ubik.topology/image :mt/sub-image]
-              [{:image :mt/sub-image :watch ::input} :mt/combined]
+              [{:image :mt/sub-image :watch :mt/input} :mt/combined]
               [:mt/combined :mt/topo]
               [:mt/topo :mt/out]}}))
 
@@ -124,7 +134,14 @@
   "Set off a cascade that should result in something interesting happening. I'm
   becomming less and less discerning in what I consider interesting."
   []
+  ;; Refresh all residential code
   (internal/clear-ns)
   (internal/load-ns)
+
+  ;; Setup topology
   (topo/init-topology!
-   (internal/invoke-by-id #uuid "2a700163-c1d8-48d4-bee0-7e0d36fc230f")))
+   (internal/invoke-by-id #uuid "9a684f42-a723-4b64-92b2-2a43ad7d643b"))
+
+  ;; Spoof input
+  (process/send (:mt/input @topo/node-map) :core/display)
+  (process/send (:ubik.topology/image @topo/node-map) (code/internal-ns-map)))

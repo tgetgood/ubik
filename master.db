@@ -1,4 +1,4 @@
-{:ns/symbol :core/edits, :id #uuid "68f91c1f-c8e4-441b-9afa-83e28a5bd5a9", :op :add, :time #inst "2019-03-20T15:27:31.254-00:00"}
-{:ns/symbol :core/form, :id #uuid "de7aaabe-8e9a-46e4-9d76-3d33b5e43277", :op :add, :time #inst "2019-03-20T15:28:29.501-00:00"}
-{:ns/symbol :core/display, :id #uuid "013dfaec-fb48-4685-adb1-17f85a70e8d8", :op :add, :time #inst "2019-03-20T15:28:59.977-00:00"}
-{:ns/symbol :core/format-code-text, :id #uuid "46e1dc3f-778e-446f-9a72-616149fa29e8", :op :add, :time #inst "2019-03-20T15:29:21.453-00:00"}
+{:ns/symbol :core/display, :id #uuid "81df67e2-01b7-45a7-a22d-a56da9ccd95e", :op :add, :time #inst "2019-03-23T15:26:19.254-00:00"}
+{:ns/symbol :core/format-code-text, :id #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5", :op :add, :time #inst "2019-03-23T15:26:19.255-00:00"}
+{:ns/symbol :core/edits, :id #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e", :op :add, :time #inst "2019-03-23T15:26:19.256-00:00"}
+{:ns/symbol :core/form, :id #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df", :op :add, :time #inst "2019-03-23T15:26:19.257-00:00"}

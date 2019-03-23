@@ -1,7 +1,7 @@
 (ns ubik.codebase.internal
   (:require [clojure.string :as string]
             [falloleen.core :as falloleen]
-            [clojure.pprint]
+            [clojure.pprint :refer [pprint]]
             [taoensso.timbre :as log]
             [ubik.codebase.builtin :refer :all]
             [ubik.codebase.config :as config]
@@ -18,11 +18,6 @@
 
 (defn id-var [id]
   (get (ns-interns internal) (interned-var-name id)))
-
-(defn invoke-by-id
-  "Given the id of a snippet, return the evaluated form to which it refers."
-  [id]
-  @@(id-var id))
 
 (defn declare-all []
   (let [ks (keys (store/as-map config/*store*))]
@@ -61,4 +56,9 @@
                               (binding [*ns* internal]
                                 (eval form))))))))))
 
-(load-ns)
+(defn invoke-by-id
+  "Given the id of a snippet, return the evaluated form to which it refers."
+  [id]
+  ;;REVIEW: This seems a little excessive. Do you have a better idea?
+  (load-ns)
+  @@(id-var id))

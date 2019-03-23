@@ -38,21 +38,23 @@
   Signal
   (send [this message]
     (locking this
-      (log/log (if (= name :ubik.events/text-area)
+      (log/log
+       (if (= name :ubik.events/text-area)
                  :trace
                  :debug)
-       {:event-type "BasicSignal/send"
-        :name name
-        :message message})
+       (str "\n" (with-out-str (pprint {:event-type "BasicSignal/send"
+                                        :name       name
+                                        :message    message}))))
       (reset! last-message message)
-      (run! #(% message) @listeners)))
+      (run! (fn [[_ f]] (f message)) @listeners)))
   (disconnect [this key]
     (locking this
       (swap! listeners dissoc key)
       nil))
   (listen [this key cb]
     (locking this
-      (log/warn key "is already a registered listener on" name ". Ignoring.")
+      (when (contains? @listeners key)
+        (log/warn key "is already a registered listener on" name ". Ignoring."))
       (swap! listeners assoc key cb)
       (when-let [lm @last-message]
         (cb lm)))))
