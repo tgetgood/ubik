@@ -1,7 +1,8 @@
 (ns ubik.codebase.builtin
   (:require [falloleen.jfx :as fx]
             [ubik.events :as events]
-            [ubik.process :as process])
+            [ubik.process :as process]
+            [ubik.topology :as topo])
   (:import javafx.scene.control.TextArea))
 
 (def stages (atom {}))
@@ -10,7 +11,7 @@
   (if (contains? @stages k)
     (@stages k)
     (let [p @(fx/code-stage)
-          ev-map (events/bind-text-area! (:area p))
+          ev-map (events/bind-text-area! k (:area p))
           res {:node (:area p) :stage (:stage p) :event-streams ev-map}]
       (swap! stages assoc k res)
       res)))
@@ -25,10 +26,7 @@
        (.positionCaret node caret)))))
 
 (defn topo-effector [t]
-  (println "topo-effector!")
-  (println t)
-  #_(let [k (keyword (gensym))]
-    (topo/init-topology! k t)))
+  (topo/init-topology! t))
 
 (def make-node process/make-node)
 (def signal process/signal)

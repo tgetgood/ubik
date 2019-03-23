@@ -46,9 +46,9 @@
    :key-up     'setOnKeyReleased
    :key-stroke 'setOnKeyTyped})
 
-(defn ch-handler [event-xform]
+(defn ch-handler [name event-xform]
   (let [c (async/chan (async/sliding-buffer 128) (map event-xform))
-        s (process/signal ::text-area)]
+        s (process/signal name)]
     ;; I'm only using core async for buffering. That's not a bad reason, I
     ;; suppose.
     (async/go-loop []
@@ -62,7 +62,7 @@
 (defmacro binder
   "Binds event handlers to the given JFX object and returns a map from event
   names to channels that will receive events."
-  [tag ev-parse]
+  [tag lookup ev-parse]
   (let [x (with-meta (gensym) {:tag tag})]
     `(fn [~x]
        (into {}
@@ -70,14 +70,16 @@
                  (fn [[k# v#]]
                    (let [hs (gensym)
                          sig (gensym)]
-                     `(let [[~hs ~sig] (ch-handler (partial ~ev-parse ~x))]
+                     `(let [[~hs ~sig]
+                            (ch-handler ~[::text-area lookup k#]
+                                        (partial ~ev-parse ~x))]
                         (fx/fx-thread (. ~x ~v# ~hs))
                         [~k# ~sig])))
                  binding-map)]))))
 
 (defmacro bind-text-area!
-  [node]
-  `((binder TextArea datafy-event) ~node))
+  [k node]
+  `((binder TextArea ~k datafy-event) ~node))
 
 ;; (defmacro bind-canvas!
 ;;   "This is more than a little ugly."

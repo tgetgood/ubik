@@ -1,5 +1,6 @@
 (ns ubik.topology
-  (:require [taoensso.timbre :as log]
+  (:require [clojure.pprint :refer [pprint]]
+            [taoensso.timbre :as log]
             [ubik.process :as process]))
 
 (defn set-topology! [t])
@@ -17,11 +18,12 @@
 
 (defn init-topology! [{:keys [nodes wires]}]
   (doseq [node nodes]
-    (let [name (or (:name (meta node)) (:name node))]
+    (let [name (:name node)]
       (if (contains? @node-map name)
         (log/warn "Trying to readd" name "to node graph.")
         (swap! node-map assoc name node))))
-  (log/debug "Current node list:" (keys @node-map))
+  (log/debug "Current node list:"
+             (with-out-str (pprint (keys @node-map))))
   (doseq [[out in] wires]
     (let [in-node (get @node-map in)
           out (if (map? out) out {:in out})]

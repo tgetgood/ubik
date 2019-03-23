@@ -87,8 +87,7 @@
                  (process :ed/code-2 (map format-code-text))
                  (process :ed/edits (map edits))
                  (make-node :ed/form form)
-                 ^{:name :ed/key-strokes} key-strokes
-
+                 key-strokes
                  (effector :ed/text-render text-render)
                  (effector :ed/code-change code-change)]
 
@@ -110,14 +109,14 @@
                   [:ed/code-1 :ed/code-2]
                   [:ed/code-2 :ed/text-render]
 
-                  [:ed/key-strokes :ed/edits]
+                  [[:ubik.events/text-area watch :key-stroke] :ed/edits]
                   [{:edit :ed/edits} :ed/form]
                   [:ed/form :ed/code-change]}}))))
 
 (def meta-topo
   (code/snippet {edit-multi   #uuid "5854b093-746e-4d0f-a4c5-84f715354b57"
                  extract-deps #uuid "c6ac1861-bd41-41e4-980e-8fd03e334113"
-                 topo-fac     #uuid "e0085372-0ca5-438d-8e51-6a2835cacf1d"}
+                 topo-fac     #uuid "0fa69760-841f-4ff8-ad41-c97d9788dbd0"}
 
     {:nodes [(signal :mt/input)
              (process :mt/sub-image (map extract-deps))
@@ -140,8 +139,7 @@
 
   ;; Setup topology
   (topo/init-topology!
-   (internal/invoke-by-id #uuid "9a684f42-a723-4b64-92b2-2a43ad7d643b"))
-
+   (internal/invoke-by-id #uuid "7e0c7523-be2f-40fe-b8eb-fb04779df0be"))
   ;; Spoof input
   (process/send (:mt/input @topo/node-map) :core/display)
   (process/send (:ubik.topology/image @topo/node-map) (code/internal-ns-map)))
