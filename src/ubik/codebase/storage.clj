@@ -206,6 +206,7 @@
 (defn file-cached-branch [filename]
   (let [store (FileBackedBranch. filename)
         cache (cached-branch (log store))]
+    ;; TODO: unmap-var
     (reify
       Store
       (intern [this entry]
