@@ -1,6 +1,8 @@
 (ns ubik.codeless
   (:require [ubik.codebase :as code]
             [ubik.codebase.internal :as internal]
+            [ubik.codebase.storage :as store]
+            [ubik.codebase.config :as config]
             [ubik.process :as process]
             [ubik.topology :as topo]))
 
@@ -20,24 +22,30 @@
        (with-out-str (pprint form)))}
 
     ]))
-(def starting-ns
-  {:core/display#uuid "07326abc-5a59-463e-9cab-52aa639030cb"
-   :core/format-code-text #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5"
-   :core/edits #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e"
-   :core/form #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df"})
 
 (def ns-lookup
   (code/snippet {}
     (fn [image sym]
       (let [ref (get-in image [(namespace sym) (name sym)])]
         [(:ns/symbol ref)
-         (invoke-by-id (:id ref))]))))
+         (edit (:id ref))]))))
 
 (def display
-  (code/snippet {lookup #uuid "3f1615d8-3146-4eb2-94cd-232ff57e5dcc"}
+  (code/snippet {lookup {:ref  :core/ns-lookup
+                         :time #inst "2019-03-25T18:12:03.485-00:00"}}
     (fn [sym]
       (fn [image]
-        (lookup image sym)))))
+        (second (lookup image sym))))))
+
+
+(def starting-ns
+  {:core/display (:id display)
+   :core/format-code-text #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5"
+   :core/edits #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e"
+   :core/form #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df"
+   :core/ns-lookup (:id ns-lookup)})
+
+(code/populate-nses starting-ns)
 
 (def fn-map
   (code/snippet {ns-lookup #uuid "3f1615d8-3146-4eb2-94cd-232ff57e5dcc"}
@@ -133,6 +141,9 @@
               [{:image :mt/sub-image :watch :mt/input} :mt/combined]
               [:mt/combined :mt/topo]
               [:mt/topo :mt/out]}}))
+
+(def dependencies
+  [meta-topo ])
 
 (defn trigger-network
   "Set off a cascade that should result in something interesting happening. I'm

@@ -24,13 +24,29 @@
     (run! #(intern internal %)
          (map interned-var-name ks))))
 
+(defn ns-link? [link]
+  (and (keyword? (:ref link)) (inst? (:time link))))
+
+(defn lookup-link [link]
+  (when-let [ref (store/branch-lookup config/*branch* (:ref link) (:time link))]
+    (full-var-name (:id ref))))
+
+(defn gen-ref [link]
+  (cond
+    (uuid? link)    (full-var-name link)
+    (ns-link? link) (lookup-link link)))
+
 (defn gen-code-for-body
   [{:keys [form links]}]
   `(let [~@(mapcat (fn [[n id]]
-                     (let [v (full-var-name id)]
-                       `[~n (deref ~v)]))
+
+                     (let [v (gen-ref id)]
+                       `[~n (if (delay? ~v) @~v ~v)]))
                    links)]
      ~form))
+
+(defn gen-code-for-id [id]
+  (gen-code-for-body (store/lookup config/*store* id)))
 
 (defn clear-ns
   []
