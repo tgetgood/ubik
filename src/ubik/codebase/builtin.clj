@@ -1,5 +1,7 @@
 (ns ubik.codebase.builtin
   (:require [falloleen.jfx :as fx]
+            [ubik.codebase.storage :as store]
+            [ubik.codebase.config :as config]
             [ubik.events :as events]
             [ubik.process :as process]
             [ubik.topology :as topo])
@@ -36,3 +38,10 @@
 (defn source-effector [sym]
   (fn [form]
     (println form)))
+
+(defn edit
+  "Returns snippet in easily editable form by id."
+  [id]
+  (let [{:keys [form links]} (store/lookup config/*store* id)]
+    `(snippet ~links
+       ~form)))
