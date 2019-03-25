@@ -195,7 +195,7 @@
       ReverseLookup
       (by-value [this entry]
         (let [candidate (lookup this (:ns/symbol entry))]
-          (when (apply = (map #(select-keys % [:ns/symbol :id :op])
+          (when (apply = (map #(select-keys % [:ns/symbol :id])
                               [candidate entry]))
             candidate)))
 
