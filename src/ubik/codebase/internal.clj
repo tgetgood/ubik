@@ -78,3 +78,7 @@
   ;;REVIEW: This seems a little excessive. Do you have a better idea?
   (load-ns)
   @@(id-var id))
+
+(defn invoke-by-name [sym]
+  (let [link (store/lookup config/*branch* sym)]
+    (invoke-by-id (:id link))))

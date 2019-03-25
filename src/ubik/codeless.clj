@@ -24,7 +24,7 @@
     ]))
 
 (def ns-lookup
-  (code/snippet {}
+  (code/snippet \s
     (fn [image sym]
       (let [ref (get-in image [(namespace sym) (name sym)])]
         [(:ns/symbol ref)
@@ -38,15 +38,6 @@
         (second (lookup image sym))))))
 
 
-(def starting-ns
-  {:core/display (:id display)
-   :core/format-code-text #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5"
-   :core/edits #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e"
-   :core/form #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df"
-   :core/ns-lookup (:id ns-lookup)})
-
-(code/populate-nses starting-ns)
-
 (def fn-map
   (code/snippet {ns-lookup #uuid "3f1615d8-3146-4eb2-94cd-232ff57e5dcc"}
     (fn [image syms]
@@ -54,7 +45,8 @@
 
 (def extract-deps
   "I've only named these as vars for the ease of reference"
-  (code/snippet {fn-map #uuid "6dc2b544-50d1-4326-8d6e-fd736a21dd7a"}
+  (code/snippet {fn-map {:ref :core/fn-map
+                         :time #inst "2019-03-25T18:23:33.845-00:00"}}
     (fn [image]
       (fn-map image [:core/display
                      :core/format-code-text
@@ -127,9 +119,12 @@
                   [:ed/form :ed/code-change]}}))))
 
 (def meta-topo
-  (code/snippet {edit-multi   #uuid "5854b093-746e-4d0f-a4c5-84f715354b57"
-                 extract-deps #uuid "162444b2-dbf7-49c2-bd3d-d778793d2f12",
-                 topo-fac     #uuid "0fa69760-841f-4ff8-ad41-c97d9788dbd0"}
+  (code/snippet {edit-multi   {:ref :core/edit-multi
+                               :time #inst "2019-03-25T18:23:33.845-00:00"}
+                 extract-deps {:ref :core/extract-deps
+                               :time #inst "2019-03-25T18:23:33.845-00:00"}
+                 topo-fac    {:ref :core/snip-edit-topology
+                               :time #inst "2019-03-25T18:23:33.845-00:00"}}
 
     {:nodes [(signal :mt/input)
              (process :mt/sub-image (map extract-deps))
@@ -142,8 +137,20 @@
               [:mt/combined :mt/topo]
               [:mt/topo :mt/out]}}))
 
-(def dependencies
-  [meta-topo ])
+
+(def starting-ns
+  {:core/display (:id display)
+   :core/format-code-text #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5"
+   :core/edits #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e"
+   :core/form #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df"
+   :core/ns-lookup (:id ns-lookup)
+   :core/fn-map (:id fn-map)
+   :core/extract-deps (:id extract-deps)
+   :core/edit-multi (:id edit-multi)
+   :core/snip-edit-topology (:id snip-edit-topology)
+   :core/meta-topo (:id meta-topo)})
+
+(code/populate-nses starting-ns)
 
 (defn trigger-network
   "Set off a cascade that should result in something interesting happening. I'm
@@ -155,7 +162,8 @@
 
   ;; Setup topology
   (topo/init-topology!
-   (internal/invoke-by-id #uuid "45c7c2eb-a823-4c58-8cec-4734f0e104a7"))
+   (internal/invoke-by-name :core/meta-topo))
+
   ;; Spoof input
   (process/send (:mt/input @topo/node-map) :core/display)
   (process/send (:ubik.topology/image @topo/node-map) (code/internal-ns-map)))
