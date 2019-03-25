@@ -14,34 +14,39 @@
                       {:emit (read-string text)}
                       (catch Exception e {:unreadable text})))}
 
-     ::display (fn [sym]
-                (fn [image]
-                  (get image sym)))
 
      ::format-code-text
      (fn [form]
        (with-out-str (pprint form)))}
 
-    ;; Runtimey things
-    {:editor.core/image-signal image-signal}]))
-
+    ]))
 (def starting-ns
-  {:core/display #uuid "81df67e2-01b7-45a7-a22d-a56da9ccd95e"
+  {:core/display#uuid "07326abc-5a59-463e-9cab-52aa639030cb"
    :core/format-code-text #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5"
    :core/edits #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e"
    :core/form #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df"})
 
-(code/snippet {}
-  (fn [image syms]
-    (into {} (map (fn [s]
-                    (let [ref (get-in image [(namespace s) (name s)])]
-                      [(:ns/symbol ref)
-                       (invoke-by-id (:id ref))])))
-                      syms)))
+(def ns-lookup
+  (code/snippet {}
+    (fn [image sym]
+      (let [ref (get-in image [(namespace sym) (name sym)])]
+        [(:ns/symbol ref)
+         (invoke-by-id (:id ref))]))))
+
+(def display
+  (code/snippet {lookup #uuid "3f1615d8-3146-4eb2-94cd-232ff57e5dcc"}
+    (fn [sym]
+      (fn [image]
+        (lookup image sym)))))
+
+(def fn-map
+  (code/snippet {ns-lookup #uuid "3f1615d8-3146-4eb2-94cd-232ff57e5dcc"}
+    (fn [image syms]
+      (into {} (map (partial ns-lookup image)) syms))))
 
 (def extract-deps
   "I've only named these as vars for the ease of reference"
-  (code/snippet {fn-map #uuid "6b0fc0a5-ea99-41b0-b4e2-884f7abe0433"}
+  (code/snippet {fn-map #uuid "6dc2b544-50d1-4326-8d6e-fd736a21dd7a"}
     (fn [image]
       (fn-map image [:core/display
                      :core/format-code-text
@@ -115,7 +120,7 @@
 
 (def meta-topo
   (code/snippet {edit-multi   #uuid "5854b093-746e-4d0f-a4c5-84f715354b57"
-                 extract-deps #uuid "c6ac1861-bd41-41e4-980e-8fd03e334113"
+                 extract-deps #uuid "162444b2-dbf7-49c2-bd3d-d778793d2f12",
                  topo-fac     #uuid "0fa69760-841f-4ff8-ad41-c97d9788dbd0"}
 
     {:nodes [(signal :mt/input)
@@ -139,7 +144,7 @@
 
   ;; Setup topology
   (topo/init-topology!
-   (internal/invoke-by-id #uuid "7e0c7523-be2f-40fe-b8eb-fb04779df0be"))
+   (internal/invoke-by-id #uuid "45c7c2eb-a823-4c58-8cec-4734f0e104a7"))
   ;; Spoof input
   (process/send (:mt/input @topo/node-map) :core/display)
   (process/send (:ubik.topology/image @topo/node-map) (code/internal-ns-map)))

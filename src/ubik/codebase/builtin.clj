@@ -35,4 +35,4 @@
 
 (defn source-effector [sym]
   (fn [form]
-    ))
+    (println form)))

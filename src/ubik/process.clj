@@ -39,7 +39,7 @@
   (send [this message]
     (locking this
       (log/log
-       (if (and (seq? name) (= (first name) :ubik.events/text-area))
+       (if (and (sequential? name) (= (first name) :ubik.events/text-area))
                  :trace
                  :debug)
        (str "\n" (with-out-str (pprint {:event-type "BasicSignal/send"
