@@ -1,5 +1,6 @@
 (ns ubik.codebase.storage
   (:refer-clojure :exclude [intern])
+  (:import org.apache.commons.codec.digest.DigestUtils)
   (:require [clojure.java.io :as io]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -19,17 +20,27 @@
   [filename x]
   (spit filename (str x "\n") :append true))
 
-(defn update-ns-map [acc {:keys [op ns/symbol] :as entry}]
-  (if (= :add op)
-    (assoc-in acc [(namespace symbol) (name symbol)] entry)
-    (update acc (namespace symbol) dissoc (name symbol))))
+(defn update-ns-map [acc entry]
+  (let [n (:name entry)
+        ens (namespace n)
+        ename (name n)
+        op (:op entry)]
+    (if (= :add op)
+      (assoc-in acc [ens ename] entry)
+      (update acc ens dissoc ename))))
+
+(defn sha1 [x]
+  (DigestUtils/sha1Hex (str x)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Protocols
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol AppendOnlyLog
-  (log [this] "Returns the entire list of transactions"))
+  ;; REVIEW: Is retraction an inherent part of append only storage?
+  ;; It is required for monotonicity...
+  (log [this] "Returns the entire list of transactions")
+  (retract [this entry] "Retracts this entry from the log."))
 
 (defprotocol TimeTravel
   (as-of [this inst] "Returns the list of transactions before inst"))
@@ -52,37 +63,34 @@
 (defrecord FileStore [filename]
   ;; This will fall over very easily. We need indicies. Hell, we need a database.
   Store
-  (intern [_ snippet]
-    (assert (contains? snippet :id)
-            "You're trying to intern a code fragment without an id. You may as
-            well drop it on the floor to its face.")
-    (let [snippet (assoc snippet :time (now))]
-      (append-line filename snippet)
-      snippet))
+  (intern [this snippet]
+    (if-let [res (lookup this (sha1 snippet))]
+      res
+      (let [meta {:time (now) :sha1 (sha1 snippet)}
+            entry (assoc meta :snippet snippet)]
+        (append-line filename entry)
+        (with-meta snippet meta))))
   (lookup [_ id]
     (with-open [rdr (io/reader filename)]
-      (->> rdr
-           line-seq
-           (map read-string)
-           (filter #(= (:id %) id))
-           first)))
+      (let [entry (->> rdr
+                       line-seq
+                       (map read-string)
+                       (filter #(= (:sha1 %) id))
+                       first)]
+        (when entry
+          (with-meta (:snippet entry) (dissoc entry :snippet))))))
 
   ReverseLookup
-  (by-value [_ snip]
-    (let [snip (select-keys snip [:form :links])]
-      (with-open [rdr (io/reader filename)]
-        (->> rdr
-             line-seq
-             (map read-string)
-             (filter #(= snip (select-keys % [:links :form])))
-             first))))
+  (by-value [this snip]
+    (lookup this (sha1 snip)))
 
   ValueMap
   (as-map [_]
     (with-open [rdr (io/reader filename)]
       (into {}
             (comp (map read-string)
-                  (map (fn [x] [(:id x) x])))
+                  (map (fn [x] [(:sha1 x) (with-meta (:snippet x)
+                                            (dissoc x :snippet))])))
             (line-seq rdr)))))
 
 (defn file-backed-mem-store [filename]
@@ -90,17 +98,19 @@
         cache (atom (as-map store))]
     (reify Store
       (intern [_ snippet]
-        (let [snippet (intern store snippet)]
-          (swap! cache assoc (:id snippet) snippet)
-          snippet))
+        (let [hash (sha1 snippet)]
+          (if-let [entry (get @cache hash)]
+            entry
+            (let [snippet (intern store snippet)]
+              (swap! cache assoc (:sha1 (meta snippet)) snippet)
+              snippet))))
       (lookup [_ id]
         (get @cache id))
 
       ReverseLookup
-      (by-value [_ snip]
-        ;; TODO: Indicies
-        (let [snip (select-keys snip [:form :links])]
-          (first (filter #(= snip (select-keys % [:form :links])) (vals @cache)))))
+      (by-value [this snip]
+        (let [hash (if-let [sha (:sha1 (meta snip))] sha (sha1 snip))]
+          (lookup this hash)))
 
       ValueMap
       (as-map [_]
@@ -110,14 +120,33 @@
 ;; Namespaces
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn ns-sym [sym ref]
+  {:name sym :ref ref})
+
+(defn fill-branch-entry
+  "Adds default metadata to branch entry.
+  Currently this is just :time and [:op :add]"
+  [entry]
+  (assoc entry :time (now) :op :add))
+
 (defrecord MemLog [history]
   Store
   (intern [_ entry]
-    (MemLog. (conj history entry)))
+    (MemLog. (conj history (fill-branch-entry entry))))
   (lookup [_ sym]
-    (let [candidate (last (filter #(= sym (get % :ns/symbol)) history))]
+    (let [candidate (last (filter #(= sym (get % :name)) history))]
       (when (= :add (:op candidate))
         candidate)))
+
+  AppendOnlyLog
+  (log [_]
+    history)
+  (retract [_ entry]
+
+    (let [entry (-> entry
+                    fill-branch-entry
+                    (assoc :op :retract))]
+      (MemLog. (conj history entry))))
 
   TimeTravel
   (as-of [_ inst]
@@ -130,21 +159,21 @@
 (defrecord FileBackedBranch [filename]
   Store
   (intern [this entry]
-    (let [new (assoc entry :op :add :time (now))]
-      (when-let [old (lookup this entry)]
-        (append-line filename (assoc old :op :retract)))
+    (let [new (fill-branch-entry entry)]
+      (when-let [old (lookup this (:name entry))]
+        (append-line filename (assoc (fill-branch-entry old) :op :retract)))
       (append-line filename new)
       new))
 
   (lookup [this sym]
     (with-open [rdr (io/reader filename)]
-      (let [hist (->> rdr
-                      line-seq
-                      (map read-string)
-                      (filter #(= sym (get % :ns/symbol)))
-                      last)]
-        (when (= :add (:op hist))
-          hist))))
+      (let [candidate (->> rdr
+                           line-seq
+                           (map read-string)
+                           (filter #(= sym (get % :name)))
+                           last)]
+        (when (= :add (:op candidate))
+          candidate))))
 
   AppendOnlyLog
   (log [_]
@@ -153,6 +182,8 @@
        (into []
              (map read-string)
              (line-seq rdr)))))
+  (retract [_ entry]
+    (append-line filename (assoc (fill-branch-entry entry) :op :retract)))
 
   TimeTravel
   (as-of [this inst]
@@ -164,8 +195,8 @@
       (reduce (fn [nses s]
                 (let [m   (read-string s)
                       op  (:op m)
-                      ns  (namespace (:ns/symbol m))
-                      sym (name (:ns/symbol m))]
+                      ns  (namespace (:name m))
+                      sym (name (:name m))]
                   (if (= op :add)
                     (assoc-in nses [ns sym] m)
                     (update nses ns dissoc sym))))
@@ -179,6 +210,7 @@
       Store
       (intern [this entry]
         (dosync
+         ;; FIXME: Timestamps will be out of sync.
           (alter history intern entry)
           (alter cache update-ns-map entry)))
       (lookup [this sym]
@@ -191,11 +223,16 @@
       AppendOnlyLog
       (log [_]
         @history)
+      (retract [_ entry]
+        (let [entry (assoc (fill-branch-entry entry) :op :retract)]
+          (dosync
+           (alter history retract entry)
+           (alter cache update-ns-map entry))))
 
       ReverseLookup
       (by-value [this entry]
-        (let [candidate (lookup this (:ns/symbol entry))]
-          (when (apply = (map #(select-keys % [:ns/symbol :id])
+        (let [candidate (lookup this (:name entry))]
+          (when (apply = (map #(select-keys % [:name :ref])
                               [candidate entry]))
             candidate)))
 
@@ -206,7 +243,6 @@
 (defn file-cached-branch [filename]
   (let [store (FileBackedBranch. filename)
         cache (cached-branch (log store))]
-    ;; TODO: unmap-var
     (reify
       Store
       (intern [this entry]
@@ -226,6 +262,10 @@
       AppendOnlyLog
       (log [_]
         (log cache))
+      (retract [this entry]
+        (locking this
+          (retract store entry)
+          (retract cache entry)))
 
       ValueMap
       (as-map [_]

@@ -6,56 +6,57 @@
             [ubik.process :as process]
             [ubik.topology :as topo]))
 
-(def built-in-code
-  (quote
-   [{::edits (fn [ev]
-              (:text ev))
+(def edits
+  (code/snippet {}
+    (fn [ev]
+      (:text ev))))
 
-     ::form {:edit (fn [prev text]
-                    (try
-                      {:emit (read-string text)}
-                      (catch Exception e {:unreadable text})))}
+(def form
+  (code/snippet {}
+    {:edit (fn [prev text]
+             (try
+               {:emit (read-string text)}
+               (catch Exception e {:unreadable text})))}))
 
-
-     ::format-code-text
-     (fn [form]
-       (with-out-str (pprint form)))}
-
-    ]))
+(def format-code-text
+  (code/snippet {}
+    (fn [form]
+      (with-out-str (pprint form)))))
 
 (def ns-ref
   (code/snippet {}
     (fn [image sym]
+      (println sym)
       (get-in image [(namespace sym) (name sym)]))))
 
 (def fn-snippet
-  (code/snippet {ns-ref #uuid "0ab1aee1-8704-45e0-a493-5a36fa65032c"}
+  (code/snippet {ns-ref "6a61ed710da21fd941d5eb6d45320fab2a3f58f4"}
     (fn [image sym]
       (let [ref (ns-ref image sym)]
-        [(:ns/symbol ref)
-         (edit (:id ref))]))))
+        [(:name ref)
+         (edit (:ref ref))]))))
 
 (def display
   (code/snippet {lookup {:ref  :core/fn-snippet
-                         :time #inst "2019-03-26T13:47:52.890-00:00"}}
+                         :time #inst "2019-03-26T22:59:54.099-00:00"}}
     (fn [sym]
       (fn [image]
         (second (lookup image sym))))))
 
 (def ns-lookup
-  (code/snippet {ns-ref #uuid "0ab1aee1-8704-45e0-a493-5a36fa65032c"}
+  (code/snippet {ns-ref "8089627e22a94a6170547a184c5b4c7c99973c52"}
     (fn [image sym]
-      (invoke-by-id (:id (ns-ref image sym))))))
+      (invoke-by-id (:ref (ns-ref image sym))))))
 
 (def fn-map
-  (code/snippet {ns-lookup #uuid "329b8d22-fd5d-492e-b722-f58aed8282f8"}
+  (code/snippet {ns-lookup "7f9311638e9c6839c11e7e8e14aa7aff3c4bd8ed"}
     (fn [image syms]
       (into {} (map (partial ns-lookup image)) syms))))
 
 (def extract-deps
   "I've only named these as vars for the ease of reference"
   (code/snippet {fn-map {:ref :core/fn-map
-                         :time #inst "2019-03-26T13:49:23.948-00:00"}}
+                         :time #inst "2019-03-27T01:04:54.563-00:00"}}
     (fn [image]
       (fn-map image [:core/display
                      :core/format-code-text
@@ -129,11 +130,11 @@
 
 (def meta-topo
   (code/snippet {edit-multi   {:ref  :core/edit-multi
-                               :time #inst "2019-03-26T13:13:23.628-00:00"}
+                               :time #inst "2019-03-26T22:45:31.198-00:00"}
                  extract-deps {:ref  :core/extract-deps
-                               :time #inst "2019-03-26T13:49:23.948-00:00"}
+                               :time #inst "2019-03-27T01:05:23.348-00:00"}
                  topo-fac     {:ref  :core/snip-edit-topology
-                               :time #inst "2019-03-26T13:13:23.628-00:00"}}
+                               :time #inst "2019-03-26T22:45:31.198-00:00"}}
 
     {:nodes [(signal :mt/input)
              (process :mt/sub-image (map extract-deps))
@@ -146,21 +147,21 @@
               [:mt/combined :mt/topo]
               [:mt/topo :mt/out]}}))
 
-
 (def starting-ns
-  {:core/display            (:id display)
-   :core/format-code-text   #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5"
-   :core/edits              #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e"
-   :core/form               #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df"
-   :core/ns-lookup          (:id ns-lookup)
-   :core/fn-map             (:id fn-map)
-   :core/extract-deps       (:id extract-deps)
-   :core/edit-multi         (:id edit-multi)
-   :core/snip-edit-topology (:id snip-edit-topology)
-   :core/meta-topo          (:id meta-topo)
-   :core/fn-snippet         (:id fn-snippet)})
+  {:core/display            display
+   :core/format-code-text   format-code-text
+   :core/edits              edits
+   :core/form               form
+   :core/ns-lookup          ns-lookup
+   :core/fn-map             fn-map
+   :core/extract-deps       extract-deps
+   :core/edit-multi         edit-multi
+   :core/snip-edit-topology snip-edit-topology
+   :core/meta-topo          meta-topo
+   :core/fn-snippet         fn-snippet})
 
-(code/populate-nses starting-ns)
+(code/populate-nses (into {} (map (fn [[k v]] [k (:sha1 (meta v))]))
+                          starting-ns))
 
 (defn trigger-network
   "Set off a cascade that should result in something interesting happening. I'm

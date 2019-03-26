@@ -29,11 +29,11 @@
 
 (defn lookup-link [link]
   (when-let [ref (store/branch-lookup config/*branch* (:ref link) (:time link))]
-    (full-var-name (:id ref))))
+    (full-var-name (:ref ref))))
 
 (defn gen-ref [link]
   (cond
-    (uuid? link)    (full-var-name link)
+    (string? link)    (full-var-name link)
     (ns-link? link) (lookup-link link)))
 
 (defn gen-code-for-body
@@ -85,4 +85,4 @@
   branch."
   [sym]
   (let [link (store/lookup config/*branch* sym)]
-    (invoke-by-id (:id link))))
+    (invoke-by-id (:ref link))))

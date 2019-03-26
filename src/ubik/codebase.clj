@@ -31,12 +31,9 @@
 ;;;;; Namespaces
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn ns-sym [sym id]
-  {:ns/symbol sym :id id})
-
 (defn populate-nses [m]
-  (run! (fn [[sym id]]
-          (store/intern config/*branch* (ns-sym sym id)))
+  (run! (fn [[sym ref]]
+          (store/intern config/*branch* (store/ns-sym sym ref)))
         m))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -45,18 +42,11 @@
 ;; Snippets are minimal, meaningful, fragments of code.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn intern [store snip]
-  (store/intern store snip))
-
 (defn create-snippet
   "Expects a map with keys :form and :links. Returns the stored snippet matching
   the given code, creating a new entry if necessary."
   [snip]
-  (with-meta
-    (if-let [snip (store/by-value *store* snip)]
-      snip
-      (intern *store* (assoc snip :id (java.util.UUID/randomUUID))))
-    {::snippet true}))
+  (store/intern config/*store* snip))
 
 (defmacro snippet
   "Syntactic sugar for writing linked snippets."
@@ -68,7 +58,7 @@
 (defn edit
   "Returns snippet in easily editable form by id."
   [id]
-  (let [{:keys [form links]} (store/lookup *store* id)]
+  (let [{:keys [form links]} (store/lookup config/*store* id)]
     `(snippet ~links
        ~form)))
 
