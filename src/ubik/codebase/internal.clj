@@ -39,8 +39,9 @@
 (defn gen-code-for-body
   [{:keys [form links]}]
   `(let [~@(mapcat (fn [[n id]]
-
                      (let [v (gen-ref id)]
+                       (when (nil? v)
+                         (log/error "Broken link:" id))
                        `[~n (if (delay? ~v) @~v ~v)]))
                    links)]
      ~form))
@@ -79,6 +80,9 @@
   (load-ns)
   @@(id-var id))
 
-(defn invoke-by-name [sym]
+(defn invoke-head
+  "Returns the evaluated form pointed to by sym at the head of the current
+  branch."
+  [sym]
   (let [link (store/lookup config/*branch* sym)]
     (invoke-by-id (:id link))))

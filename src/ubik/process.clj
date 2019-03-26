@@ -205,6 +205,8 @@
       {:state state})))
 
 (defn make-node [name method-map]
+  (println name)
+  (println method-map)
   (process
    name
    (let [c (into #{} (map max-args) (vals method-map))]

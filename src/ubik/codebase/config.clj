@@ -9,10 +9,8 @@
   "Just a file at the moment."
   "residential.db")
 
-(defonce
-  ^{:dynamic true
-    :doc "Current branch. Not that branching is supported robustly at present."}
-  *branch*
+(def ^:dynamic *branch*
+  "Current branch. Not that branching is supported robustly at present."
   (store/branch master-uri))
 
 (def ^:dynamic *store*
