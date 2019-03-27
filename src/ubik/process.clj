@@ -83,16 +83,18 @@
   (call [this k message]
     ;; Manual one-step transduce
     (log :debug {:event-type "MProcess/call"
+                 :link       (:link (meta method-map))
                  :name       name
                  :wire       k})
     (try
       (((get method-map k) send) output-signal message)
       (catch Exception e
-        (let [ex (datafy e)
+        (let [ex     (datafy e)
               ;; Most of an exception is useless inside Ubik since there are no
               ;; source files.
               useful (dissoc (first (:via e)) :at)]
           (log :error {:event-type "MProcess/call"
+                       :link       (:link (meta method-map))
                        :wire       k
                        :name       name
                        :message    message
@@ -149,7 +151,7 @@
 (defn process
   [name node]
   (if (fn? node)
-    (process* name {:in node})
+    (process* name (with-meta {:in node} (meta node)))
     (process* name node)))
 
 
@@ -208,9 +210,11 @@
 (defn make-node [name method-map]
   (process
    name
-   (let [c (into #{} (map max-args) (vals method-map))]
-     (assert (= 1 (count c)) "All methods of a node must have the same arity.")
-     (cond
-       (= #{1} c) (vmap stateless-xform method-map)
-       (= #{2} c) (make-stateful-node method-map)
-       :else      (throw (Exception. "Unknown node method type."))))))
+   (with-meta
+     (let [c (into #{} (map max-args) (vals method-map))]
+       (assert (= 1 (count c)) "All methods of a node must have the same arity.")
+       (cond
+         (= #{1} c) (vmap stateless-xform method-map)
+         (= #{2} c) (make-stateful-node method-map)
+         :else      (throw (Exception. "Unknown node method type."))))
+     (meta method-map))))

@@ -33,8 +33,11 @@
 
 (def make-node process/make-node)
 (def signal process/signal)
-(def process process/process)
 (def effector process/effector)
+
+(defmacro process [name nodefn]
+  (let [s (if (sequential? nodefn) (last nodefn) nodefn)]
+    `(process/process ~name (with-meta ~nodefn (meta ~s)))))
 
 (defn source-effector [sym]
   (fn [form]

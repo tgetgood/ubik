@@ -33,9 +33,12 @@
     (full-var-name (:ref ref))))
 
 (defn gen-ref [link]
-  (cond
-    (string? link)  (full-var-name link)
-    (ns-link? link) (lookup-link link)))
+  (let [r (cond
+            (string? link)  (full-var-name link)
+            (ns-link? link) (lookup-link link))]
+    (if (instance? clojure.lang.IMeta r)
+      (with-meta r {:link link})
+      r)))
 
 (defn gen-code-for-body
   [{:keys [form links]}]
@@ -43,7 +46,7 @@
                      (let [v (gen-ref id)]
                        (when (nil? v)
                          (util/log :error "Broken link:" id))
-                       `[~n (force ~v)]))
+                       `[~n (with-meta (force ~v) ~(meta v)) ]))
                    links)]
      ~form))
 
@@ -85,7 +88,10 @@
   [id]
   ;;REVIEW: This seems a little excessive. Do you have a better idea?
   (load-ns)
-  @@(id-var id))
+  (let [v @@(id-var id)]
+    (if (instance? clojure.lang.IMeta v)
+      (with-meta v {:link id})
+      v)))
 
 (defn invoke-head
   "Returns the evaluated form pointed to by sym at the head of the current
