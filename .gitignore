@@ -14,3 +14,4 @@ pom.xml.asc
 .nrepl-port
 .cpcache
 datomic
+events.log
