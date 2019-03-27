@@ -4,8 +4,7 @@
             [clojure.datafy :refer [datafy]]
             [clojure.pprint :refer [pprint]]
             clojure.reflect
-            [taoensso.timbre :as log]
-            [ubik.util :refer [vmap]]))
+            [ubik.util :refer [vmap log]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Attempt the second
@@ -38,13 +37,12 @@
   Signal
   (send [this message]
     (locking this
-      (log/log
-       (if (and (sequential? name) (= (first name) :ubik.events/text-area))
+      (log (if (and (sequential? name) (= (first name) :ubik.events/text-area))
                  :trace
                  :debug)
-       (str "\n" (with-out-str (pprint {:event-type "BasicSignal/send"
-                                        :name       name
-                                        :message    message}))))
+           {:event-type "BasicSignal/send"
+            :name       name
+            :message    message})
       (reset! last-message message)
       (run! (fn [[_ f]] (f message)) @listeners)))
   (disconnect [this key]
@@ -54,7 +52,8 @@
   (listen [this key cb]
     (locking this
       (when (contains? @listeners key)
-        (log/warn key "is already a registered listener on" name ". Ignoring."))
+        (log :warn (str key "is already a registered listener on"
+                        name ". Ignoring.")))
       (swap! listeners assoc key cb)
       (when-let [lm @last-message]
         (cb lm)))))
@@ -65,7 +64,7 @@
 (defrecord MProcess [name method-map output-signal input-queue previous]
   Signal
   (send [this message]
-    (log/warn (str "You should not be manually injecting messages into the"
+    (log :warn (str "You should not be manually injecting messages into the"
                    " middle of the graph. Consistency will suffer."))
     ;; REVIEW: I should probably just not implement this, but it feels like it
     ;; will be so handy for debugging...
@@ -78,13 +77,18 @@
   Multiplexer
   (call [this k message]
     ;; Manual one-step transduce
-    (log/debug (str "Processing message:" "\n"
-                    (with-out-str (pprint {:event-type "MProcess/call"
-                                           :name       name
-                                           :wire       k
-                                           :multiplex  method-map
-                                           :message    message}))))
-    (((get method-map k) send) output-signal message))
+    (log :debug {:event-type "MProcess/call"
+                 :name       name
+                 :wire       k
+                 :message    message})
+    (try
+      (((get method-map k) send) output-signal message)
+      (catch Exception e
+        (log :error {:event-type "MProcess/call"
+                     :wire       k
+                     :name       name
+                     :multiplex  method-map
+                     :exception  (datafy e)}))))
   (wire [this k sig]
     (listen sig name
       (fn [message]
@@ -128,16 +132,7 @@
     ;; REVIEW: Do I want to somehow put this go machine inside the object?
     (async/go-loop []
       (when-let [[meth msg] (async/<! q)]
-        (try
-          (call p meth msg)
-          (catch Exception e
-            (log/error "Exception in process go machine" name ": \n"
-                       (with-out-str (pprint
-                                      {:wire      meth
-                                       :node      name
-                                       :multiplex node
-                                       :message   msg
-                                       :exception (datafy e)})))))
+        (call p meth msg)
         (recur)))
     p))
 
@@ -151,12 +146,16 @@
 (defrecord Effector [name f input-queue]
   Multiplexer
   (call [this k message]
-    (log/debug (str "Effect:" "\n"
-                    (with-out-str (pprint {:event-type "Effector/call"
-                                           :wire       k
-                                           :name       name
-                                           :message    message}))))
-    (f this message))
+    (log :debug {:event-type "Effector/call"
+                 :wire       k
+                 :name       name
+                 :message    message})
+    (try
+      (f this message)
+      (catch Exception e
+        (log :error {:wire      k
+                     :name      name
+                     :exception (datafy e)}))))
   (wire [this k sig]
     (listen sig name
       (fn [m]
@@ -174,15 +173,7 @@
         eff (Effector. name f' in)]
     (async/go-loop []
       (when-let [[k msg] (async/<! in)]
-        (try
-          (call eff k msg)
-          (catch Exception e
-            (log/error "Exception in effector go machine" name ": \n"
-                       (with-out-str (pprint
-                                      {:wire      k
-                                       :name      name
-                                       :message   msg
-                                       :exception (datafy e)})))))
+        (call eff k msg)
         (recur)))
     eff))
 

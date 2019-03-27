@@ -1,6 +1,7 @@
 (ns ubik.topology
   (:require [clojure.pprint :refer [pprint]]
             [taoensso.timbre :as log]
+            [ubik.codebase :as codebase]
             [ubik.process :as process]))
 
 (defn set-topology! [t])
@@ -9,12 +10,16 @@
 (def
   ^{:doc "Maps node names to actual runtime objects."}
   node-map
-  (atom {::image (process/signal ::image)}))
+  (atom {::image codebase/image-signal}))
 
 (def
   ^{:doc "Maps each node to the set of nodes to which it listens."}
   connectome
   (atom {}))
+
+(defn destroy! []
+  (reset! node-map {::image codebase/image-signal})
+  (reset! connectome {}))
 
 (defn init-topology! [{:keys [nodes wires]}]
   (doseq [node nodes]

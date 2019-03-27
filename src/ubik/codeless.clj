@@ -1,6 +1,6 @@
 (ns ubik.codeless
   (:require [ubik.codebase :as code]
-            [ubik.codebase.internal :as internal]
+            [ubik.res.code-gen :as gen]
             [ubik.codebase.storage :as store]
             [ubik.codebase.config :as config]
             [ubik.process :as process]
@@ -168,12 +168,11 @@
   becomming less and less discerning in what I consider interesting."
   []
   ;; Refresh all residential code
-  (internal/clear-ns)
-  (internal/load-ns)
+  (gen/reload!)
 
   ;; Setup topology
-  (topo/init-topology! (internal/invoke-head :core/meta-topo))
+  (topo/destroy!)
+  (topo/init-topology! (gen/invoke-head :core/meta-topo))
 
   ;; Spoof input
-  (process/send (:mt/input @topo/node-map) :core/display)
-  (process/send (:ubik.topology/image @topo/node-map) (code/internal-ns-map)))
+  (process/send (:mt/input @topo/node-map) :core/display))

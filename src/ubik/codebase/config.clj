@@ -13,6 +13,6 @@
   "Current branch. Not that branching is supported robustly at present."
   (store/branch master-uri))
 
-(def ^:dynamic *store*
+(def ^:dynamic *code*
   "Default code storage backend."
   (store/file-backed-mem-store snippet-db-uri))

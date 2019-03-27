@@ -1,10 +1,12 @@
-(ns ubik.codebase.builtin
-  (:require [falloleen.jfx :as fx]
-            [ubik.codebase.storage :as store]
-            [ubik.codebase.config :as config]
+(ns ubik.res.builtin
+  (:require [clojure.datafy :refer [datafy]]
+            [falloleen.jfx :as fx]
+            [taoensso.timbre :as log]
+            [ubik.codebase :as codebase]
             [ubik.events :as events]
             [ubik.process :as process]
-            [ubik.topology :as topo])
+            [ubik.topology :as topo]
+            [ubik.util :as util])
   (:import javafx.scene.control.TextArea))
 
 (def stages (atom {}))
@@ -37,11 +39,13 @@
 
 (defn source-effector [sym]
   (fn [form]
-    (println form)))
+    (util/log :debug {:name "source effector"
+                      :form form})
+    (try
+      (let [snippet (eval form)
+            sha (:sha1 (meta snippet))]
+        (codebase/commit sym sha))
+      (catch Exception e (util/log :error {:name "source effector"
+                                           :exception (datafy e)})))))
 
-(defn edit
-  "Returns snippet in easily editable form by id."
-  [id]
-  (let [{:keys [form links]} (store/lookup config/*store* id)]
-    `(snippet ~links
-       ~form)))
+(def edit codebase/edit)
