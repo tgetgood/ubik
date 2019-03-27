@@ -43,3 +43,7 @@
 {:name :core/extract-deps, :ref "a43dac6d1c6d53bd31691c0bdf7ce03c7c5d86e0", :time #inst "2019-03-27T01:42:36.094-00:00", :op :add}
 {:name :core/meta-topo, :ref "ae15d2663032a25872c3c11e175c124efc0aa1d1", :time #inst "2019-03-27T01:42:52.649-00:00", :op :retract}
 {:name :core/meta-topo, :ref "9eaaec234fe2bb249c948cbe7cc0b56deaf14b1a", :time #inst "2019-03-27T01:42:52.645-00:00", :op :add}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T15:28:21.858-00:00", :op :retract}
+{:name :core/display, :ref "d0ecb85057c1e29e19b351e05795a071fdc2b4d7", :time #inst "2019-03-27T15:28:21.855-00:00", :op :add}
+{:name :core/display, :ref "d0ecb85057c1e29e19b351e05795a071fdc2b4d7", :time #inst "2019-03-27T15:33:53.840-00:00", :op :retract}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T15:33:53.830-00:00", :op :add}
