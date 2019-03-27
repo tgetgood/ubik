@@ -1,6 +1,5 @@
 (ns ubik.util
-  (:require [clojure.pprint :refer [pprint]]
-            [taoensso.timbre :as log]))
+  (:require [taoensso.timbre :as log]))
 
 (defn vmap
   "Applies f to each value in map m, returning a map with the same keys, and
@@ -20,10 +19,9 @@
    :output-fn identity
    :fn (fn [x]
          (let [data (first (:vargs x))
-
                meta (select-keys x [:instant :level :?ns-str :?line :?file])]
-
-           (spit logfile (str {:message data :metadata meta} "\n") :append true)))})
+           (spit logfile (str {:message data :metadata meta} "\n")
+                 :append true)))})
 
 (log/set-config!
  {:level :debug
@@ -32,6 +30,8 @@
   :output-fn identity
   :appenders {:file-appender logfile-appender}})
 
-
-(defn log [level data]
-  (log/log level data))
+(defn log
+  ([level data]
+   (log/log level data))
+  ([level msg & msgs]
+   (log level (apply str msg msgs))))

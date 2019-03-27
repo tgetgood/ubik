@@ -2,9 +2,9 @@
   (:require [clojure.string :as string]
             [falloleen.core :as falloleen]
             [clojure.pprint :refer [pprint]]
-            [taoensso.timbre :as log]
             [ubik.codebase :as codebase]
-            [ubik.res.builtin :refer :all]))
+            [ubik.res.builtin :refer :all]
+            [ubik.util :as util]))
 
 (def internal
   "Reference to this namespace itself."
@@ -42,7 +42,7 @@
   `(let [~@(mapcat (fn [[n id]]
                      (let [v (gen-ref id)]
                        (when (nil? v)
-                         (log/error "Broken link:" id))
+                         (util/log :error "Broken link:" id))
                        `[~n (force ~v)]))
                    links)]
      ~form))
@@ -67,7 +67,7 @@
       (let [v (get ns (interned-var-name id))
             form (gen-code-for-body body)]
         (when-not (= body (::body (meta v)))
-          (log/trace "Defining" v "for first time.")
+          (util/log :trace "Defining" v "for first time.")
           (alter-meta! v assoc ::body body)
           (alter-var-root v (constantly
                              (delay

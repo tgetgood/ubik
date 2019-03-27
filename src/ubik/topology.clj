@@ -1,8 +1,8 @@
 (ns ubik.topology
   (:require [clojure.pprint :refer [pprint]]
-            [taoensso.timbre :as log]
             [ubik.codebase :as codebase]
-            [ubik.process :as process]))
+            [ubik.process :as process]
+            [ubik.util :as util]))
 
 (defn set-topology! [t])
 (defn current-topology [])
@@ -25,15 +25,14 @@
   (doseq [node nodes]
     (let [name (:name node)]
       (if (contains? @node-map name)
-        (log/warn "Trying to readd" name "to node graph.")
+        (util/log :warn "Trying to readd" name "to node graph.")
         (swap! node-map assoc name node))))
-  (log/debug "Current node list:"
-             (with-out-str (pprint (keys @node-map))))
+  (util/log :debug {:node-list (keys @node-map)})
   (doseq [[out in] wires]
     (let [in-node (get @node-map in)
           out (if (map? out) out {:in out})]
       (doseq [[wire sig] out]
         (let [out-node (get @node-map sig)]
-          (log/debug "Connecting:" sig wire in)
+          (util/log :debug "Connecting:" sig wire in)
           (process/wire in-node wire out-node)
           (swap! connectome update in assoc wire out))))))

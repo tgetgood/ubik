@@ -87,7 +87,7 @@
   "Update current branch so that sym points to id."
   [sym sha]
   (store/intern config/*branch* (store/ns-sym sym sha))
-  (process/send image-signal (current-ns-map)))
+  (process/send-new image-signal (current-ns-map)))
 
 (defn lookup
   "Somewhat ad hoc 'lookup thing' fn. ¿DWIM at it's finest?"

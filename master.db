@@ -47,3 +47,11 @@
 {:name :core/display, :ref "d0ecb85057c1e29e19b351e05795a071fdc2b4d7", :time #inst "2019-03-27T15:28:21.855-00:00", :op :add}
 {:name :core/display, :ref "d0ecb85057c1e29e19b351e05795a071fdc2b4d7", :time #inst "2019-03-27T15:33:53.840-00:00", :op :retract}
 {:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T15:33:53.830-00:00", :op :add}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T17:41:31.055-00:00", :op :retract}
+{:name :core/display, :ref "d0ecb85057c1e29e19b351e05795a071fdc2b4d7", :time #inst "2019-03-27T17:41:31.042-00:00", :op :add}
+{:name :core/display, :ref "d0ecb85057c1e29e19b351e05795a071fdc2b4d7", :time #inst "2019-03-27T17:41:46.943-00:00", :op :retract}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T17:41:46.936-00:00", :op :add}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T17:41:48.966-00:00", :op :retract}
+{:name :core/display, :ref "23b2660ff9444b1b11170f56de3bfd903912ee67", :time #inst "2019-03-27T17:41:48.960-00:00", :op :add}
+{:name :core/display, :ref "23b2660ff9444b1b11170f56de3bfd903912ee67", :time #inst "2019-03-27T17:41:52.799-00:00", :op :retract}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T17:41:52.788-00:00", :op :add}

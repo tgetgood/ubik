@@ -1,7 +1,6 @@
 (ns ubik.res.builtin
   (:require [clojure.datafy :refer [datafy]]
             [falloleen.jfx :as fx]
-            [taoensso.timbre :as log]
             [ubik.codebase :as codebase]
             [ubik.events :as events]
             [ubik.process :as process]

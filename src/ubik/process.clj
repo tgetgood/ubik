@@ -12,6 +12,8 @@
 
 (defprotocol Signal
   (send [this message] "Force signal to emit message to all listeners")
+  (send-new [this message]
+    "Force signal to send message iff it differs from the last message sent.")
   (disconnect [this key])
   (^{:style/indent [2]} listen [this key cb]
     "Adds a listener to this signal. cb will be called immediately with the most
@@ -45,6 +47,9 @@
             :message    message})
       (reset! last-message message)
       (run! (fn [[_ f]] (f message)) @listeners)))
+  (send-new [this message]
+    (when (not= message @last-message)
+      (send this message)))
   (disconnect [this key]
     (locking this
       (swap! listeners dissoc key)
@@ -196,8 +201,6 @@
       {:state state})))
 
 (defn make-node [name method-map]
-  (println name)
-  (println method-map)
   (process
    name
    (let [c (into #{} (map max-args) (vals method-map))]
