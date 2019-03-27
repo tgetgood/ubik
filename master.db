@@ -1,30 +1,45 @@
-{:ns/symbol :core/edit-multi, :id #uuid "5854b093-746e-4d0f-a4c5-84f715354b57", :op :add, :time #inst "2019-03-26T12:20:54.549-00:00"}
-{:ns/symbol :core/ns-lookup, :id #uuid "25e7c392-b99f-42a5-a864-48be253c69d0", :op :add, :time #inst "2019-03-26T12:20:54.549-00:00"}
-{:ns/symbol :core/extract-deps, :id #uuid "d2ea8d78-7bf9-4959-a92a-c21275abf99f", :op :add, :time #inst "2019-03-26T12:20:54.549-00:00"}
-{:ns/symbol :core/format-code-text, :id #uuid "05abc4d9-9c43-4c69-bf43-48d91d714eb5", :op :add, :time #inst "2019-03-26T12:20:54.550-00:00"}
-{:ns/symbol :core/snip-edit-topology, :id #uuid "0fa69760-841f-4ff8-ad41-c97d9788dbd0", :op :add, :time #inst "2019-03-26T12:20:54.550-00:00"}
-{:ns/symbol :core/meta-topo, :id #uuid "76e5fc52-8c72-4776-954f-883e8cfd32f4", :op :add, :time #inst "2019-03-26T12:20:54.551-00:00"}
-{:ns/symbol :core/display, :id #uuid "2e02cb00-f3a1-43d3-8487-7ae241277a11", :op :add, :time #inst "2019-03-26T12:20:54.551-00:00"}
-{:ns/symbol :core/fn-map, :id #uuid "6dc2b544-50d1-4326-8d6e-fd736a21dd7a", :op :add, :time #inst "2019-03-26T12:20:54.552-00:00"}
-{:ns/symbol :core/form, :id #uuid "5c3d7b4d-b616-44d8-b6be-f877fd1711df", :op :add, :time #inst "2019-03-26T12:20:54.552-00:00"}
-{:ns/symbol :core/edits, :id #uuid "a179a2af-0243-4f47-96fc-3cc2199ec05e", :op :add, :time #inst "2019-03-26T12:20:54.553-00:00"}
-{:ns/symbol :core/extract-deps, :id #uuid "8b8fa5c3-07e8-4602-b027-3270d97f9923", :op :add, :time #inst "2019-03-26T12:24:28.251-00:00"}
-{:ns/symbol :core/meta-topo, :id #uuid "beab73e0-711a-4500-8ec9-e24a5436fd34", :op :add, :time #inst "2019-03-26T12:24:28.251-00:00"}
-{:ns/symbol :core/display, :id #uuid "b74f4422-bd57-468f-a0fc-8ceec3c90c7a", :op :add, :time #inst "2019-03-26T12:24:28.252-00:00"}
-{:ns/symbol :core/extract-deps, :id #uuid "d2ea8d78-7bf9-4959-a92a-c21275abf99f", :op :add, :time #inst "2019-03-26T12:27:01.032-00:00"}
-{:ns/symbol :core/meta-topo, :id #uuid "76e5fc52-8c72-4776-954f-883e8cfd32f4", :op :add, :time #inst "2019-03-26T12:27:01.033-00:00"}
-{:ns/symbol :core/display, :id #uuid "2e02cb00-f3a1-43d3-8487-7ae241277a11", :op :add, :time #inst "2019-03-26T12:27:01.033-00:00"}
-{:ns/symbol :core/ns-lookup, :id #uuid "9bcbecb6-a1af-4f6d-b699-b6981a69f83d", :op :add, :time #inst "2019-03-26T12:28:25.322-00:00"}
-{:ns/symbol :core/extract-deps, :id #uuid "39df15d1-d9ac-4202-b349-315cc87454af", :op :add, :time #inst "2019-03-26T12:31:01.548-00:00"}
-{:ns/symbol :core/meta-topo, :id #uuid "25896c43-ba68-4aa4-be0a-48ba211a0b96", :op :add, :time #inst "2019-03-26T12:31:01.549-00:00"}
-{:ns/symbol :core/display, :id #uuid "6ba181ca-16ab-4f9b-a7d1-63e918317e39", :op :add, :time #inst "2019-03-26T12:31:01.550-00:00"}
-{:ns/symbol :core/fn-map, :id #uuid "3e635f14-47e9-4426-b05b-99101be2b105", :op :add, :time #inst "2019-03-26T12:31:01.551-00:00"}
-{:ns/symbol :core/meta-topo, :id #uuid "e0519c55-b6cc-4d3c-bc6f-e6e8115d0f92", :op :add, :time #inst "2019-03-26T13:13:57.059-00:00"}
-{:ns/symbol :core/fn-snippet, :id #uuid "4adf4cfe-a628-45d5-8d6f-30d096466351", :op :add, :time #inst "2019-03-26T13:47:12.078-00:00"}
-{:ns/symbol :core/display, :id #uuid "3b0f325e-b9c0-4bf1-9a40-a004c74662dc", :op :add, :time #inst "2019-03-26T13:47:12.081-00:00"}
-{:ns/symbol :core/fn-snippet, :id #uuid "10b47b87-8bb5-45ff-b7fa-eb2679d7889b", :op :add, :time #inst "2019-03-26T13:47:28.873-00:00"}
-{:ns/symbol :core/ns-lookup, :id #uuid "329b8d22-fd5d-492e-b722-f58aed8282f8", :op :add, :time #inst "2019-03-26T13:48:48.857-00:00"}
-{:ns/symbol :core/display, :id #uuid "2bf9765f-b4b6-4cc3-9577-17a94bdc5cbc", :op :add, :time #inst "2019-03-26T13:48:48.860-00:00"}
-{:ns/symbol :core/extract-deps, :id #uuid "f22d8cad-63ef-4ba1-aef7-2b63f940dd07", :op :add, :time #inst "2019-03-26T13:49:45.790-00:00"}
-{:ns/symbol :core/meta-topo, :id #uuid "1ace1863-3dcc-4716-85bf-5d9adf7410ab", :op :add, :time #inst "2019-03-26T13:49:45.794-00:00"}
-{:ns/symbol :core/fn-map, :id #uuid "4cdbe8c0-035b-43d3-b1e6-5dd223f92c8c", :op :add, :time #inst "2019-03-26T13:49:45.798-00:00"}
+{:name :core/edit-multi, :ref "fe13fa46c99badc9743195996c99431f3a32a410", :time #inst "2019-03-26T22:43:39.743-00:00", :op :add}
+{:name :core/ns-lookup, :ref "2a9bb711a55ce33f91d74f3dbb0e2c83919fa218", :time #inst "2019-03-26T22:43:39.744-00:00", :op :add}
+{:name :core/extract-deps, :ref "e737cffc3c7a3ef950cf40ed62e71fd41e5a7db3", :time #inst "2019-03-26T22:43:39.744-00:00", :op :add}
+{:name :core/format-code-text, :ref "ab2fca1200ce644ff4af607beaf3bba12e2d0518", :time #inst "2019-03-26T22:43:39.744-00:00", :op :add}
+{:name :core/snip-edit-topology, :ref "8a769c97bafe9f367fe817678652537cbd2d5b64", :time #inst "2019-03-26T22:43:39.745-00:00", :op :add}
+{:name :core/meta-topo, :ref "bbb7a328d3d0208cf24f0914f666abe4bb0ca508", :time #inst "2019-03-26T22:43:39.745-00:00", :op :add}
+{:name :core/fn-snippet, :ref "31d79d5a6101142e3bbe587878f1c185a6adf012", :time #inst "2019-03-26T22:43:39.745-00:00", :op :add}
+{:name :core/display, :ref "bc237b54f4e34744f52018a7d4451c5dc7aed719", :time #inst "2019-03-26T22:43:39.746-00:00", :op :add}
+{:name :core/fn-map, :ref "85d48f9d677796ddd07aacbfe64029ded1e5edd8", :time #inst "2019-03-26T22:43:39.746-00:00", :op :add}
+{:name :core/form, :ref "1024163555ab6e30df014db5677b3260be708258", :time #inst "2019-03-26T22:43:39.746-00:00", :op :add}
+{:name :core/edits, :ref "3fc939a454728b707ae89b57de8816656ccdad0e", :time #inst "2019-03-26T22:43:39.747-00:00", :op :add}
+{:name :core/extract-deps, :ref "7001c42daec32392fb68c9ff6cfc6bcb218b32bb", :time #inst "2019-03-26T22:44:43.111-00:00", :op :add}
+{:name :core/display, :ref "c33aca0b8fc0bafde2d01ebe973f302861bae0a5", :time #inst "2019-03-26T22:45:04.471-00:00", :op :add}
+{:name :core/meta-topo, :ref "784f82d1c28e8361f2a043ed5c0effe25c5539bf", :time #inst "2019-03-26T22:45:49.876-00:00", :op :add}
+{:name :core/meta-topo, :ref "f1c09406b3d5c6ea26ede254387a10d482257f52", :time #inst "2019-03-26T22:49:18.366-00:00", :op :add}
+{:name :core/ns-lookup, :ref "01cf0b5b4baaaebf2bce7abea2d75ed6532e8c13", :time #inst "2019-03-26T22:58:38.994-00:00", :op :add}
+{:name :core/fn-snippet, :ref "93746ef4609f4fc411d5a1817a1c883a34a8acc1", :time #inst "2019-03-26T22:58:38.994-00:00", :op :add}
+{:name :core/fn-map, :ref "3bd4dacd8d78010369a262da4f71b16cc2655090", :time #inst "2019-03-26T22:59:25.879-00:00", :op :add}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-26T23:00:00.883-00:00", :op :add}
+{:name :core/extract-deps, :ref "8f0c88f99196c1e1b1f84c1d5acee6136e2269b8", :time #inst "2019-03-26T23:00:29.740-00:00", :op :add}
+{:name :core/meta-topo, :ref "d8fa2088171b650f4ae9b183c51d2d633493015b", :time #inst "2019-03-26T23:00:29.740-00:00", :op :add}
+{:name :core/meta-topo, :ref "8549d813c7035bd8e9a71c4d4d2b6bebc8a04be1", :time #inst "2019-03-26T23:00:38.427-00:00", :op :add}
+{:name :core/extract-deps, :ref "e5ea80eaece6468bf4b4b622dd0934969f843c99", :time #inst "2019-03-26T23:07:44.851-00:00", :op :add}
+{:name :core/ns-lookup, :ref "01cf0b5b4baaaebf2bce7abea2d75ed6532e8c13", :time #inst "2019-03-27T01:04:07.892-00:00", :op :retract}
+{:name :core/ns-lookup, :ref "7f9311638e9c6839c11e7e8e14aa7aff3c4bd8ed", :time #inst "2019-03-27T01:04:07.889-00:00", :op :add}
+{:name :core/fn-map, :ref "3bd4dacd8d78010369a262da4f71b16cc2655090", :time #inst "2019-03-27T01:04:40.762-00:00", :op :retract}
+{:name :core/fn-map, :ref "a8e4b901efed7ec0b1262a7efe81af3d7310b371", :time #inst "2019-03-27T01:04:40.759-00:00", :op :add}
+{:name :core/extract-deps, :ref "e5ea80eaece6468bf4b4b622dd0934969f843c99", :time #inst "2019-03-27T01:04:55.794-00:00", :op :retract}
+{:name :core/extract-deps, :ref "3b96aca02c7c08135b43646c3eb5cf366e01babd", :time #inst "2019-03-27T01:04:55.791-00:00", :op :add}
+{:name :core/meta-topo, :ref "8549d813c7035bd8e9a71c4d4d2b6bebc8a04be1", :time #inst "2019-03-27T01:05:25.358-00:00", :op :retract}
+{:name :core/meta-topo, :ref "ae15d2663032a25872c3c11e175c124efc0aa1d1", :time #inst "2019-03-27T01:05:25.355-00:00", :op :add}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T01:37:10.018-00:00", :op :retract}
+{:name :core/display, :ref "023d3759608e392c42719c17df6e59043240317f", :time #inst "2019-03-27T01:37:10.017-00:00", :op :add}
+{:name :core/ns-lookup, :ref "7f9311638e9c6839c11e7e8e14aa7aff3c4bd8ed", :time #inst "2019-03-27T01:40:15.451-00:00", :op :retract}
+{:name :core/ns-lookup, :ref "d30b4c5acbd03ac846e259970fcddf193b50dc81", :time #inst "2019-03-27T01:40:15.450-00:00", :op :add}
+{:name :core/display, :ref "023d3759608e392c42719c17df6e59043240317f", :time #inst "2019-03-27T01:40:15.453-00:00", :op :retract}
+{:name :core/display, :ref "6442d6550f9e8ab15e94afe7d5a7dc828a0dc847", :time #inst "2019-03-27T01:40:15.452-00:00", :op :add}
+{:name :core/fn-map, :ref "a8e4b901efed7ec0b1262a7efe81af3d7310b371", :time #inst "2019-03-27T01:40:34.186-00:00", :op :retract}
+{:name :core/fn-map, :ref "0097ac1d63fa2f89b0d4a8c088f4a933e6e81fc5", :time #inst "2019-03-27T01:40:34.182-00:00", :op :add}
+{:name :core/fn-map, :ref "0097ac1d63fa2f89b0d4a8c088f4a933e6e81fc5", :time #inst "2019-03-27T01:42:18.370-00:00", :op :retract}
+{:name :core/fn-map, :ref "34cabaf4446c48c8cdf402b2eadeee80f7ae6269", :time #inst "2019-03-27T01:42:18.365-00:00", :op :add}
+{:name :core/extract-deps, :ref "3b96aca02c7c08135b43646c3eb5cf366e01babd", :time #inst "2019-03-27T01:42:36.099-00:00", :op :retract}
+{:name :core/extract-deps, :ref "a43dac6d1c6d53bd31691c0bdf7ce03c7c5d86e0", :time #inst "2019-03-27T01:42:36.094-00:00", :op :add}
+{:name :core/meta-topo, :ref "ae15d2663032a25872c3c11e175c124efc0aa1d1", :time #inst "2019-03-27T01:42:52.649-00:00", :op :retract}
+{:name :core/meta-topo, :ref "9eaaec234fe2bb249c948cbe7cc0b56deaf14b1a", :time #inst "2019-03-27T01:42:52.645-00:00", :op :add}
