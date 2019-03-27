@@ -84,16 +84,21 @@
     ;; Manual one-step transduce
     (log :debug {:event-type "MProcess/call"
                  :name       name
-                 :wire       k
-                 :message    message})
+                 :wire       k})
     (try
       (((get method-map k) send) output-signal message)
       (catch Exception e
-        (log :error {:event-type "MProcess/call"
-                     :wire       k
-                     :name       name
-                     :multiplex  method-map
-                     :exception  (datafy e)}))))
+        (let [ex (datafy e)
+              ;; Most of an exception is useless inside Ubik since there are no
+              ;; source files.
+              useful (dissoc (first (:via e)) :at)]
+          (log :error {:event-type "MProcess/call"
+                       :wire       k
+                       :name       name
+                       :message    message
+                       :state      @previous
+                       :multiplex  method-map
+                       :exception  useful})))))
   (wire [this k sig]
     (listen sig name
       (fn [message]
