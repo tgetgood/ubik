@@ -33,18 +33,19 @@
 
 (defn gen-ref [link]
   (cond
-    (string? link)    (full-var-name link)
+    (string? link)  (full-var-name link)
     (ns-link? link) (lookup-link link)))
 
 (defn gen-code-for-body
-  [{:keys [form links]}]
+  [{:keys [form links] :as bid}]
   `(let [~@(mapcat (fn [[n id]]
                      (let [v (gen-ref id)]
                        (when (nil? v)
                          (log/error "Broken link:" id))
                        `[~n (if (delay? ~v) @~v ~v)]))
                    links)]
-     ~form))
+     (do (log/debug "Invoking:" '~form "(" ~(:sha1 (meta bid)) ")")
+         ~form)))
 
 (defn gen-code-for-id [id]
   (gen-code-for-body (store/lookup config/*store* id)))
