@@ -1,5 +1,7 @@
 (ns ubik.codeless
-  (:require [ubik.codebase :as code]
+  (:require [falloleen.core :as falloleen]
+            [falloleen.hosts :as hosts]
+            [ubik.codebase :as code]
             [ubik.res.code-gen :as gen]
             [ubik.codebase.storage :as store]
             [ubik.codebase.config :as config]
@@ -43,20 +45,21 @@
         (second (lookup image sym))))))
 
 (def ns-lookup
-  (code/snippet {ns-ref "8089627e22a94a6170547a184c5b4c7c99973c52"}
+  (code/snippet {ns-ref "6a61ed710da21fd941d5eb6d45320fab2a3f58f4"}
     (fn [image sym]
       (let [ref (ns-ref image sym)]
         [(:name ref) (invoke-by-id (:ref ref))]))))
 
 (def fn-map
-  (code/snippet {ns-lookup "d30b4c5acbd03ac846e259970fcddf193b50dc81"}
+  (code/snippet {ns-lookup {:ref :core/ns-lookup
+                            :time #inst "2019-03-28T02:43:21.576-00:00"}}
     (fn [image syms]
       (into {} (map (partial ns-lookup image)) syms))))
 
 (def extract-deps
   "I've only named these as vars for the ease of reference"
   (code/snippet {fn-map {:ref :core/fn-map
-                         :time #inst "2019-03-27T01:42:34.675-00:00"}}
+                         :time #inst "2019-03-28T02:43:48.232-00:00"}}
     (fn [image]
       (fn-map image [:core/display
                      :core/format-code-text
@@ -132,7 +135,7 @@
   (code/snippet {edit-multi   {:ref  :core/edit-multi
                                :time #inst "2019-03-26T22:45:31.198-00:00"}
                  extract-deps {:ref  :core/extract-deps
-                               :time #inst "2019-03-27T01:42:51.180-00:00"}
+                               :time #inst "2019-03-28T02:44:08.611-00:00"}
                  topo-fac     {:ref  :core/snip-edit-topology
                                :time #inst "2019-03-26T22:45:31.198-00:00"}}
 
@@ -153,6 +156,7 @@
    :core/edits              edits
    :core/form               form
    :core/ns-lookup          ns-lookup
+   :core/ns-ref             ns-ref
    :core/fn-map             fn-map
    :core/extract-deps       extract-deps
    :core/edit-multi         edit-multi
@@ -160,19 +164,16 @@
    :core/meta-topo          meta-topo
    :core/fn-snippet         fn-snippet})
 
-(code/populate-nses (into {} (map (fn [[k v]] [k (:sha1 (meta v))]))
+;; Only do this once or it will really mess up your zen.
+#_(code/populate-nses (into {} (map (fn [[k v]] [k (:sha1 (meta v))]))
                           starting-ns))
 
-(defn trigger-network
-  "Set off a cascade that should result in something interesting happening. I'm
-  becomming less and less discerning in what I consider interesting."
-  []
-  ;; Refresh all residential code
+(defn init []
   (gen/reload!)
-
-  ;; Setup topology
   (topo/destroy!)
-  (topo/init-topology! (gen/invoke-head :core/meta-topo))
+  (topo/init-topology! (gen/invoke-head :core/meta-topo)))
 
-  ;; Spoof input
-  (process/send (:mt/input @topo/node-map) :core/display))
+(defn edit
+  "Open editor for sym."
+  [sym]
+  (process/send (:mt/input @topo/node-map) sym))

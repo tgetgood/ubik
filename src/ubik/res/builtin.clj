@@ -22,17 +22,22 @@
 ;; FIXME: This jfx specific code does not belong in Ubik. But it also doesn't
 ;; belong in Falloleen. It's a kludge anyway so why worry about factoring?
 (defn text-renderer [^TextArea node]
-  (fn [text]
-    (fx/fx-thread
-     (let [caret (.getCaretPosition node)]
-       (.setText node text)
-       (.positionCaret node caret)))))
+  (with-meta
+    (fn [text]
+      (fx/fx-thread
+       (let [caret (.getCaretPosition node)]
+         (.setText node text)
+         (.positionCaret node caret))))
+    {:ref [:builtin 'text-renderer]}))
 
-(defn topo-effector [t]
-  (topo/init-topology! t))
+(def topo-effector
+  (with-meta (fn [t]
+               (topo/init-topology! t))
+    {:ref [:builtin 'topo-effector]}))
 
 (def make-node process/make-node)
 (def signal process/signal)
+
 (def effector process/effector)
 
 (defmacro process [name nodefn]
@@ -40,14 +45,17 @@
     `(process/process ~name (with-meta ~nodefn (meta ~s)))))
 
 (defn source-effector [sym]
-  (fn [form]
-    (util/log :debug {:name "source effector"
-                      :form form})
-    (try
-      (let [snippet (eval form)
-            sha (:sha1 (meta snippet))]
-        (codebase/commit sym sha))
-      (catch Exception e (util/log :error {:name "source effector"
-                                           :exception (datafy e)})))))
+  (with-meta
+    (fn [form]
+      (util/log :debug {:name "source effector"
+                        :form form})
+      (try
+        (let [snippet (eval form)
+              sha (:sha1 (meta snippet))]
+          (codebase/commit sym sha))
+        (catch Exception e (util/log :error {:name "source effector"
+                                             :exception (datafy e)}))))
+    {:ref [:builtin 'source-effector]
+     :arg sym}))
 
 (def edit codebase/edit)

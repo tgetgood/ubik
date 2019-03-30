@@ -92,14 +92,13 @@
         (let [ex     (datafy e)
               ;; Most of an exception is useless inside Ubik since there are no
               ;; source files.
-              useful (dissoc (first (:via e)) :at)]
+              useful (dissoc (first (:via ex)) :at)]
           (log :error {:event-type "MProcess/call"
                        :link       (:link (meta method-map))
                        :wire       k
                        :name       name
                        :message    message
-                       :state      @previous
-                       :multiplex  method-map
+                       :state      (when previous @previous)
                        :exception  useful})))))
   (wire [this k sig]
     (listen sig name
@@ -167,6 +166,7 @@
       (catch Exception e
         (log :error {:wire      k
                      :name      name
+                     :meta      (meta f)
                      :exception (datafy e)}))))
   (wire [this k sig]
     (listen sig name
@@ -177,11 +177,12 @@
   (let [in  (async/chan (async/sliding-buffer 32))
         ;; A side effector, in this system, is a reducing function that ignores
         ;; the accumulation.
-        f'  (fn [acc x]
-              ;; These effects need to be executed serially.
-              ;; TODO: Is this the best way to enforce that?
-              (locking f
-                (f x)))
+        f'  (with-meta (fn [acc x]
+                         ;; These effects need to be executed serially.
+                         ;; TODO: Is this the best way to enforce that?
+                         (locking f
+                           (f x)))
+              (meta f))
         eff (Effector. name f' in)]
     (async/go-loop []
       (when-let [[k msg] (async/<! in)]
