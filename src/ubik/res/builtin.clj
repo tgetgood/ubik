@@ -12,7 +12,10 @@
 
 (defn create-code-stage [k]
   (if (contains? @stages k)
-    (@stages k)
+    (let [stage (@stages k)]
+      (fx/fx-thread
+       (.show (:stage stage)))
+      stage)
     (let [p @(fx/code-stage)
           ev-map (events/bind-text-area! k (:area p))
           res {:node (:area p) :stage (:stage p) :event-streams ev-map}]
