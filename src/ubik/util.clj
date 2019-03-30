@@ -19,7 +19,7 @@
    :output-fn identity
    :fn (fn [x]
          (let [data (first (:vargs x))
-               meta (select-keys x [:instant :level :?ns-str :?line :?file])]
+               meta (select-keys x [:instant :level])]
            (spit logfile (str {:message data :metadata meta} "\n")
                  :append true)))})
 
@@ -34,4 +34,4 @@
   ([level data]
    (log/log level data))
   ([level msg & msgs]
-   (log level (apply str msg msgs))))
+   (log level (apply str msg (interleave (repeat " ") msgs)))))
