@@ -1,0 +1,2 @@
+^{:watch-dirs ["src"]}
+{:main ubik-front.core}

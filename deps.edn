@@ -1,5 +1,7 @@
-{:deps  {com.taoensso/timbre         {:mvn/version "4.10.0"}
-         macroexpanse/falloleen      {:local/root "/home/thomas/projects/falloleen"}
+{:deps  {com.cognitect/transit-clj   {:mvn/version "0.8.313"}
+         com.taoensso/timbre         {:mvn/version "4.10.0"}
+         http-kit                    {:mvn/version "2.3.0"}
+         com.macroexpanse/falloleen  {:local/root "/home/thomas/projects/falloleen"}
          org.clojure/clojure         {:mvn/version "1.10.0"}
          org.clojure/core.async      {:mvn/version "0.4.490"}
          commons-codec/commons-codec {:mvn/version "1.12"}}
