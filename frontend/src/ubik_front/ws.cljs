@@ -10,8 +10,6 @@
 ;;;;; Transit
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(println (record-read-handlers "Style"))
-
 (def reader-map
   (record-read-handlers
    "Style"
