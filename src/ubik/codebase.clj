@@ -35,10 +35,11 @@
 ;;;;; Namespaces
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn advance-branch [[sym ref]]
+  (store/intern config/*branch* (store/ns-sym sym ref)))
+
 (defn populate-nses [m]
-  (run! (fn [[sym ref]]
-          (store/intern config/*branch* (store/ns-sym sym ref)))
-        m))
+  (run! advance-branch m))
 
 (defn current-ns-map
   "Returns the ns-map of the current branch. The ns map is a map whose keys are
@@ -46,33 +47,6 @@
   strings) to ns entries."
   []
   (store/as-map config/*branch*))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Snippets
-;;
-;; Snippets are minimal, meaningful, fragments of code.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn create-snippet
-  "Expects a map with keys :form and :links. Returns the stored snippet matching
-  the given code, creating a new entry if necessary."
-  [snip]
-  (store/intern config/*code* snip))
-
-(defmacro snippet
-  "Syntactic sugar for writing linked snippets."
-  {:style/indent [1]}
-  [bindings expr]
-  `(create-snippet {:form  '~expr
-                    :links '~bindings}))
-
-(defn edit
-  "Returns code of snippet in a form, which when edited and evalled, will create
-  a new snippet."
-  [id]
-  (let [{:keys [form links]} (store/lookup config/*code* id)]
-    `(snippet ~links
-       ~form)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Working with codebase images
@@ -105,3 +79,54 @@
   "Returns a map of all snippets ever created indexed by id."
   []
   (store/as-map config/*code*))
+
+(defn resolve-links
+  "Links must always point to concrete SHAs. If a link is given as an ns
+  qualified symbol, then look up the sha that that symbol points to right now."
+  ;; REVIEW: Very convenient for bootstrapping, but requires multiple loads to
+  ;; get right. Is it worth it long term?
+  [m]
+  (into {}
+        (map (fn [[k v]]
+               [k (if (string? v)
+                    v
+                    (:ref (lookup v)))])
+             m)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Snippets
+;;
+;; Snippets are minimal, meaningful, fragments of code.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn create-snippet
+  "Expects a map with keys :form and :links. Returns the stored snippet matching
+  the given code, creating a new entry if necessary."
+  [snip]
+  (store/intern config/*code* snip))
+
+(defmacro snippet
+  "Syntactic sugar for writing linked snippets."
+  {:style/indent [1]}
+  [bindings expr]
+  `(create-snippet {:form  '~expr
+                    :links (resolve-links '~bindings)}))
+
+(defn edit
+  "Returns code of snippet in a form, which when edited and evalled, will create
+  a new snippet."
+  [id]
+  (let [{:keys [form links]} (store/lookup config/*code* id)]
+    `(snippet ~links
+       ~form)))
+
+(def ^:dynamic *update-branch* false)
+
+(defmacro sdef
+  ([n s]
+   `(sdef ~n "" ~s))
+  ([n doc s]
+  `(do
+     (def ~n ~doc ~s)
+     (when *update-branch*
+       (advance-branch [~(keyword "core" (name n)) (:sha1 (meta ~n)) ])))))

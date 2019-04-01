@@ -1,72 +1,69 @@
 (ns ubik.codeless
   (:require [falloleen.core :as falloleen]
             [falloleen.hosts :as hosts]
-            [ubik.codebase :as code]
+            [ubik.codebase :as code :refer [sdef]]
             [ubik.res.code-gen :as gen]
             [ubik.codebase.storage :as store]
             [ubik.codebase.config :as config]
             [ubik.process :as process]
             [ubik.topology :as topo]))
 
-(def edits
+(sdef edits
   (code/snippet {}
     (fn [ev]
       (:text ev))))
 
-(def form
+(sdef form
   (code/snippet {}
     {:edit (fn [prev text]
              (try
                {:emit (read-string text)}
                (catch Exception e {:unreadable text})))}))
 
-(def format-code-text
+(sdef format-code-text
   (code/snippet {}
     (fn [form]
       (with-out-str (pprint form)))))
 
-(def ns-ref
+(sdef ns-ref
   (code/snippet {}
     (fn [image sym]
       (get-in image [(namespace sym) (name sym)]))))
 
-(def fn-snippet
+(sdef fn-snippet
   (code/snippet {ns-ref "6a61ed710da21fd941d5eb6d45320fab2a3f58f4"}
     (fn [image sym]
       (let [ref (ns-ref image sym)]
         [(:name ref)
          (edit (:ref ref))]))))
 
-(def display
-  (code/snippet {lookup {:ref  :core/fn-snippet
-                         :time #inst "2019-03-26T22:59:54.099-00:00"}}
+(sdef display
+  (code/snippet {lookup :core/fn-snippet}
     (fn [sym]
       (fn [image]
         (second (lookup image sym))))))
 
-(def ns-lookup
+(sdef ns-lookup
   (code/snippet {ns-ref "6a61ed710da21fd941d5eb6d45320fab2a3f58f4"}
     (fn [image sym]
       (let [ref (ns-ref image sym)]
         [(:name ref) (invoke-by-id (:ref ref))]))))
 
-(def fn-map
-  (code/snippet {ns-lookup {:ref :core/ns-lookup
-                            :time #inst "2019-03-28T02:43:21.576-00:00"}}
+(sdef fn-map
+  (code/snippet {ns-lookup :core/ns-lookup}
     (fn [image syms]
       (into {} (map (partial ns-lookup image)) syms))))
 
-(def extract-deps
+(sdef extract-deps
   "I've only named these as vars for the ease of reference"
-  (code/snippet {fn-map {:ref :core/fn-map
-                         :time #inst "2019-03-28T02:43:48.232-00:00"}}
+  (code/snippet {fn-map :core/fn-map}
     (fn [image]
       (fn-map image [:core/display
                      :core/format-code-text
                      :core/edits
                      :core/form]))))
 
-(def edit-multi
+(sdef edit-multi
   "Multiplexer that takes inputs from two signals and produces a new signal
   which emits the combination each time either input changes."
   (code/snippet {}
@@ -81,7 +78,7 @@
                  (assoc s' :emit s')
                  s')))}))
 
-(def snip-edit-topology
+(sdef snip-edit-topology
   "Creates an editor window and returns a messaging topology to control it."
   (code/snippet {}
     (fn [{{:keys [core/display
@@ -131,13 +128,10 @@
                   [{:edit :ed/edits} :ed/form]
                   [:ed/form :ed/code-change]}}))))
 
-(def meta-topo
-  (code/snippet {edit-multi   {:ref  :core/edit-multi
-                               :time #inst "2019-03-26T22:45:31.198-00:00"}
-                 extract-deps {:ref  :core/extract-deps
-                               :time #inst "2019-03-28T02:44:08.611-00:00"}
-                 topo-fac     {:ref  :core/snip-edit-topology
-                               :time #inst "2019-03-26T22:45:31.198-00:00"}}
+(sdef meta-topo
+  (code/snippet {edit-multi   :core/edit-multi
+                 extract-deps :core/extract-deps
+                 topo-fac     :core/snip-edit-topology}
 
     {:nodes [(signal :mt/input)
              (process :mt/sub-image (map extract-deps))

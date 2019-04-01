@@ -25,20 +25,10 @@
     (run! #(intern internal %)
          (map interned-var-name ks))))
 
-(defn ns-link? [link]
-  (and (keyword? (:ref link)) (inst? (:time link))))
-
-(defn lookup-link [link]
-  (when-let [ref (codebase/lookup (:ref link) (:time link))]
-    (full-var-name (:ref ref))))
-
 (defn gen-ref [link]
-  (let [r (cond
-            (string? link)  (full-var-name link)
-            (ns-link? link) (lookup-link link))]
-    (if (instance? clojure.lang.IMeta r)
-      (with-meta r {:link link})
-      r)))
+  {:pre [(string? link)]}
+  (with-meta (full-var-name link)
+    {:id link}))
 
 (defn gen-code-for-body
   [{:keys [form links]}]
@@ -46,7 +36,7 @@
                      (let [v (gen-ref id)]
                        (when (nil? v)
                          (util/log :error "Broken link:" id))
-                       `[~n (with-meta (force ~v) ~(meta v)) ]))
+                       `[~n (with-meta (force ~v) ~(meta v))]))
                    links)]
      ~form))
 
@@ -90,7 +80,7 @@
   (load-ns)
   (let [v @@(id-var id)]
     (if (instance? clojure.lang.IMeta v)
-      (with-meta v {:link id})
+      (with-meta v {:id id})
       v)))
 
 (defn invoke-head

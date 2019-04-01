@@ -201,7 +201,7 @@
                     (assoc-in nses [ns sym] m)
                     (update nses ns dissoc sym))))
               {}
-              (line-seq rdr) ))))
+              (line-seq rdr)))))
 
 (defn cached-branch [init]
   (let [history (ref init)
