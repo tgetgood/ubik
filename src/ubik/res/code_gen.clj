@@ -1,6 +1,6 @@
 (ns ubik.res.code-gen
   (:require [clojure.string :as string]
-            [falloleen.core :as falloleen]
+            [falloleen.core :as f]
             [clojure.pprint :refer [pprint]]
             [ubik.codebase :as codebase]
             [ubik.res.builtin :refer :all]

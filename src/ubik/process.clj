@@ -66,6 +66,33 @@
 (defn signal [name]
   (BasicSignal. name (atom nil) (atom {})))
 
+;; REVIEW: This feels wrong
+(defrecord NetworkTransmitter [name send-effector]
+  Signal
+  (send [this message]
+    (locking this
+      (send-effector message)))
+
+  Multiplexer
+  (wire [this _ sig]
+    (listen sig name
+      (partial send this))))
+
+(defrecord NetworkReceiver [name listeners]
+  Signal
+  (send [this message]
+    (locking this
+      (run! (fn [[k v]] (v message)) @listeners)))
+  (listen [this name cb]
+    (locking this
+      (swap! listeners assoc name cb))))
+
+(defn channel-sender [name ch]
+  (NetworkTransmitter. name (fn [m] (async/put! ch m))))
+
+(defn channel-listener [name]
+  (NetworkReceiver. name (atom {})))
+
 (defrecord MProcess [name method-map output-signal input-queue previous]
   Signal
   (send [this message]

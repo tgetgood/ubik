@@ -123,10 +123,11 @@
 (def ^:dynamic *update-branch* false)
 
 (defmacro sdef
+  {:style/indent [1]}
   ([n s]
    `(sdef ~n "" ~s))
   ([n doc s]
   `(do
      (def ~n ~doc ~s)
      (when *update-branch*
-       (advance-branch [~(keyword "core" (name n)) (:sha1 (meta ~n)) ])))))
+       (advance-branch [~(keyword "core" (name n)) (:sha1 (meta ~n))])))))

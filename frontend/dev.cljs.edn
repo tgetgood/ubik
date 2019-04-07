@@ -1,2 +1,4 @@
-^{:watch-dirs ["src"]}
+^{:watch-dirs ["src"]
+  :css-dirs   ["resources/public/css"]
+  :open-url   false}
 {:main ubik-front.core}

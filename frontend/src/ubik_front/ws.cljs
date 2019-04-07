@@ -1,4 +1,5 @@
 (ns ubik-front.ws
+  "Mostly pinched from Chord (https://github.com/jarohen/chord/)."
   (:require [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :as p]
             [cognitect.transit :as transit]

@@ -144,24 +144,6 @@
               [:mt/combined :mt/topo]
               [:mt/topo :mt/out]}}))
 
-(def starting-ns
-  {:core/display            display
-   :core/format-code-text   format-code-text
-   :core/edits              edits
-   :core/form               form
-   :core/ns-lookup          ns-lookup
-   :core/ns-ref             ns-ref
-   :core/fn-map             fn-map
-   :core/extract-deps       extract-deps
-   :core/edit-multi         edit-multi
-   :core/snip-edit-topology snip-edit-topology
-   :core/meta-topo          meta-topo
-   :core/fn-snippet         fn-snippet})
-
-;; Only do this once or it will really mess up your zen.
-#_(code/populate-nses (into {} (map (fn [[k v]] [k (:sha1 (meta v))]))
-                          starting-ns))
-
 (defn init []
   (gen/reload!)
   (topo/destroy!)
@@ -170,4 +152,32 @@
 (defn edit
   "Open editor for sym."
   [sym]
-  (process/send (:mt/input @topo/node-map) sym))
+  (process/send (:mt/input (:nodes @topo/topology)) sym))
+
+(sdef topology-visual
+  (code/snippet {}
+    (fn [{:keys [nodes wires]}]
+      (falloleen/translate
+       (let [c (assoc (falloleen/circle :radius 10))]
+         (mapv #(falloleen/translate c [% 0])
+               (map #(* % 30) (range (count nodes)))))
+       [0 200]))))
+
+(sdef tvt
+  (code/snippet {tv :core/topology-visual}
+    {:nodes [(process ::tv (map tv))]
+     :wires [[::topo/topology ::tv]
+             [::tv ::topo/screen]]}))
+
+(defn go-top! []
+  (topo/init-topology! (gen/invoke-head :core/tvt)))
+
+(sdef screen
+  (code/snippet {}
+    (-> f/circle
+        (assoc :radius 40)
+        (f/style {:opacity 0.4 :fill :pink}))))
+
+(sdef structural-edit-topology
+  (code/snippet {screen :core/screen}
+    {:nodes []}))

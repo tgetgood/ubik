@@ -2,5 +2,7 @@
          com.macroexpanse/falloleen {:local/root "/home/thomas/projects/falloleen"}
          org.clojure/clojure        {:mvn/version "1.10.0"}
          org.clojure/clojurescript  {:mvn/version "1.10.339"}
-         org.clojure/core.async     {:mvn/version "0.4.490"}}
+         org.clojure/core.async     {:mvn/version "0.4.490"}
+         paren-soup                 {:mvn/version "2.14.3"}
+         cljsjs/codemirror          {:mvn/version "5.44.0-1"}}
  :paths ["src" "resources"]}

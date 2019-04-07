@@ -28,3 +28,7 @@
 {:name :core/edit-multi, :ref "fe13fa46c99badc9743195996c99431f3a32a410", :time #inst "2019-04-01T16:53:14.163-00:00", :op :add}
 {:name :core/edit-multi, :ref "fe13fa46c99badc9743195996c99431f3a32a410", :time #inst "2019-04-01T16:53:18.460-00:00", :op :retract}
 {:name :core/edit-multi, :ref "8cf833f7a5c45168251e508b7de3d972fc464c94", :time #inst "2019-04-01T16:53:18.458-00:00", :op :add}
+{:name :core/edit-multi, :ref "8cf833f7a5c45168251e508b7de3d972fc464c94", :time #inst "2019-04-02T02:51:38.680-00:00", :op :retract}
+{:name :core/edit-multi, :ref "fe13fa46c99badc9743195996c99431f3a32a410", :time #inst "2019-04-02T02:51:38.676-00:00", :op :add}
+{:name :core/topology-visual, :ref "357256d4b475bafcdf905f7164d6ec98f75c50eb", :time #inst "2019-04-02T02:51:38.703-00:00", :op :add}
+{:name :core/tvt, :ref "0d6ddf89979af1f6ccce3601f1dc83159db0b5fe", :time #inst "2019-04-02T02:51:38.715-00:00", :op :add}
