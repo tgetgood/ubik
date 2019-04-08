@@ -18,7 +18,8 @@
       (when-not (= text @last-text)
         (reset! last-text text)
         (when @ws
-          (async/put! @ws {:text-modified text}))))))
+          (async/put! @ws {:signal :ubik.core/edits
+                           :message text}))))))
 
 (def editor
   (soup/init (js/document.getElementById "paren-soup")
@@ -34,7 +35,6 @@
 (def last-draw (atom nil))
 
 (defn render! [im]
-  (.log js/console im)
   (when-not (= im @last-draw)
     (reset! last-draw im)
     (f/draw! im host)))

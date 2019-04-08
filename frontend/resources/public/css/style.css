@@ -1,3 +1,7 @@
+HTML {
+		height: 100%;
+}
+
 body {
 		height: 100%;
 		margin: 0;
@@ -9,12 +13,13 @@ body {
 
 .paren-soup {
 		height: 100%;
-		width: 50%;
-		max-width: 40em;
+		width: 40%;
+		float: left;
 }
 
 #app {
 		height: 100%;
-		width: 40%;
-		float: right;
+		width: 60%;
+		margin-left: 40%;
+		overflow: hidden;
 }

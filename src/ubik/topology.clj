@@ -11,9 +11,13 @@
 (def topology-signal (process/signal ::topology))
 
 (def initial-topology
-  {:nodes {::image    codebase/image-signal
-           ::topology topology-signal
-           ::screen   (process/effector ::screen core/render)}
+  {:nodes {::image        codebase/image-signal
+           ::topology     topology-signal
+           ::screen       (process/effector ::screen core/render)
+           ::code-display (process/effector ::screen core/display-code)
+
+           ::core/interactions core/interactions
+           ::core/edits        core/code-edits}
    :wires {}})
 
 (def topology
