@@ -178,6 +178,8 @@
         (assoc :radius 40)
         (f/style {:opacity 0.4 :fill :pink}))))
 
+
 (sdef structural-edit-topology
   (code/snippet {screen :core/screen}
-    {:nodes []}))
+    {:nodes []
+     :wires [[]]}))

@@ -1,7 +1,7 @@
 (ns ubik.topology
   (:require [clojure.pprint :refer [pprint]]
             [ubik.codebase :as codebase]
-            [ubik.core :as core]
+            [ubik.server :as server]
             [ubik.process :as process]
             [ubik.util :as util]))
 
@@ -13,11 +13,11 @@
 (def initial-topology
   {:nodes {::image        codebase/image-signal
            ::topology     topology-signal
-           ::screen       (process/effector ::screen core/render)
-           ::code-display (process/effector ::screen core/display-code)
+           ::screen       (process/effector ::screen server/render)
+           ::code-display (process/effector ::screen server/display-code)
 
-           ::core/interactions core/interactions
-           ::core/edits        core/code-edits}
+           ::server/interactions server/interactions
+           ::server/edits        server/code-edits}
    :wires {}})
 
 (def topology

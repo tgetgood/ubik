@@ -18,7 +18,7 @@
       (when-not (= text @last-text)
         (reset! last-text text)
         (when @ws
-          (async/put! @ws {:signal :ubik.core/edits
+          (async/put! @ws {:signal :ubik.server/edits
                            :message text}))))))
 
 (def editor
