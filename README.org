@@ -9,8 +9,9 @@ programming.
 	 solved by an element of the lambda calculus — if you can perform the entire
 	 thing with just pure functions — then it will be fairly straight forward to
 	 implement correctly in any modern language. Functional languages take this to
-	 an extreme, but even C programming is pretty simple if you don't need to read
-	 from disk, talk to a network, or do any coordination between threads, etc..
+	 an extreme, but even C programming is compartively simple if you don't need
+	 to read from disk, talk to a network, or do any coordination between threads,
+	 etc..
 
 	 Our languages are *computation* languages. They control Turing machines.
 
