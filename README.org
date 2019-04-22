@@ -3,6 +3,10 @@
 Ubik is a coordination language built for my own experiments in graphics and UI
 programming.
 
+First and foremost, this project is a living thought experiment in code. I would
+love feedback and ideas, criticism, comments, and heckling, but everything is
+liable to change with neither notice nor apologies.
+
 * Overview
 ** Coodination Language?
 	 Our languages today are really good at computation. If your problem can be
@@ -75,9 +79,9 @@ programming.
 		controllers (discs, graphics cards, sound chips, etc.), human beings (UIs),
 		or other machines on the internet.
 
-		Signals between these processes (especially within machines) travel at a
-		reasonable fraction of the speed of light. A basic consequence of this is
-		that there is no global order to events within the system.
+		Signals between these processes travel at a reasonable fraction of the speed
+		of light. A basic consequence of this is that there is no global order to
+		events within the system.
 
 		Systems like [[https://en.wikipedia.org/wiki/Spanner_(database)][Spanner]] solve this problem by creating a coordinate frame bigger
 		than the earth with the help of GPS and atomic clocks. This is an impressive
